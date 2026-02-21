@@ -239,6 +239,10 @@ BoltzPay works with major AI agent frameworks — TypeScript and Python.
 
 ### Vercel AI SDK
 
+```bash
+npm install @boltzpay/ai-sdk ai @boltzpay/sdk
+```
+
 ```ts
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
@@ -252,28 +256,37 @@ const { text } = await generateText({
 });
 ```
 
-```bash
-npm install @boltzpay/ai-sdk ai @boltzpay/sdk
-```
+7 tools: fetch, quote, check, discover, budget, history, wallet. [Full docs](https://docs.boltzpay.ai)
 
 ### LangChain (Python)
-
-```python
-from langchain_boltzpay import BoltzPayFetchTool, BoltzPayDiscoverTool
-
-tools = [BoltzPayDiscoverTool(), BoltzPayFetchTool()]
-# Use with any LangChain agent — tools call @boltzpay/cli via subprocess
-```
 
 ```bash
 pip install langchain-boltzpay
 ```
 
-Requires Node.js 20+ (the CLI bridge calls `npx @boltzpay/cli` under the hood).
+```python
+from langchain_boltzpay import BoltzPayFetchTool, BoltzPayDiscoverTool
+
+tools = [BoltzPayDiscoverTool(), BoltzPayFetchTool()]
+result = tools[0].invoke({})  # Discover available APIs
+```
+
+Requires Node.js 20+ (the CLI bridge calls `npx @boltzpay/cli` under the hood). [Full docs](https://docs.boltzpay.ai)
 
 ### CrewAI (Python)
 
-Works natively via MCP — no Python package needed:
+```bash
+pip install boltzpay-crewai
+```
+
+```python
+from boltzpay_crewai import BoltzPayTool
+
+tool = BoltzPayTool()
+result = tool._run(command="discover")  # Browse paid APIs
+```
+
+Also works natively via MCP — no Python package needed:
 
 ```python
 from crewai_tools import MCPServerAdapter
@@ -287,11 +300,15 @@ with MCPServerAdapter(server_params) as tools:
     agent = Agent(role="Researcher", tools=tools)
 ```
 
-Or use the CLI bridge tools: `pip install boltzpay-crewai`
-
 ### n8n
 
-Install `@boltzpay/n8n-nodes-boltzpay` via **Settings > Community Nodes** in n8n. 4 operations: Fetch, Check, Quote, Discover.
+Install via **Settings > Community Nodes** in n8n:
+
+```
+@boltzpay/n8n-nodes-boltzpay
+```
+
+4 operations: Fetch, Check, Quote, Discover. Configure Coinbase CDP credentials in n8n's credential manager. [Full docs](https://docs.boltzpay.ai)
 
 ### OpenClaw
 
