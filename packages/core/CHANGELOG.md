@@ -1,5 +1,11 @@
 # @boltzpay/core
 
+## 0.1.2
+
+### Patch Changes
+
+- [`a5daa2c`](https://github.com/leventilo/boltzpay/commit/a5daa2cc4a4963882b9f6247d715e4a33eb8bb28) Thanks [@leventilo](https://github.com/leventilo)! - Initial publish with repository provenance
+
 ## 0.1.1
 
 ### Patch Changes
