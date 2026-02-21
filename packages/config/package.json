@@ -1,0 +1,11 @@
+{
+  "name": "@boltzpay/config",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./tsconfig/*": "./tsconfig/*.json"
+  },
+  "files": [
+    "tsconfig"
+  ]
+}

@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.astro/
+out/
+.turbo/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# n8n integration
+integrations/n8n/package-lock.json
+
+# Archive (test results, old planning, one-off scripts)
+.archive/
+
+# Planning (GSD development artifacts)
+.planning/
+
+# Claude Code tooling
+.claude/
+CLAUDE.md
+RULES.md
+
+# Example lock files
+examples/test-server/package-lock.json
+
+# TypeScript incremental
+*.tsbuildinfo
+
+# npm pack
+*.tgz
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Cache
+.cache/
+
