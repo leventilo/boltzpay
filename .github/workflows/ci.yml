@@ -50,3 +50,39 @@ jobs:
 
       - name: Check package sizes
         run: pnpm run check:size
+
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm turbo build
+
+      - name: Test langchain-boltzpay
+        working-directory: integrations/langchain
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -v
+
+      - name: Test boltzpay-crewai
+        working-directory: integrations/crewai
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -v

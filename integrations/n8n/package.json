@@ -28,7 +28,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@boltzpay/sdk": "file:../../packages/sdk"
+    "@boltzpay/sdk": "workspace:*"
   },
   "peerDependencies": {
     "n8n-workflow": "^1.0.0"
