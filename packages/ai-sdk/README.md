@@ -1,6 +1,8 @@
+[![npm](https://img.shields.io/npm/v/@boltzpay/ai-sdk)](https://www.npmjs.com/package/@boltzpay/ai-sdk) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-blue.svg)](https://www.typescriptlang.org/)
+
 # @boltzpay/ai-sdk
 
-Vercel AI SDK tools for BoltzPay — give your AI agent a `fetch()` that pays automatically via x402 and L402 protocols.
+Vercel AI SDK tools for BoltzPay — 7 tools that give your AI agent the ability to discover, quote, and pay for APIs.
 
 ## Install
 
@@ -23,13 +25,17 @@ const { text } = await generateText({
 });
 ```
 
-## Full Example (with Coinbase credentials)
+## Features
+
+- **7 AI tools** — fetch, quote, check, discover, budget, history, wallet
+- **Drop-in integration** — Works with `generateText`, `streamText`, and agent loops
+- **Explore mode** — Discover, check, and quote without credentials
+- **Payment mode** — Pass Coinbase CDP credentials for automatic payments
+- **Pre-built SDK instance** — Use your own `BoltzPay` instance for full control
+
+## With Credentials
 
 ```ts
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { boltzpayTools } from "@boltzpay/ai-sdk";
-
 const { text } = await generateText({
   model: openai("gpt-4.1"),
   tools: boltzpayTools({
@@ -41,44 +47,9 @@ const { text } = await generateText({
   maxSteps: 5,
   prompt: "Fetch the latest crypto data from https://invy.bot/api",
 });
-
-console.log(text);
 ```
 
-## Tools Reference
-
-| Tool | Description | Requires Credentials |
-|------|-------------|---------------------|
-| `boltzpay_fetch` | Fetch data from a paid API. Auto-detects protocol, pays, returns response. | Yes |
-| `boltzpay_check` | Check if a URL requires payment. Returns protocol and price. | No |
-| `boltzpay_quote` | Get a detailed price quote with multi-chain options. | No |
-| `boltzpay_discover` | Browse the directory of compatible paid APIs. | No |
-| `boltzpay_budget` | View current budget limits and spending. | No |
-| `boltzpay_history` | View payment history for this session. | No |
-| `boltzpay_wallet` | View wallet info, chains, and balances. | No |
-
-## Configuration
-
-### Without credentials (read-only mode)
-
-Discover, check, and quote tools work without any credentials:
-
-```ts
-const tools = boltzpayTools();
-```
-
-### With Coinbase credentials (full payment mode)
-
-```ts
-const tools = boltzpayTools({
-  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID,
-  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET,
-  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET,
-  budget: { daily: "10.00" },
-});
-```
-
-### With pre-built SDK instance
+## With Pre-built SDK Instance
 
 ```ts
 import { BoltzPay } from "@boltzpay/sdk";
@@ -87,6 +58,18 @@ const sdk = new BoltzPay({ /* config */ });
 const tools = boltzpayTools(sdk);
 ```
 
+## Tools Reference
+
+| Tool | Description | Requires Credentials |
+|------|-------------|:--------------------:|
+| `boltzpay_fetch` | Fetch data from a paid API, auto-detect and pay | Yes |
+| `boltzpay_check` | Check if a URL requires payment | No |
+| `boltzpay_quote` | Get a detailed price quote with multi-chain options | No |
+| `boltzpay_discover` | Browse the directory of compatible paid APIs | No |
+| `boltzpay_budget` | View current budget limits and spending | No |
+| `boltzpay_history` | View payment history for this session | No |
+| `boltzpay_wallet` | View wallet info, chains, and balances | No |
+
 ## Protocols & Chains
 
 - **x402** — HTTP 402 payment protocol (Base, Solana)
@@ -94,9 +77,14 @@ const tools = boltzpayTools(sdk);
 
 ## Links
 
-- [BoltzPay GitHub](https://github.com/leventilo/boltzpay)
-- [BoltzPay SDK](https://www.npmjs.com/package/@boltzpay/sdk)
+- [Documentation](https://docs.boltzpay.ai)
+- [GitHub](https://github.com/leventilo/boltzpay)
+- [SDK](https://www.npmjs.com/package/@boltzpay/sdk)
 - [Vercel AI SDK](https://ai-sdk.dev)
+
+## Part of BoltzPay
+
+This package is part of the [BoltzPay](https://github.com/leventilo/boltzpay) open-source SDK — giving AI agents the ability to pay for APIs automatically.
 
 ## License
 

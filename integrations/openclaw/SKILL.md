@@ -1,6 +1,6 @@
 ---
 name: boltzpay
-description: Pay for API data automatically — multi-protocol (x402 + L402), multi-chain (Base + Solana)
+description: Pay for API data automatically — multi-protocol (x402 + L402), multi-chain
 metadata: {"openclaw": {"emoji": "\u26a1", "requires": {"bins": ["npx"]}, "install": [{"id": "boltzpay-cli", "kind": "node", "label": "BoltzPay CLI"}]}}
 ---
 
