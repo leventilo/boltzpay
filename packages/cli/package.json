@@ -1,0 +1,59 @@
+{
+  "name": "@boltzpay/cli",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "leventilo (https://github.com/leventilo)",
+  "description": "CLI for BoltzPay — fetch paid APIs from the terminal",
+  "keywords": ["boltzpay", "cli", "payment", "api", "x402", "l402"],
+  "homepage": "https://github.com/leventilo/boltzpay#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leventilo/boltzpay.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/leventilo/boltzpay/issues"
+  },
+  "type": "module",
+  "bin": {
+    "boltzpay": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist",
+    "check:exports": "publint --strict && attw --pack . --ignore-rules cjs-resolves-to-esm"
+  },
+  "dependencies": {
+    "@boltzpay/sdk": "workspace:*",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@boltzpay/config": "workspace:*",
+    "@types/node": "^22.15.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "name": "@boltzpay/mcp",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "leventilo (https://github.com/leventilo)",
+  "description": "MCP server for BoltzPay — add paid API access to Claude Desktop",
+  "keywords": ["boltzpay", "mcp", "claude", "ai", "agent", "payment"],
+  "homepage": "https://github.com/leventilo/boltzpay#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leventilo/boltzpay.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/leventilo/boltzpay/issues"
+  },
+  "type": "module",
+  "bin": {
+    "boltzpay-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist",
+    "check:exports": "publint --strict && attw --pack . --ignore-rules cjs-resolves-to-esm"
+  },
+  "dependencies": {
+    "@boltzpay/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "dotenv": "^17.3.1",
+    "zod": "^4.3.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@boltzpay/config": "workspace:*",
+    "@types/node": "^22.15.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  }
+}
