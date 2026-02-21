@@ -1,10 +1,17 @@
 {
   "name": "@boltzpay/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "MCP server for BoltzPay — add paid API access to Claude Desktop",
-  "keywords": ["boltzpay", "mcp", "claude", "ai", "agent", "payment"],
+  "keywords": [
+    "boltzpay",
+    "mcp",
+    "claude",
+    "ai",
+    "agent",
+    "payment"
+  ],
   "homepage": "https://github.com/leventilo/boltzpay#readme",
   "repository": {
     "type": "git",
