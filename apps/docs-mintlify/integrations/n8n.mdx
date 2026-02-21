@@ -1,0 +1,90 @@
+---
+title: n8n
+description: Community node for paying APIs directly in n8n workflows.
+---
+
+## Install
+
+<Tabs>
+  <Tab title="Community Nodes (recommended)">
+    1. In n8n, go to **Settings > Community Nodes**
+    2. Click **Install**
+    3. Enter `@boltzpay/n8n-nodes-boltzpay`
+    4. Click **Install**
+  </Tab>
+  <Tab title="npm">
+    ```bash
+    npm install @boltzpay/n8n-nodes-boltzpay
+    ```
+  </Tab>
+</Tabs>
+
+## Credentials
+
+Some operations require Coinbase CDP keys to sign payment transactions.
+
+1. In n8n, go to **Credentials > New**
+2. Search for **BoltzPay**
+3. Enter your Coinbase CDP credentials (API Key ID, API Key Secret, Wallet Secret)
+
+Get your keys from [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/).
+
+<Info>
+  `Check`, `Quote`, and `Discover` work without credentials. Only `Fetch` requires them.
+</Info>
+
+## Operations
+
+| Operation | Description | Credentials |
+|-----------|-------------|:-----------:|
+| **Fetch** | Fetch and pay for API data. Handles x402/L402 automatically. | Yes |
+| **Check** | Check if a URL requires payment. Returns protocol and price. | No |
+| **Quote** | Get price quote with multi-chain options. | No |
+| **Discover** | Browse compatible paid APIs. Filter by category. | No |
+
+### Fetch
+
+Fetches data from a paid API endpoint. Handles payment negotiation automatically.
+
+Parameters: URL, HTTP Method (GET/POST/PUT), Chain (Auto/EVM/SVM).
+
+```json title="Output"
+{
+  "status": 200,
+  "body": "{\"data\": \"...\"}",
+  "payment": {
+    "protocol": "x402",
+    "amount": "$0.05",
+    "txHash": "0x..."
+  }
+}
+```
+
+### Check
+
+Returns `isPaid`, protocol, price, and network. Useful for conditional workflow logic (IF node).
+
+### Quote
+
+Returns protocol, price, and multi-chain alternatives without executing payment.
+
+### Discover
+
+Lists API directory entries with name, URL, protocol, category, and pricing. Supports category filter: `crypto-data`, `utilities`, `demo`.
+
+## Workflow Examples
+
+### Check Before You Pay
+
+1. **Manual Trigger**
+2. **BoltzPay (Check)** on `https://invy.bot/api`
+3. **IF** branch on `isPaid === true`
+4. **BoltzPay (Fetch)** on the true branch
+5. **HTTP Request** on the false branch
+
+### API Discovery
+
+1. **Manual Trigger**
+2. **BoltzPay (Discover)** with category `crypto-data`
+3. **Filter** to select matching APIs
+4. **BoltzPay (Quote)** for live pricing on each result

@@ -1,0 +1,85 @@
+---
+const features = [
+  {
+    label: "Multi-Protocol",
+    detail: "x402 and L402 auto-detected at runtime — your agent calls fetch(), the SDK picks the right protocol, signs the payment, and returns the response",
+    size: "large",
+  },
+  {
+    label: "MCP Server",
+    detail: "7 tools for Claude, Cursor, and any MCP client — just npx @boltzpay/mcp",
+    size: "medium",
+  },
+  {
+    label: "Budget Control",
+    detail: "Daily and per-transaction spending limits",
+    size: "small",
+  },
+  {
+    label: "Payment Events",
+    detail: "Real-time callbacks on every payment",
+    size: "small",
+  },
+  {
+    label: "Multi-Chain",
+    detail: "Bitcoin Lightning, Base, Solana — one interface, any network",
+    size: "small",
+  },
+  {
+    label: "API Directory",
+    detail: "20+ verified paid endpoints, built-in",
+    size: "small",
+  },
+  {
+    label: "Lazy Credentials",
+    detail: "Read-only mode without keys — pay only when needed",
+    size: "small",
+  },
+  {
+    label: "Payment History",
+    detail: "Persistent log of every payment — query by session or date",
+    size: "small",
+  },
+];
+
+const large = features.filter((f) => f.size === "large");
+const medium = features.filter((f) => f.size === "medium");
+const small = features.filter((f) => f.size === "small");
+---
+
+<section id="features" class="px-6 py-16 md:py-24 lg:py-32">
+  <div class="mx-auto max-w-6xl">
+    <div class="animate-on-scroll">
+      <h2 class="font-serif text-3xl font-bold tracking-tight md:text-5xl" aria-label="Built for agents">Built for agents</h2>
+      <div class="glow-separator mt-4 w-12"></div>
+
+      <div class="mt-12 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+
+        <!-- Large card: spans 2 cols -->
+        {large.map((f) => (
+          <div class="rounded border border-dashed border-accent-warm/20 p-4 sm:col-span-2 sm:p-5 md:p-6 lg:col-span-2">
+            <p class="font-mono text-sm font-medium text-accent-warm">{f.label}</p>
+            <p class="mt-2 text-base leading-relaxed text-text-secondary">{f.detail}</p>
+          </div>
+        ))}
+
+        <!-- Medium card: 1 col -->
+        {medium.map((f) => (
+          <div class="rounded border border-dashed border-accent-warm/20 p-4 sm:p-5 md:p-6">
+            <p class="font-mono text-sm font-medium text-accent-warm">{f.label}</p>
+            <p class="mt-2 text-base leading-relaxed text-text-secondary">{f.detail}</p>
+          </div>
+        ))}
+
+        <!-- Small cards: 1 col each -->
+        {small.map((f) => (
+          <div class="rounded border border-dashed border-accent-warm/20 p-4 sm:p-5 md:p-6">
+            <p class="font-mono text-sm font-medium text-accent-warm">{f.label}</p>
+            <p class="mt-2 text-base leading-relaxed text-text-secondary">{f.detail}</p>
+          </div>
+        ))}
+
+      </div>
+    </div>
+  </div>
+</section>

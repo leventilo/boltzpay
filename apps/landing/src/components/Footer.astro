@@ -1,0 +1,100 @@
+<footer class="px-6 pb-8 pt-0 sm:pb-12">
+  <div class="mx-auto max-w-6xl">
+    <svg
+      viewBox="0 0 1200 60"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-10 sm:h-12 md:h-16 w-full"
+      aria-hidden="true"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <filter id="boltz-glow">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+        <linearGradient id="boltz-fade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="white" stop-opacity="0" />
+          <stop offset="8%" stop-color="white" stop-opacity="1" />
+          <stop offset="80%" stop-color="white" stop-opacity="1" />
+          <stop offset="100%" stop-color="white" stop-opacity="0" />
+        </linearGradient>
+        <mask id="boltz-mask">
+          <rect width="1200" height="60" fill="url(#boltz-fade)" />
+        </mask>
+      </defs>
+      <path
+        d="M 0,60 L 25,58.5 L 50,54.3 L 75,47.7 L 100,39.7 L 125,30.9 L 150,22.5 L 175,15.2 L 200,9.6 L 225,6.1 L 250,5.0 L 275,6.0 L 300,8.9 L 325,13.1 L 350,18.5 L 375,24.4 L 400,30.2 L 425,35.8 L 450,40.7 L 475,45.5 L 500,48.7 L 550,54.2 L 600,57.4 L 650,59.0 L 700,59.5 L 800,60 L 1200,60"
+        stroke="var(--color-accent-warm)"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        filter="url(#boltz-glow)"
+        mask="url(#boltz-mask)"
+        opacity="0.2"
+      />
+      <path
+        d="M 0,60 L 25,58.5 L 50,54.3 L 75,47.7 L 100,39.7 L 125,30.9 L 150,22.5 L 175,15.2 L 200,9.6 L 225,6.1 L 250,5.0 L 275,6.0 L 300,8.9 L 325,13.1 L 350,18.5 L 375,24.4 L 400,30.2 L 425,35.8 L 450,40.7 L 475,45.5 L 500,48.7 L 550,54.2 L 600,57.4 L 650,59.0 L 700,59.5 L 800,60 L 1200,60"
+        stroke="var(--color-accent-warm)"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        mask="url(#boltz-mask)"
+        opacity="0.45"
+      />
+    </svg>
+  </div>
+
+  <p class="text-gradient-warm mx-auto mt-6 max-w-6xl text-center font-serif text-base tracking-wide opacity-30 italic sm:text-right">
+    S = k<sub>B</sub> ln W
+  </p>
+
+  <div class="mx-auto mt-10 flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
+    <div class="text-center sm:text-left">
+      <p class="font-mono text-sm font-medium text-accent-warm">BoltzPay</p>
+      <p class="mt-1 font-mono text-xs text-text-secondary">
+        Built by
+        <a
+          href="https://github.com/leventilo"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="transition-colors hover:text-text-primary"
+        >leventilo</a>
+      </p>
+    </div>
+
+    <nav class="flex items-center gap-4 sm:gap-5 font-mono text-xs text-text-secondary">
+      <a
+        href="https://docs.boltzpay.ai"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="transition-colors hover:text-accent-warm"
+      >
+        Docs
+      </a>
+      <a
+        href="https://github.com/leventilo/boltzpay"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="transition-colors hover:text-accent-warm"
+      >
+        GitHub
+      </a>
+      <a
+        href="https://www.npmjs.com/package/@boltzpay/sdk"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="transition-colors hover:text-accent-warm"
+      >
+        npm
+      </a>
+      <a
+        href="https://github.com/leventilo/boltzpay/blob/main/LICENSE"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="transition-colors hover:text-accent-warm"
+      >
+        MIT License
+      </a>
+    </nav>
+  </div>
+</footer>

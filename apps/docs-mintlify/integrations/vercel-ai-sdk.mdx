@@ -1,0 +1,73 @@
+---
+title: Vercel AI SDK
+description: Add BoltzPay tools to any Vercel AI SDK project in 2 lines.
+---
+
+## Install
+
+```bash
+npm install @boltzpay/ai-sdk ai @boltzpay/sdk
+```
+
+## Quick Start
+
+```ts
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { boltzpayTools } from "@boltzpay/ai-sdk";
+
+const { text } = await generateText({
+  model: openai("gpt-4.1"),
+  tools: boltzpayTools(),
+  maxSteps: 5,
+  prompt: "Discover available paid APIs and check prices",
+});
+```
+
+No credentials needed. The agent can discover APIs, check prices, and get quotes for free.
+
+## Enable Payments
+
+Pass your Coinbase CDP credentials to let the agent pay for API data:
+
+```ts
+const { text } = await generateText({
+  model: openai("gpt-4.1"),
+  tools: boltzpayTools({
+    coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID,
+    coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET,
+    coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET,
+    budget: { daily: "5.00", perTransaction: "1.00" },
+  }),
+  maxSteps: 5,
+  prompt: "Fetch the latest crypto data from https://invy.bot/api",
+});
+```
+
+## Pre-built SDK Instance
+
+If you already have a `BoltzPay` instance, pass it directly:
+
+```ts
+import { BoltzPay } from "@boltzpay/sdk";
+import { boltzpayTools } from "@boltzpay/ai-sdk";
+
+const sdk = new BoltzPay({ /* config */ });
+const tools = boltzpayTools(sdk);
+```
+
+## Tools
+
+| Tool | Description | Credentials |
+|------|-------------|:-----------:|
+| `boltzpay_fetch` | Fetch data from a paid API. Auto-detects protocol, pays, returns response. | Yes |
+| `boltzpay_check` | Check if a URL requires payment. Returns protocol and price. | No |
+| `boltzpay_quote` | Get a detailed price quote with multi-chain options. | No |
+| `boltzpay_discover` | Browse the directory of compatible paid APIs. | No |
+| `boltzpay_budget` | View current budget limits and spending. | No |
+| `boltzpay_history` | View payment history for this session. | No |
+| `boltzpay_wallet` | View wallet info, chains, and balances. | No |
+
+<Info>
+  Only `boltzpay_fetch` requires Coinbase credentials. All other tools work in read-only mode with `boltzpayTools()` (no config).
+</Info>

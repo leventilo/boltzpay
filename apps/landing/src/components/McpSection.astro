@@ -1,0 +1,225 @@
+---
+const PHASE_SWITCH_DELAY = 3600;
+
+const tabs = [
+  { id: "mcp", label: "MCP", command: "npx @boltzpay/mcp" },
+  { id: "sdk", label: "SDK", command: "npm install @boltzpay/sdk" },
+  { id: "cli", label: "CLI", command: "npx @boltzpay/cli" },
+];
+
+const sdkCode = `<span class="text-accent-cyan">import</span> { BoltzPay } <span class="text-accent-cyan">from</span> <span class="text-accent-warm/80">"@boltzpay/sdk"</span>;
+
+<span class="text-accent-cyan">const</span> boltz = <span class="text-accent-cyan">new</span> BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET,
+});
+
+<span class="text-text-secondary">// That's it — fetch like normal</span>
+<span class="text-accent-cyan">const</span> res = <span class="text-accent-cyan">await</span> boltz.fetch(<span class="text-accent-warm/80">"https://api.example.com/data"</span>);
+<span class="text-text-secondary">// 402? SDK pays automatically, retries, returns 200</span>
+console.log(res.status); <span class="text-text-secondary">// 200</span>`;
+
+const cliCode = `<span class="text-accent-warm/50">$</span> boltzpay check https://nickeljoke.vercel.app/api/joke
+  <span class="text-text-secondary">Protocol: x402 · Price: $0.01 USDC · Chain: Base</span>
+
+<span class="text-accent-warm/50">$</span> boltzpay fetch https://nickeljoke.vercel.app/api/joke
+  <span class="text-status-live">✓</span> <span class="text-text-secondary">Paid $0.01 USDC via x402 on Base</span>
+  Why do programmers prefer dark mode?
+  Because light attracts bugs.
+
+<span class="text-accent-warm/50">$</span> boltzpay budget
+  <span class="text-text-secondary">Daily: $4.99 / $5.00 remaining</span>`;
+---
+
+<section id="mcp" class="px-6 py-16 md:py-24">
+  <div class="mx-auto max-w-6xl">
+    <div class="grid items-stretch gap-8 md:grid-cols-2 md:gap-16">
+
+      <div class="animate-on-scroll">
+        <h2 class="font-serif text-3xl font-bold tracking-tight md:text-5xl">Use it your way</h2>
+        <div class="glow-separator mt-4 w-12"></div>
+        <p class="mt-4 max-w-sm font-mono text-sm leading-relaxed text-text-secondary">
+          Three interfaces, one SDK. Pick the one that fits your stack.
+        </p>
+
+        <div class="mt-8 flex flex-col gap-2 md:mt-12" id="tab-commands">
+          {tabs.map((tab) => (
+            <button
+              data-tab-trigger={tab.id}
+              data-copy={tab.command}
+              class:list={[
+                "tab-cmd group flex items-center gap-2 rounded border px-3 py-3 font-mono text-xs transition-all sm:gap-3 sm:px-4 sm:py-2.5 sm:text-sm",
+                tab.id === "mcp"
+                  ? "border-accent-warm/30 bg-accent-warm/5 text-text-primary"
+                  : "border-divider/50 text-text-secondary hover:border-accent-warm/20 hover:text-text-primary",
+              ]}
+              aria-label={`Copy ${tab.command}`}
+            >
+              <span class="w-8 text-left text-xs font-medium uppercase tracking-wider text-accent-warm/70">{tab.label}</span>
+              <span class="text-accent-warm/40">$</span>
+              <span class="flex-1 text-left">{tab.command}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                class="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-50"
+                aria-hidden="true"
+              >
+                <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z" />
+                <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+              </svg>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div class="terminal-sim flex flex-col overflow-hidden rounded-lg border border-accent-warm/12 shadow-lg shadow-black/20" id="mcp-terminal" data-active="mcp">
+
+        <div class="flex items-center border-b border-accent-warm/8 bg-bg-secondary/60 px-4 py-2">
+          <span class="terminal-title font-mono text-[11px] text-text-secondary/60" data-titles='{"mcp":"claude","sdk":"app.ts","cli":"terminal"}'>claude</span>
+        </div>
+
+        <div class="relative min-h-[280px] flex-1 bg-bg-terminal font-mono text-xs leading-relaxed md:min-h-0 md:text-[13px] md:leading-relaxed">
+
+          <!-- MCP: animated install → conversation -->
+          <div class="tab-panel relative p-4 transition-opacity duration-300 md:p-5" data-panel="mcp">
+            <div class="t-phase t-phase-install">
+              <div class="t-line text-text-primary" style="--delay: 0ms">
+                <span class="text-accent-warm/50">$</span> npx @boltzpay/mcp
+              </div>
+              <div class="t-line text-text-secondary" style="--delay: 300ms"><span class="text-status-live">✓</span> fetch · check · quote · discover</div>
+              <div class="t-line text-text-secondary" style="--delay: 450ms"><span class="text-status-live">✓</span> budget · history · wallet</div>
+              <div class="t-line mt-2.5 text-status-live/80" style="--delay: 800ms">7 tools ready. Claude can now pay for APIs.</div>
+            </div>
+
+            <div class="t-phase t-phase-convo absolute inset-0 p-4 md:p-5">
+              <div class="t-line text-accent-warm" style="--delay: 200ms">› Find a joke API under $0.01 and fetch one</div>
+              <div class="t-line mt-2 text-accent-cyan" style="--delay: 900ms">● boltzpay_discover</div>
+              <div class="t-line text-text-secondary" style="--delay: 1100ms">  nickeljoke.vercel.app — $0.01/req · x402 · Base</div>
+              <div class="t-line mt-2 text-accent-cyan" style="--delay: 1600ms">● boltzpay_fetch nickeljoke.vercel.app/api/joke</div>
+              <div class="t-line text-text-secondary" style="--delay: 1900ms">  <span class="text-status-live">✓</span> Paid $0.01 USDC via x402 on Base</div>
+              <div class="t-line mt-3 text-text-primary" style="--delay: 2400ms">Why do programmers prefer dark mode?</div>
+              <div class="t-line text-text-primary" style="--delay: 2600ms">Because light attracts bugs.</div>
+              <span class="t-cursor" style="--delay: 3000ms">▎</span>
+            </div>
+          </div>
+
+          <!-- SDK: static code -->
+          <div class="tab-panel absolute inset-0 p-4 opacity-0 transition-opacity duration-300 md:p-5" data-panel="sdk">
+            <pre class="overflow-x-auto"><code set:html={sdkCode} /></pre>
+          </div>
+
+          <!-- CLI: static code -->
+          <div class="tab-panel absolute inset-0 p-4 opacity-0 transition-opacity duration-300 md:p-5" data-panel="cli">
+            <pre class="overflow-x-auto"><code set:html={cliCode} /></pre>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script define:vars={{ PHASE_SWITCH_DELAY }}>
+  const terminal = document.getElementById("mcp-terminal");
+  const triggers = document.querySelectorAll("[data-tab-trigger]");
+  const TAB_ORDER = ["mcp", "sdk", "cli"];
+  const AUTO_CYCLE_INTERVAL = 4000;
+
+  if (terminal && triggers.length) {
+    let cycleTimer = null;
+    let userInteracted = false;
+
+    function replayMcpAnimation() {
+      terminal.classList.remove("playing", "phase-2");
+      terminal.querySelectorAll(".t-phase-install .t-line, .t-phase-convo .t-line, .t-phase-convo .t-cursor").forEach((el) => {
+        el.style.animation = "none";
+        el.offsetHeight;
+        el.style.animation = "";
+      });
+      const installPhase = terminal.querySelector(".t-phase-install");
+      const convoPhase = terminal.querySelector(".t-phase-convo");
+      if (installPhase) { installPhase.style.opacity = ""; installPhase.style.transform = ""; }
+      if (convoPhase) { convoPhase.style.opacity = ""; }
+      requestAnimationFrame(() => {
+        terminal.classList.add("playing");
+        setTimeout(() => {
+          terminal.classList.add("phase-2");
+        }, PHASE_SWITCH_DELAY);
+      });
+    }
+
+    function switchTab(tab) {
+      terminal.setAttribute("data-active", tab);
+
+      const titleEl = terminal.querySelector(".terminal-title");
+      if (titleEl) {
+        const titles = JSON.parse(titleEl.getAttribute("data-titles") || "{}");
+        if (titles[tab]) titleEl.textContent = titles[tab];
+      }
+
+      terminal.querySelectorAll(".tab-panel").forEach((p) => {
+        const isActive = p.getAttribute("data-panel") === tab;
+        p.style.opacity = isActive ? "1" : "0";
+        p.style.pointerEvents = isActive ? "auto" : "none";
+      });
+
+      triggers.forEach((t) => {
+        const isActive = t.getAttribute("data-tab-trigger") === tab;
+        t.classList.toggle("border-accent-warm/30", isActive);
+        t.classList.toggle("bg-accent-warm/5", isActive);
+        t.classList.toggle("text-text-primary", isActive);
+        t.classList.toggle("border-divider/50", !isActive);
+        t.classList.toggle("text-text-secondary", !isActive);
+      });
+
+      if (tab === "mcp") replayMcpAnimation();
+    }
+
+    function stopCycle() {
+      if (cycleTimer) {
+        clearInterval(cycleTimer);
+        cycleTimer = null;
+      }
+    }
+
+    function startAutoCycle() {
+      let index = 1;
+      cycleTimer = setInterval(() => {
+        if (userInteracted) { stopCycle(); return; }
+        switchTab(TAB_ORDER[index]);
+        index++;
+        if (index >= TAB_ORDER.length) {
+          stopCycle();
+        }
+      }, AUTO_CYCLE_INTERVAL);
+    }
+
+    triggers.forEach((btn) => {
+      btn.addEventListener("mouseenter", () => {
+        userInteracted = true;
+        stopCycle();
+        const tab = btn.getAttribute("data-tab-trigger");
+        switchTab(tab);
+      });
+    });
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          terminal.classList.add("playing");
+          setTimeout(() => {
+            terminal.classList.add("phase-2");
+          }, PHASE_SWITCH_DELAY);
+          setTimeout(() => {
+            if (!userInteracted) startAutoCycle();
+          }, PHASE_SWITCH_DELAY + 3200);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 },
+    );
+    observer.observe(terminal);
+  }
+</script>

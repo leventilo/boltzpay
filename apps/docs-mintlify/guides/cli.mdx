@@ -1,0 +1,474 @@
+---
+title: CLI
+description: Use BoltzPay from the terminal or as a Python bridge.
+---
+
+## Install
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm install -g @boltzpay/cli
+    ```
+  </Tab>
+  <Tab title="pnpm">
+    ```bash
+    pnpm add -g @boltzpay/cli
+    ```
+  </Tab>
+</Tabs>
+
+Or run directly without installing:
+
+```bash
+npx @boltzpay/cli <command> [options]
+```
+
+## Global Flags
+
+Every command accepts these flags:
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as a structured JSON envelope |
+| `--verbose` | `-v` | Show protocol and timing details |
+| `--debug` | | Full request/response dump (to stderr) |
+| `--version` | `-V` | Print version number |
+| `--help` | `-h` | Print help text |
+
+```bash
+boltzpay --json fetch https://invy.bot/api
+boltzpay -v quote https://invy.bot/api
+```
+
+## Commands
+
+### `fetch`
+
+Detect the payment protocol, pay, and return the response body.
+
+```bash
+boltzpay fetch <url> [options]
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--method <m>` | `-m` | `GET` | HTTP method |
+| `--header <h>` | `-H` | — | Headers as `key:value` (repeatable) |
+| `--data <body>` | `-d` | — | Request body |
+| `--chain <c>` | `-c` | — | Force chain (`evm` or `svm`) |
+
+**Human output:**
+
+```
+$ boltzpay fetch https://invy.bot/api
+
+Payment
+  Protocol:  x402
+  Amount:    $0.05
+  Tx Hash:   0xabc123...
+
+Response
+  URL:       https://invy.bot/api
+  Status:    200
+  Type:      application/json
+
+Body
+{"holdings": [...]}
+```
+
+**JSON output:**
+
+```json
+{
+  "success": true,
+  "data": "{\"holdings\": [...]}",
+  "payment": {
+    "protocol": "x402",
+    "amount": "$0.05",
+    "currency": "USD",
+    "txHash": "0xabc123..."
+  },
+  "metadata": { "url": "https://invy.bot/api", "status": 200, "duration": 2345 }
+}
+```
+
+---
+
+### `quote`
+
+Check the cost of a paid endpoint without paying. No credentials needed.
+
+```bash
+boltzpay quote <url>
+```
+
+**Human output:**
+
+```
+$ boltzpay quote https://invy.bot/api
+
+Quote
+  Protocol:  x402
+  Amount:    $0.05
+  Currency:  USD
+  Network:   eip155:8453 (Base)
+  Alternatives:
+    - solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp (Solana) — $0.05
+```
+
+Prints `This endpoint is free (no payment required)` for free endpoints.
+
+**JSON output** (`data` field):
+
+```json
+{
+  "protocol": "x402",
+  "amount": "$0.05",
+  "currency": "USD",
+  "network": "eip155:8453",
+  "alternatives": [
+    { "chain": "Solana", "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": "$0.05" }
+  ]
+}
+```
+
+---
+
+### `check`
+
+Detect whether a URL requires payment. No credentials needed.
+
+```bash
+boltzpay check <url>
+```
+
+**Human output:**
+
+```
+$ boltzpay check https://invy.bot/api
+Paid endpoint (x402, $0.05)
+  Options:
+    1. Base (eip155:8453) — $0.05  [recommended]
+    2. Solana (solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp) — $0.05
+```
+
+Prints `Free endpoint (no payment required)` for free endpoints.
+
+**JSON output** (`data` field):
+
+```json
+{
+  "isPaid": true,
+  "protocol": "x402",
+  "amount": "$0.05",
+  "currency": "USD",
+  "network": "eip155:8453",
+  "options": [
+    { "chain": "Base", "network": "eip155:8453", "amount": "$0.05", "recommended": true },
+    { "chain": "Solana", "network": "solana:5eykt4...", "amount": "$0.05", "recommended": false }
+  ]
+}
+```
+
+---
+
+### `discover`
+
+Browse compatible paid API endpoints. Each entry is probed in real-time for live status.
+
+```bash
+boltzpay discover [options]
+```
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--category <category>` | `-c` | `string` | Filter by category |
+
+Available categories: `crypto-data`, `utilities`, `demo`.
+
+**Human output:**
+
+```
+$ boltzpay discover -c crypto-data
+
+Compatible Paid API Endpoints
+
+  Invy — Token Holdings [LIVE] (x402)
+    Token holdings lookup across Base, Ethereum, and Solana
+    URL:   https://invy.bot/api
+    Price: $0.05
+    Category: crypto-data
+
+4 endpoint(s): 3 live, 1 offline
+```
+
+**JSON output** (`data` is an array of entries):
+
+```json
+[
+  {
+    "name": "Invy — Token Holdings",
+    "url": "https://invy.bot/api",
+    "protocol": "x402",
+    "category": "crypto-data",
+    "status": "live",
+    "price": "$0.05",
+    "isPriceVerified": true,
+    "network": "eip155:8453"
+  }
+]
+```
+
+---
+
+### `budget`
+
+Show remaining spending budget. No credentials needed.
+
+```bash
+boltzpay budget
+```
+
+**Human output:**
+
+```
+$ boltzpay budget
+
+Budget Status
+
+  Daily
+    Spent:     $1.25 / $10.00
+    Remaining: $8.75
+
+  Per Transaction: max $1.00
+```
+
+Prints `No budget limits configured` if no limits are set.
+
+**JSON output** (`data` field):
+
+```json
+{ "dailySpent": "$0.00", "dailyLimit": "$10.00", "dailyRemaining": "$10.00",
+  "monthlySpent": "$0.00", "monthlyLimit": null, "monthlyRemaining": null,
+  "perTransactionLimit": "$1.00" }
+```
+
+---
+
+### `history`
+
+Show payment history. History is persistent when the SDK persistence option is enabled. No credentials needed.
+
+```bash
+boltzpay history
+```
+
+**Human output:**
+
+```
+$ boltzpay history
+
+Payment History
+
+  Date                 Protocol   Amount       Chain    URL
+  ----------------------------------------------------------------------
+  2026-02-19 14:30:00  x402       $0.05        Base     https://invy.bot/api
+
+1 payment(s) total
+By chain: Base $0.05
+```
+
+**JSON output** (`data` is an array):
+
+```json
+[{ "url": "https://invy.bot/api", "protocol": "x402", "amount": "$0.05",
+   "timestamp": "2026-02-19T14:30:00.000Z", "txHash": "0xabc...", "chain": "Base" }]
+```
+
+---
+
+### `demo`
+
+Interactive walkthrough: checks your wallet, selects an appropriate endpoint (testnet or mainnet, x402 or L402), gets a quote, and optionally fetches with payment.
+
+```bash
+boltzpay demo [options]
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--yes` | `-y` | — | Skip confirmation prompts |
+| `--testnet` | | — | Force testnet mode |
+
+Endpoints are selected based on wallet capabilities: L402 if NWC is configured, x402 if Coinbase keys are set, read-only otherwise.
+
+---
+
+### `wallet`
+
+Show wallet addresses, balances, network, active protocols, and budget status.
+
+```bash
+boltzpay wallet
+```
+
+**Human output:**
+
+```
+$ boltzpay wallet
+
+Wallet & Configuration
+
+  EVM address:    0x1234...abcd
+  Solana address: 7xKX...9mNq
+  Balance:        Base $12.50 · Solana $5.00
+  Network:        base
+  Protocols:      x402, l402
+  Budget:         Daily: $8.75 remaining
+```
+
+**JSON output** (`data` field):
+
+```json
+{
+  "network": "base",
+  "protocols": ["x402", "l402"],
+  "addresses": { "evm": "0x1234...abcd", "svm": "7xKX...9mNq" },
+  "balances": { "evm": "$12.50", "svm": "$5.00" },
+  "budget": { "configured": true, "dailyLimit": "$10.00" }
+}
+```
+
+## JSON Output
+
+The `--json` flag wraps every command's output in a standard envelope:
+
+```typescript
+{
+  success: boolean;
+  data: unknown;          // Command-specific payload
+  payment: {              // Present on fetch, null otherwise
+    protocol: string;
+    amount: string;
+    currency: string;
+    txHash: string | null;
+  } | null;
+  metadata: {
+    url: string;
+    status: number;
+    duration: number;     // Milliseconds
+  };
+}
+```
+
+On errors:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "daily_budget_exceeded",
+    "message": "Budget exceeded: requested $0.50, limit $5.00"
+  }
+}
+```
+
+Error codes map directly to exit codes and error classes. See the [Errors section](/reference/sdk-api/#errors) for the full list.
+
+## Exit Codes
+
+| Code | Meaning | Error class |
+|------|---------|-------------|
+| `0` | Success | — |
+| `1` | General / unknown error | Any unrecognized error |
+| `2` | Configuration / credentials error | `ConfigurationError` |
+| `3` | Budget exceeded | `BudgetExceededError` |
+| `4` | Payment / protocol error | `ProtocolError` |
+| `5` | Network error | `NetworkError` |
+| `6` | Insufficient funds | `InsufficientFundsError` |
+
+## Python Bridge
+
+The CLI's `--json` mode makes it trivial to call from Python (or any language). This is the recommended pattern for using BoltzPay with LangChain, CrewAI, or any Python framework.
+
+```python
+import subprocess
+import json
+
+
+def boltzpay_fetch(url: str) -> dict:
+    """Fetch a paid API endpoint via BoltzPay CLI."""
+    result = subprocess.run(
+        ["npx", "@boltzpay/cli", "fetch", url, "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(result.stdout)
+
+
+def boltzpay_check(url: str) -> dict:
+    """Check if an endpoint requires payment (no keys needed)."""
+    result = subprocess.run(
+        ["npx", "@boltzpay/cli", "check", url, "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(result.stdout)
+
+
+# Example: check then fetch
+check = boltzpay_check("https://invy.bot/api")
+print(f"Requires payment: {check['data']['isPaid']}")
+
+data = boltzpay_fetch("https://invy.bot/api")
+print(f"Response: {data['data']}")
+```
+
+<Tip>
+  Set environment variables (`COINBASE_API_KEY_ID`, etc.) in your shell before running. The CLI reads them automatically via `process.env`.
+</Tip>
+
+### Error Handling in Python
+
+```python
+import subprocess
+import json
+
+
+def boltzpay_fetch(url: str) -> dict:
+    try:
+        result = subprocess.run(
+            ["npx", "@boltzpay/cli", "fetch", url, "--json"],
+            capture_output=True,
+            text=True,
+        )
+        data = json.loads(result.stdout)
+        if not data.get("success"):
+            error = data.get("error", {})
+            raise RuntimeError(f"BoltzPay error [{error['code']}]: {error['message']}")
+        return data
+    except json.JSONDecodeError:
+        raise RuntimeError(f"CLI failed (exit {result.returncode}): {result.stderr}")
+```
+
+## Environment Variables
+
+The CLI reads configuration from environment variables. A `.env` file in your working directory is loaded automatically.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `COINBASE_API_KEY_ID` | For payments | Coinbase CDP API key ID |
+| `COINBASE_API_KEY_SECRET` | For payments | Coinbase CDP API key secret |
+| `COINBASE_WALLET_SECRET` | For payments | Coinbase CDP wallet secret |
+| `NWC_CONNECTION_STRING` | No | Enables L402 protocol |
+| `BOLTZPAY_NETWORK` | No | `base` (default) or `base-sepolia` |
+| `BOLTZPAY_DAILY_BUDGET` | No | Daily spending limit in USD |
+| `BOLTZPAY_MONTHLY_BUDGET` | No | Monthly spending limit in USD |
+| `BOLTZPAY_PER_TRANSACTION` | No | Per-transaction limit in USD |
+
+<Info>
+  Read-only commands (`check`, `quote`, `discover`, `budget`, `history`, `wallet`) work without Coinbase credentials. Only `fetch` requires them. See [Configuration](/getting-started/configuration) for constructor options, `.env` examples, and budget details.
+</Info>

@@ -1,0 +1,364 @@
+---
+title: Configuration
+description: Constructor options, budget, events, chains, and environment variables.
+---
+
+## Constructor Options
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+
+const agent = new BoltzPay({
+  // ...options
+});
+```
+
+All options are optional. An empty `{}` creates a read-only instance (explore mode).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `coinbaseApiKeyId` | `string` | — | Coinbase CDP API key ID. Required for payments. |
+| `coinbaseApiKeySecret` | `string` | — | Coinbase CDP API key secret. Required for payments. |
+| `coinbaseWalletSecret` | `string` | — | Coinbase CDP wallet secret. Required for payments. |
+| `nwcConnectionString` | `string` | — | NWC connection string (`nostr+walletconnect://...`). Enables L402 protocol. |
+| `network` | `"base" \| "base-sepolia"` | `"base"` | Blockchain network. Use `base-sepolia` for testing. |
+| `preferredChains` | `("evm" \| "svm")[]` | — | Chain preference when endpoint accepts multiple chains. |
+| `budget` | `BudgetConfig` | — | Spending limits. See [Budget](#budget). |
+| `persistence` | `{ enabled?: boolean; directory?: string; historyMaxRecords?: number }` | — | Persist budget and history to disk. See [Budget](#budget). |
+| `logLevel` | `"debug" \| "info" \| "warn" \| "error" \| "silent"` | `"warn"` | SDK log verbosity. |
+
+## Credentials
+
+### Coinbase CDP (x402 protocol)
+
+The three Coinbase fields must all be provided together. If any are missing, the SDK runs in explore mode: `quote()`, `check()`, `discover()`, `getBudget()`, and `getHistory()` work normally, but `fetch()` will fail on paid endpoints.
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+});
+```
+
+The Coinbase SDK (`@coinbase/cdp-sdk`) is loaded lazily. It is only imported when the first payment is executed, not at construction time.
+
+### NWC (L402 protocol)
+
+Adding an NWC connection string enables the L402 (Lightning) adapter alongside x402. The SDK auto-detects which protocol each endpoint uses.
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+  nwcConnectionString: process.env.NWC_CONNECTION_STRING!,
+});
+```
+
+<Info>
+  The NWC connection string must start with `nostr+walletconnect://`. Get one for free from [Coinos](https://coinos.io), [Primal](https://primal.net), or any wallet listed on [nwc.dev](https://nwc.dev). See [Installation](/getting-started/installation#nwc-optional-for-l402-protocol) for step-by-step instructions.
+</Info>
+
+## Budget
+
+Set spending limits to protect against unexpected costs. All amounts are in USD.
+
+### Configuration
+
+```typescript
+const agent = new BoltzPay({
+  // ...credentials
+  budget: {
+    daily: "5.00",
+    monthly: "100.00",
+    perTransaction: "1.00",
+    warningThreshold: 0.8,
+  },
+});
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `daily` | `string \| number` | — | Maximum USD spend per day. |
+| `monthly` | `string \| number` | — | Maximum USD spend per month. |
+| `perTransaction` | `string \| number` | — | Maximum USD per single `fetch()` call. |
+| `warningThreshold` | `number` (0-1) | `0.8` | Emit `budget:warning` event at this usage ratio. |
+
+Amounts accept both strings (`"5.00"`) and numbers (`5`). All fields are optional. If no budget is configured, payments proceed without caps.
+
+### How Enforcement Works
+
+Budget checks run **before** every payment:
+
+1. Checks `perTransaction`: rejects if the amount exceeds the per-request cap.
+2. Checks `daily`: rejects if `dailySpent + amount > daily limit`.
+3. Checks `monthly`: rejects if `monthlySpent + amount > monthly limit`.
+
+If any check fails, a `BudgetExceededError` is thrown and the payment is **not** executed. After a successful payment, the amount is recorded against both daily and monthly totals.
+
+```typescript
+import { BudgetExceededError } from "@boltzpay/sdk";
+
+try {
+  const response = await agent.fetch("https://emc2ai.io/x402/bitquery/whale-intel/raw");
+} catch (error) {
+  if (error instanceof BudgetExceededError) {
+    console.log(error.code);       // "daily_budget_exceeded" | "monthly_budget_exceeded" | "per_transaction_exceeded"
+    console.log(error.requested);  // Money — the amount requested
+    console.log(error.limit);      // Money — the limit exceeded
+  }
+}
+```
+
+### Checking Budget State
+
+```typescript
+const budget = agent.getBudget();
+console.log("Daily spent:", budget.dailySpent.toDisplayString());          // "$0.10"
+console.log("Daily remaining:", budget.dailyRemaining?.toDisplayString()); // "$4.90"
+```
+
+`getBudget()` returns a `BudgetState`:
+
+```typescript
+interface BudgetState {
+  dailySpent: Money;           monthlySpent: Money;
+  dailyLimit?: Money;          monthlyLimit?: Money;
+  perTransactionLimit?: Money;
+  dailyRemaining?: Money;      monthlyRemaining?: Money;
+}
+```
+
+### Resetting Budget
+
+```typescript
+agent.resetDailyBudget();
+```
+
+Resets the daily counter to zero. The monthly counter is not affected. Useful if you implement your own daily reset cron.
+
+<Note>
+  Budget state is in-memory by default. Enable persistence to keep budget and history across restarts:
+
+  ```typescript
+  const agent = new BoltzPay({
+    // ...credentials
+    persistence: {
+      enabled: true,
+      directory: "~/.boltzpay",   // default
+      historyMaxRecords: 500,     // default, FIFO rotation
+    },
+  });
+  ```
+
+  When persistence is enabled, budget counters and payment history survive process restarts. Daily budgets auto-reset on calendar day change. Files are stored as `budget.json` and `history.jsonl` in the configured directory.
+</Note>
+
+## Events
+
+Subscribe with `agent.on(event, listener)`. Four event types are available.
+
+### `payment`
+
+Emitted after every successful payment.
+
+```typescript
+agent.on("payment", (record) => {
+  console.log(record.url);                           // "https://invy.bot/api"
+  console.log(record.protocol);                      // "x402"
+  console.log(record.amount.toDisplayString());      // "$0.05"
+  console.log(record.txHash);                        // "0xabc..." or undefined
+});
+```
+
+```typescript
+interface PaymentRecord {
+  readonly id: string;
+  readonly url: string;
+  readonly protocol: string;
+  readonly amount: Money;
+  readonly timestamp: Date;
+  readonly txHash: string | undefined;
+  readonly network: string | undefined;
+}
+```
+
+### `budget:warning`
+
+Emitted when spending reaches the `warningThreshold` (default 80%) of a daily or monthly limit.
+
+```typescript
+// BudgetWarningEvent { spent: Money, limit: Money, period: "daily"|"monthly", usage: number }
+agent.on("budget:warning", (event) => {
+  console.log(`${(event.usage * 100).toFixed(0)}% of ${event.period} budget used`);
+});
+```
+
+### `budget:exceeded`
+
+Emitted when a payment is blocked because it would exceed a budget limit.
+
+```typescript
+// BudgetExceededEvent { requested: Money, limit: Money, period: "daily"|"monthly"|"per_transaction" }
+agent.on("budget:exceeded", (event) => {
+  console.log(`Blocked: ${event.period} limit of ${event.limit.toDisplayString()} reached`);
+});
+```
+
+### `error`
+
+Emitted on any error during payment (budget exceeded, protocol error, network error).
+
+```typescript
+agent.on("error", (error) => {
+  console.log(error.name, error.message);
+});
+```
+
+## Payment History
+
+The SDK keeps a history of payments (last 500 by default). When persistence is enabled, history survives restarts. Returns `readonly PaymentRecord[]` (same type as the `payment` event payload).
+
+```typescript
+const history = agent.getHistory();
+
+for (const record of history) {
+  console.log(`${record.url} — ${record.amount.toDisplayString()} via ${record.protocol}`);
+}
+```
+
+## Multi-Chain
+
+### Supported Chains
+
+All payments use USDC as the settlement currency, regardless of chain.
+
+| Namespace | Chain | Network ID (CAIP-2) | Currency |
+|---|---|---|---|
+| `evm` | Base mainnet | `eip155:8453` | USDC |
+| `evm` | Base Sepolia testnet | `eip155:84532` | USDC (test) |
+| `svm` | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | USDC |
+
+### Auto-Negotiation
+
+When you call `agent.fetch(url)`, the SDK probes the endpoint, receives one or more `accept` options (each specifying a chain, amount, and payment address), and selects the best match.
+
+The selection algorithm (`selectBestAccept`):
+- Filters out unsupported chains.
+- If `preferredChains` is set, narrows to those (falls back to all supported if none match).
+- Picks the **cheapest** option among remaining candidates.
+- On ties, EVM wins over SVM.
+
+```
+Server offers: [evm $0.05, svm $0.05]  →  evm $0.05  (EVM wins tie)
+Server offers: [evm $0.05, svm $0.03], pref: ["evm"]  →  evm $0.05
+Server offers: [evm $0.05, svm $0.03], pref: none  →  svm $0.03
+```
+
+### Chain Preferences
+
+Set a default preference at construction time:
+
+```typescript
+const agent = new BoltzPay({
+  // ...credentials
+  preferredChains: ["evm"],  // Always prefer EVM when available
+});
+```
+
+Override per-request (takes priority over config-level `preferredChains`):
+
+```typescript
+const response = await agent.fetch("https://invy.bot/api", {
+  chain: "svm",  // Force Solana for this request
+});
+```
+
+Via the CLI:
+
+```bash
+boltzpay fetch https://invy.bot/api --chain svm
+```
+
+## Network
+
+### Testnet vs Mainnet
+
+| Network | Use case | Funds |
+|---|---|---|
+| `base` (default) | Production | Real USDC |
+| `base-sepolia` | Development & testing | Testnet USDC (free) |
+
+```typescript
+const agent = new BoltzPay({
+  network: "base-sepolia",
+});
+```
+
+Or via environment variable:
+
+```bash
+export BOLTZPAY_NETWORK=base-sepolia
+```
+
+<Warning>
+  Testnet endpoints only accept testnet payments and vice versa. The Nickel Joke endpoint (`nickeljoke.vercel.app`) runs on Base Sepolia and is useful for testing without spending real funds.
+</Warning>
+
+<Tip>
+  Get free testnet USDC from the [Circle faucet](https://faucet.circle.com/) (select Base Sepolia). No gas fees needed — x402 uses EIP-3009 (gasless signatures).
+</Tip>
+
+## Log Level
+
+```typescript
+const agent = new BoltzPay({
+  logLevel: "debug",
+});
+```
+
+| Level | Output |
+|-------|--------|
+| `"debug"` | Everything, including protocol detection and adapter decisions. |
+| `"info"` | Successful operations and notable events. |
+| `"warn"` | Warnings like testnet usage. (default) |
+| `"error"` | Only errors. |
+| `"silent"` | No output. |
+
+## Environment Variables
+
+The CLI and MCP server read configuration from environment variables. The SDK constructor does not read env vars automatically. You pass them explicitly.
+
+| Variable | Used by | Description |
+|----------|---------|-------------|
+| `COINBASE_API_KEY_ID` | CLI, MCP | Coinbase CDP API key ID. |
+| `COINBASE_API_KEY_SECRET` | CLI, MCP | Coinbase CDP API key secret. |
+| `COINBASE_WALLET_SECRET` | CLI, MCP | Coinbase CDP wallet secret. |
+| `NWC_CONNECTION_STRING` | CLI, MCP | NWC connection string. Enables L402 protocol. |
+| `BOLTZPAY_NETWORK` | CLI, MCP | Network selection: `base` or `base-sepolia`. |
+| `BOLTZPAY_LOG_LEVEL` | CLI, MCP | Log level: `debug`, `info`, `warn`, `error`, `silent`. |
+| `BOLTZPAY_DAILY_BUDGET` | CLI, MCP | Daily spending limit in USD (e.g., `5.00`). |
+| `BOLTZPAY_MONTHLY_BUDGET` | CLI, MCP | Monthly spending limit in USD. |
+| `BOLTZPAY_PER_TRANSACTION` | CLI, MCP | Per-transaction limit in USD. |
+
+### Example `.env` file
+
+```bash
+# Required for payments
+COINBASE_API_KEY_ID=your-key-id
+COINBASE_API_KEY_SECRET=your-key-secret
+COINBASE_WALLET_SECRET=your-wallet-secret
+
+# Optional — enables L402 (Lightning) protocol
+NWC_CONNECTION_STRING=nostr+walletconnect://...
+BOLTZPAY_NETWORK=base
+BOLTZPAY_LOG_LEVEL=warn
+BOLTZPAY_DAILY_BUDGET=5.00
+BOLTZPAY_MONTHLY_BUDGET=100.00
+BOLTZPAY_PER_TRANSACTION=1.00
+```
+
+<Tip>
+  The MCP server and CLI both use [dotenv](https://www.npmjs.com/package/dotenv), so they automatically read from a `.env` file in your working directory.
+</Tip>

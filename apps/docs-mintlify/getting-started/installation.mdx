@@ -1,0 +1,191 @@
+---
+title: Installation
+description: Install BoltzPay SDK, MCP server, or CLI.
+---
+
+## Prerequisites
+
+- **Node.js** >= 20.0.0
+- **Package manager**: npm, pnpm, or yarn
+
+## SDK
+
+Install the SDK in your TypeScript or JavaScript project:
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm install @boltzpay/sdk
+    ```
+  </Tab>
+  <Tab title="pnpm">
+    ```bash
+    pnpm add @boltzpay/sdk
+    ```
+  </Tab>
+  <Tab title="yarn">
+    ```bash
+    yarn add @boltzpay/sdk
+    ```
+  </Tab>
+</Tabs>
+
+The SDK works in **explore mode** with zero configuration: you can quote prices, check endpoints, and discover APIs without any credentials.
+
+To enable payments, install the Coinbase CDP SDK peer dependency:
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm install @coinbase/cdp-sdk
+    ```
+  </Tab>
+  <Tab title="pnpm">
+    ```bash
+    pnpm add @coinbase/cdp-sdk
+    ```
+  </Tab>
+  <Tab title="yarn">
+    ```bash
+    yarn add @coinbase/cdp-sdk
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  `@coinbase/cdp-sdk` is an optional peer dependency. The SDK loads it lazily on the first `fetch()` call, so your bundle stays lean if you only use explore mode.
+</Tip>
+
+## MCP Server (Claude Desktop)
+
+No install needed. Run directly with `npx`:
+
+```bash
+npx -y @boltzpay/mcp
+```
+
+Add it to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "boltzpay": {
+      "command": "npx",
+      "args": ["-y", "@boltzpay/mcp"]
+    }
+  }
+}
+```
+
+This gives Claude 7 tools: `fetch`, `quote`, `check`, `budget`, `history`, `discover`, and `wallet`.
+
+## CLI
+
+No install needed. Run directly with `npx`:
+
+```bash
+npx @boltzpay/cli check https://invy.bot/api
+```
+
+Or install globally:
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm install -g @boltzpay/cli
+    ```
+  </Tab>
+  <Tab title="pnpm">
+    ```bash
+    pnpm add -g @boltzpay/cli
+    ```
+  </Tab>
+</Tabs>
+
+Then use the `boltzpay` command directly:
+
+```bash
+boltzpay check https://invy.bot/api
+boltzpay discover
+boltzpay fetch https://invy.bot/api --json
+```
+
+## Credentials Setup
+
+### Coinbase CDP (required for payments)
+
+BoltzPay uses Coinbase CDP to sign on-chain transactions (USDC on Base). You need three values:
+
+<Steps>
+  <Step title="Create an account">
+    Go to [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com) and create an account.
+  </Step>
+  <Step title="Create an API key">
+    You will get an API Key ID and an API Key Secret.
+  </Step>
+  <Step title="Create a wallet">
+    Note the Wallet Secret.
+  </Step>
+  <Step title="Set environment variables">
+    ```bash
+    export COINBASE_API_KEY_ID="your-api-key-id"
+    export COINBASE_API_KEY_SECRET="your-api-key-secret"
+    export COINBASE_WALLET_SECRET="your-wallet-secret"
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Keep your secrets out of source code. Use a `.env` file or your platform's secret management.
+</Warning>
+
+For the MCP server, pass credentials via the `env` block in your Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "boltzpay": {
+      "command": "npx",
+      "args": ["-y", "@boltzpay/mcp"],
+      "env": {
+        "COINBASE_API_KEY_ID": "your-api-key-id",
+        "COINBASE_API_KEY_SECRET": "your-api-key-secret",
+        "COINBASE_WALLET_SECRET": "your-wallet-secret",
+        "BOLTZPAY_DAILY_BUDGET": "5.00"
+      }
+    }
+  }
+}
+```
+
+### NWC (optional, for L402 protocol)
+
+If you want to pay L402-compatible endpoints (Bitcoin Lightning payments), you need a **Nostr Wallet Connect (NWC)** connection string from a Lightning wallet.
+
+#### How to get your NWC connection string
+
+1. **[Coinos](https://coinos.io)** (recommended) — Free web wallet. Sign up with a username and password, then go to **☰ Menu > ⚙️ Preferences > Nostr > Copy NWC**. Your `nostr+walletconnect://...` string is ready.
+2. **[Primal](https://primal.net)** — Free mobile app with built-in Lightning wallet and NWC support.
+3. **[Alby Hub](https://albyhub.com)** — Your own Lightning node. Available as a cloud service ($12.90/mo) or free self-hosted (Docker). Go to **Connections > Add Connection** to generate the NWC URI.
+4. **Any NWC wallet** — [Umbrel](https://umbrel.com), [Start9](https://start9.com), or any wallet listed on [nwc.dev](https://nwc.dev).
+
+#### Set the connection string
+
+```bash
+export NWC_CONNECTION_STRING="nostr+walletconnect://relay.getalby.com/v1?secret=...&relay=wss://relay.getalby.com"
+```
+
+Or in the SDK constructor:
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET,
+  nwcConnectionString: process.env.NWC_CONNECTION_STRING,
+});
+```
+
+<Info>
+  Most endpoints today use the x402 protocol (USDC). L402 is a Lightning-native protocol from [Lightning Labs](https://lightning.engineering). You can enable both simultaneously — the SDK auto-detects which protocol each endpoint uses.
+</Info>

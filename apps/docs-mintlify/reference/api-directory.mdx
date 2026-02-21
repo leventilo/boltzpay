@@ -1,0 +1,200 @@
+---
+title: API Directory
+description: Built-in directory of verified paid API endpoints.
+---
+
+The BoltzPay SDK ships with a built-in directory of 25 verified paid API endpoints across two payment protocols (x402 and L402). All endpoints were confirmed live as of February 2026.
+
+<Note>
+The directory is static and bundled with the SDK. Entries may become outdated as endpoints go online or offline. Use the `discover` command or `sdk.discover()` method to probe endpoints in real-time and get live pricing.
+</Note>
+
+---
+
+## Directory entries
+
+### x402 (USDC on-chain)
+
+#### Crypto Data
+
+| Name | URL | Price | Description |
+|------|-----|-------|-------------|
+| Invy — Token Holdings | `https://invy.bot/api` | $0.05 | Token holdings lookup across Base, Ethereum, and Solana |
+| x402-tools — Polymarket Trending | `https://x402-tools.vercel.app/api/polymarket/trending` | $0.01 | Trending prediction markets from Polymarket |
+| Einstein AI — Top Tokens | `https://emc2ai.io/x402/bitquery/top-tokens` | $0.55 | Top tokens by market cap via Bitquery |
+| Einstein AI — Whale Intel | `https://emc2ai.io/x402/bitquery/whale-intel/raw` | $0.85 | Whale wallet intelligence and tracking |
+| Silverback — DeFi Top Protocols | `https://silverback-x402.onrender.com/api/v1/top-protocols` | $0.01 | Top DeFi protocols by TVL with multichain data |
+| x402scan — Top Merchants | `https://x402scan-j55w7ornb-merit-systems.vercel.app/api/data/merchants` | $0.01 | Top x402 merchants by transaction volume |
+| OttoAI — Token Security Audit | `https://x402.ottoai.services/token-security` | $0.01 | Token security scan — honeypot, rug pull, proxy detection |
+| Zapper — Token Ranking | `https://public.zapper.xyz/x402/token-ranking` | $0.01 | Trending tokens ranked by swap activity and adoption velocity |
+| Zapper — DeFi Balances | `https://public.zapper.xyz/x402/defi-balances` | $0.01 | DeFi positions (LP, lending, yield) for wallet addresses |
+| Zapper — Transaction History | `https://public.zapper.xyz/x402/transaction-history` | $0.01 | Transaction history with interpretations for wallet addresses |
+
+#### Utilities
+
+| Name | URL | Price | Description |
+|------|-----|-------|-------------|
+| x402-tools — Concerts | `https://x402-tools.vercel.app/api/concerts` | $0.01 | Event and concert discovery |
+| Auor — Public Holidays | `https://api.auor.io/open-holidays/v1/public` | $0.01 | Public holiday calendar by country and year |
+| SocioLogic — Cryptographic RNG | `https://rng.sociologic.ai/random/int` | $0.01 | Cryptographically secure random integer |
+| Grapevine — IPFS Gateway | `https://gateway.grapevine.fyi/x402/cid/bafkreib7s7xuwc57wri43lyauwjeyfx3zqyc4ue34td5o7ab6wxp7sbqhm` | $0.01 | IPFS content retrieval via x402 payment gateway |
+
+#### Research
+
+| Name | URL | Price | Description |
+|------|-----|-------|-------------|
+| PubMed Trends | `https://pubmed.sekgen.xyz/api/v1/trends` | $0.01 | Academic publication trends from PubMed |
+| Hugen Scout — Intelligence Report | `https://scout.hugen.tokyo/scout/report` | $0.01 | Multi-source intelligence report from HN, GitHub, npm, PyPI |
+
+#### Dev Tools
+
+| Name | URL | Price | Description |
+|------|-----|-------|-------------|
+| Creative-Tim — Shadcn Blocks | `https://x402.creative-tim.com/shadcn-blocks/user-payment` | $0.01 | View Shadcn UI component source code after payment |
+
+#### Demo
+
+| Name | URL | Price | Description |
+|------|-----|-------|-------------|
+| Nickel Joke (Testnet) | `https://nickeljoke.vercel.app/api/joke` | $0.005 (testnet) | Joke API on Base Sepolia testnet — useful for E2E testing |
+| Hello World | `https://hello-world-x402.vercel.app/hello` | $0.01 | Returns "Hello World" after payment — simplest x402 sanity test |
+| BoostPass Ping | `https://boostpass.qrbase.xyz/api/x402/ping` | $0.01 | Simple ping with payment confirmation and sender address |
+| SkillfulAI — Demo Premium | `https://api-dev.agents.skillfulai.io/api/x402/demo/mainnet/premium` | $0.01 | Demo premium endpoint with payment verification details |
+
+### L402 (Bitcoin Lightning)
+
+#### Crypto Data
+
+| Name | URL | Price | Description |
+|------|-----|-------|-------------|
+| Satring — Analytics | `https://satring.com/api/v1/analytics` | 100 sats | Bitcoin and Lightning network analytics (90 services, categories, pricing) |
+| Satring — Service Reputation | `https://satring.com/api/v1/services/lightning-faucet-fortune/reputation` | 100 sats | Detailed reputation report for L402 services (replace slug in URL) |
+
+---
+
+## Categories
+
+The directory organizes endpoints into 5 categories:
+
+| Category | Description | x402 | L402 | Total |
+|----------|-------------|------|------|-------|
+| `crypto-data` | Blockchain data, token analytics, DeFi, whale tracking | 10 | 2 | 12 |
+| `utilities` | Holidays, RNG, IPFS, events | 4 | 0 | 4 |
+| `demo` | Test and demo endpoints (often on testnet) | 4 | 0 | 4 |
+| `research` | Academic and intelligence reports | 2 | 0 | 2 |
+| `dev-tools` | UI components and developer resources | 1 | 0 | 1 |
+
+---
+
+## Programmatic access
+
+### `API_DIRECTORY`
+
+The full directory as a readonly array of `ApiDirectoryEntry` objects.
+
+```ts
+import { API_DIRECTORY } from '@boltzpay/sdk';
+
+for (const entry of API_DIRECTORY) {
+  console.log(`${entry.name}: ${entry.url} (${entry.pricing})`);
+}
+```
+
+### `ApiDirectoryEntry`
+
+```ts
+interface ApiDirectoryEntry {
+  readonly name: string;
+  readonly url: string;
+  readonly protocol: string;
+  readonly category: string;
+  readonly description: string;
+  readonly pricing: string;
+  readonly chain?: string;
+  readonly status?: "live" | "testnet";
+}
+```
+
+### `getDirectoryCategories()`
+
+Returns all distinct categories present in the directory.
+
+```ts
+import { getDirectoryCategories } from '@boltzpay/sdk';
+
+const categories = getDirectoryCategories();
+// ["crypto-data", "utilities", "demo", "research", "dev-tools"]
+```
+
+### `filterDirectory(category?)`
+
+Filter the directory by category. Returns the full directory if no category is provided.
+
+```ts
+import { filterDirectory } from '@boltzpay/sdk';
+
+const cryptoApis = filterDirectory('crypto-data');
+// Returns 12 entries in the crypto-data category
+
+const all = filterDirectory();
+// Returns all 25 entries
+```
+
+---
+
+## Live discovery
+
+The static directory gives you a starting point, but endpoints can go offline. Use `discover` for real-time probing.
+
+### SDK
+
+```ts
+const entries = await sdk.discover({ category: 'crypto-data' });
+
+for (const entry of entries) {
+  if (entry.live.status === 'live') {
+    console.log(`${entry.name}: ${entry.live.livePrice} (${entry.live.protocol})`);
+  }
+}
+```
+
+Results are sorted by status: `live` first, then `offline`, `error`, and `free`.
+
+### CLI
+
+```bash
+# Discover all endpoints
+boltzpay discover
+
+# Filter by category
+boltzpay discover -c crypto-data
+
+# JSON output for scripting
+boltzpay --json discover -c utilities
+```
+
+### MCP
+
+AI agents can call the `boltzpay_discover` tool:
+
+```
+Use boltzpay_discover with category "crypto-data" to find blockchain data APIs.
+```
+
+---
+
+## Probe timeout
+
+Each endpoint probe has a 5-second timeout (`DISCOVER_PROBE_TIMEOUT_MS = 5000`). Endpoints that do not respond within 5 seconds are marked as `offline` with reason `"Timeout"`.
+
+You can pass an `AbortSignal` to cancel all probes early:
+
+```ts
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 10_000); // 10s total budget
+
+const entries = await sdk.discover({
+  category: 'crypto-data',
+  signal: controller.signal,
+});
+```

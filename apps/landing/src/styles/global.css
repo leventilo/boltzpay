@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+/* Fonts: latin-only (skip vietnamese, latin-ext, cyrillic) */
+@import "@fontsource/space-grotesk/latin-400.css";
+@import "@fontsource/space-grotesk/latin-500.css";
+@import "@fontsource/space-grotesk/latin-700.css";
+@import "@fontsource/crimson-pro/latin-400.css";
+@import "@fontsource/crimson-pro/latin-400-italic.css";
+@import "@fontsource/crimson-pro/latin-600.css";
+@import "@fontsource/crimson-pro/latin-700.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #141414;
+  --color-bg-card: #1c1c1c;
+  --color-bg-terminal: #050505;
+
+  --color-accent-cyan: #737373;
+  --color-accent-warm: #a3e635;
+  --color-accent-warm-light: #bef264;
+  --color-accent-warm-dark: #84cc16;
+
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #737373;
+
+  --color-status-live: #f472b6;
+  --color-status-coming: #eab308;
+
+  --color-divider: #1f1f1f;
+
+  --color-dot-red: #ef4444;
+  --color-dot-yellow: #eab308;
+  --color-dot-green: #22c55e;
+
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-serif: "Crimson Pro", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+  }
+
+  /* Noise overlay: GPU-composited layer to avoid scroll repaints */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    transform: translateZ(0);
+  }
+
+  /* Below-fold sections: skip rendering until near viewport */
+  section:not(#hero) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 600px;
+  }
+
+  @media (max-width: 640px) {
+    section:not(#hero) {
+      contain-intrinsic-size: auto 400px;
+    }
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.terminal-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@property --warm-hue {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #a3e635; /* must match --color-accent-warm */
+}
+
+@keyframes color-shift {
+  0%, 100% { --warm-hue: var(--color-accent-warm); }
+  33% { --warm-hue: var(--color-accent-warm-light); }
+  66% { --warm-hue: var(--color-accent-warm-dark); }
+}
+
+.text-gradient-warm {
+  color: var(--warm-hue);
+  animation: color-shift 6s ease infinite;
+}
+
+@property --border-hue {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgba(163, 230, 53, 0.3); /* must match --color-accent-warm at 30% */
+}
+
+@keyframes border-shift {
+  0%, 100% { --border-hue: color-mix(in srgb, var(--color-accent-warm) 50%, transparent); }
+  50% { --border-hue: color-mix(in srgb, var(--color-accent-cyan) 12%, transparent); }
+}
+
+.border-animated {
+  border-color: var(--border-hue);
+  animation: border-shift 8s ease infinite;
+}
+
+.text-synced {
+  color: var(--border-hue);
+  animation: border-shift 8s ease infinite;
+}
+
+/* Glow border: rotating light point around rectangles (terminal, cards) */
+@property --border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes rotate-glow {
+  to { --border-angle: 360deg; }
+}
+
+.glow-border {
+  padding: 1px;
+  border-radius: 0.5rem;
+  background:
+    conic-gradient(
+      from var(--border-angle),
+      transparent 55%,
+      color-mix(in srgb, var(--color-accent-warm) 60%, transparent) 72%,
+      var(--color-accent-warm) 78%,
+      var(--color-accent-warm-light) 82%,
+      color-mix(in srgb, var(--color-accent-warm) 60%, transparent) 88%,
+      transparent 95%
+    ),
+    color-mix(in srgb, var(--color-accent-warm) 12%, transparent);
+  animation: rotate-glow 4s linear infinite;
+}
+
+/* Glow separator: sliding light point along horizontal lines */
+@keyframes slide-glow {
+  0% { background-position: -40% 0; }
+  100% { background-position: 140% 0; }
+}
+
+.glow-separator {
+  height: 1px;
+  background:
+    linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-accent-warm) 70%, transparent) 40%, var(--color-accent-warm) 50%, color-mix(in srgb, var(--color-accent-warm) 70%, transparent) 60%, transparent 100%),
+    color-mix(in srgb, var(--color-accent-warm) 10%, transparent);
+  background-size: 40% 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  animation: slide-glow 3s ease-in-out infinite alternate;
+}
+
+/* Header: GPU layer for backdrop-filter + transform */
+#site-header {
+  background: color-mix(in srgb, var(--color-bg-primary) 95%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent-warm) 10%, transparent);
+  transform: translateY(0);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  contain: layout style;
+}
+
+#site-header.header-hidden {
+  transform: translateY(-100%);
+}
+
+#site-header .header-inner {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  #site-header .header-inner {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+/* Terminal simulation — phases */
+.terminal-sim .t-line,
+.terminal-sim .t-cursor {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+.terminal-sim .t-phase-convo {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.terminal-sim.playing .t-phase-install .t-line {
+  animation: t-reveal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+.terminal-sim.playing.phase-2 .t-phase-install {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.terminal-sim.playing.phase-2 .t-phase-convo {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.4s ease 0.3s;
+}
+
+.terminal-sim.playing.phase-2 .t-phase-convo .t-line {
+  animation: t-reveal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--delay, 0ms) + 300ms);
+}
+
+.terminal-sim.playing.phase-2 .t-phase-convo .t-cursor {
+  animation:
+    t-reveal 0.2s ease forwards calc(var(--delay, 0ms) + 300ms),
+    blink 1s step-end infinite calc(var(--delay, 0ms) + 300ms);
+}
+
+@keyframes t-reveal {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Boltzmann curve: draw-in + snake with glow */
+@keyframes boltz-snake-flow {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+
+.boltz-base {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#boltz-curve.boltz-visible .boltz-base {
+  stroke-dashoffset: 0;
+}
+
+.boltz-snake {
+  opacity: 0;
+}
+
+.boltz-snake-glow {
+  opacity: 0;
+}
+
+#boltz-curve.boltz-visible .boltz-snake {
+  opacity: 0.7;
+  animation: boltz-snake-flow 4.5s ease-in-out infinite;
+  animation-delay: 0.9s;
+}
+
+#boltz-curve.boltz-visible .boltz-snake-glow {
+  opacity: 0.35;
+  animation: boltz-snake-flow 4.5s ease-in-out infinite;
+  animation-delay: 0.9s;
+}
+
+/* Scroll-reveal: GPU-composited while animating, released after */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(1.5rem);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.animate-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+  will-change: auto;
+}

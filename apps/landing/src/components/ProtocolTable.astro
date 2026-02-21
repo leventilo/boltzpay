@@ -1,0 +1,84 @@
+---
+---
+
+<section id="protocols" class="px-6 pt-12 pb-16 md:pt-16 md:pb-24 lg:pb-32">
+  <div class="mx-auto max-w-6xl">
+    <div class="animate-on-scroll">
+      <h2 class="font-serif text-3xl font-bold tracking-tight md:text-5xl">Protocols</h2>
+      <div class="glow-separator mt-4 w-12"></div>
+
+      <div class="mt-10 flex flex-col gap-10 md:mt-14 lg:flex-row lg:gap-12">
+
+        <!-- ──── Left: Protocols + taglines ──── -->
+        <div>
+          <div class="flex flex-col gap-6 sm:flex-row sm:gap-6 md:gap-10">
+
+            <!-- x402 -->
+            <div>
+              <div class="flex items-center gap-3">
+                <a href="https://x402.org" target="_blank" rel="noopener noreferrer" class="font-mono text-xl font-semibold text-text-primary transition-colors hover:text-accent-warm">x402</a>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-status-live/10 px-2.5 py-0.5 text-xs font-medium text-status-live">
+                  <span class="h-1.5 w-1.5 rounded-full bg-status-live"></span>
+                  Live
+                </span>
+              </div>
+              <p class="mt-1.5 text-sm text-text-secondary">by Coinbase</p>
+              <p class="mt-2 text-base text-text-secondary">100M+ payments since May 2025</p>
+            </div>
+
+            <!-- L402 -->
+            <div>
+              <div class="flex items-center gap-3">
+                <a href="https://l402.org" target="_blank" rel="noopener noreferrer" class="font-mono text-xl font-semibold text-text-primary transition-colors hover:text-accent-warm">L402</a>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-status-live/10 px-2.5 py-0.5 text-xs font-medium text-status-live">
+                  <span class="h-1.5 w-1.5 rounded-full bg-status-live"></span>
+                  Live
+                </span>
+              </div>
+              <p class="mt-1.5 text-sm text-text-secondary">by Lightning Labs</p>
+              <p class="mt-2 text-base text-text-secondary">Bitcoin Lightning, NWC wallet</p>
+            </div>
+
+          </div>
+
+          <p class="mt-8 font-mono text-sm leading-relaxed text-text-secondary md:mt-12">
+            Auto-detected. You just call <code class="text-accent-warm">fetch()</code>.
+          </p>
+          <p class="mt-2 font-mono text-sm text-text-secondary">
+            All open protocols. Apache 2.0 / MIT.
+          </p>
+        </div>
+
+        <!-- ──── Right: Without / With ──── -->
+        <div class="shrink-0 border-t border-divider pt-8 lg:border-t-0 lg:border-l lg:max-w-lg lg:pl-10 lg:pt-0">
+          <p class="font-mono text-sm text-text-primary">Without a unified SDK:</p>
+          <div class="mt-4 flex flex-col gap-2.5">
+            <p class="font-mono text-sm leading-relaxed text-text-secondary">
+              <span class="text-text-secondary">x402</span> → wallet setup, <a href="https://eips.ethereum.org/EIPS/eip-712" target="_blank" rel="noopener noreferrer" class="underline decoration-text-secondary/40 underline-offset-2 transition-colors hover:text-accent-warm">EIP-712</a> signing, <a href="https://docs.cdp.coinbase.com/x402/core-concepts/how-it-works" target="_blank" rel="noopener noreferrer" class="underline decoration-text-secondary/40 underline-offset-2 transition-colors hover:text-accent-warm">facilitator</a> calls
+            </p>
+            <p class="font-mono text-sm leading-relaxed text-text-secondary">
+              <span class="text-text-secondary">L402</span> → Lightning node, <a href="https://github.com/lightninglabs/L402/blob/master/protocol-specification.md" target="_blank" rel="noopener noreferrer" class="underline decoration-text-secondary/40 underline-offset-2 transition-colors hover:text-accent-warm">invoice</a> handling, NWC
+            </p>
+          </div>
+
+          <div class="my-6 w-full border-t border-dashed border-text-secondary/40"></div>
+
+          <p class="font-mono text-sm text-text-primary">With BoltzPay:</p>
+          <p class="mt-3 font-mono text-lg text-accent-warm"><span class="text-text-secondary/40">$ </span>fetch(url)<span class="terminal-cursor ml-0.5 text-accent-warm/50">█</span></p>
+        </div>
+
+      </div>
+
+      <!-- ──── Bottom: Quote ──── -->
+      <blockquote class="mt-12 max-w-2xl border-l-2 border-accent-warm/40 pl-4 md:mt-20 md:pl-6">
+        <p class="font-serif text-lg leading-relaxed text-text-primary/90 italic sm:text-xl md:text-2xl">
+          The most obvious way that a server would give you resources would be that you would pay directly for that resource.
+        </p>
+        <footer class="mt-4 font-mono text-sm text-text-secondary">
+          — Sam Ragsdale, x402 co-author · on the original vision behind HTTP 402
+        </footer>
+      </blockquote>
+
+    </div>
+  </div>
+</section>

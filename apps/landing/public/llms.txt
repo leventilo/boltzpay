@@ -1,0 +1,32 @@
+# BoltzPay
+
+> Open-source SDK that gives AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain (Base + Solana), your own keys.
+
+## Quickstart
+
+```
+npm install @boltzpay/sdk
+```
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+const agent = new BoltzPay({});
+const quote = await agent.quote("https://invy.bot/api");
+```
+
+## Docs
+
+- [README](https://github.com/leventilo/boltzpay#readme): Full documentation
+- [Examples](https://github.com/leventilo/boltzpay/tree/main/examples): Runnable code examples
+- [CONTRIBUTING](https://github.com/leventilo/boltzpay/blob/main/CONTRIBUTING.md): How to contribute
+
+## Packages
+
+- [@boltzpay/sdk](https://www.npmjs.com/package/@boltzpay/sdk): Core SDK
+- [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp): MCP server for Claude Desktop
+- [@boltzpay/cli](https://www.npmjs.com/package/@boltzpay/cli): CLI for terminal and Python bridge
+- [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk): Vercel AI SDK tools
+
+## Optional
+
+- [llms-full.txt](https://boltzpay.ai/llms-full.txt): Complete documentation for LLMs

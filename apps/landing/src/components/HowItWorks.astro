@@ -1,0 +1,351 @@
+---
+---
+
+<section id="how-it-works" class="relative overflow-hidden px-6 py-16 md:py-20">
+  <div class="relative mx-auto max-w-6xl">
+
+    <div class="animate-on-scroll text-center">
+      <h2 class="font-serif text-3xl font-bold tracking-tight md:text-5xl">How it works</h2>
+      <div class="glow-separator mx-auto mt-4 w-12"></div>
+      <p class="mx-auto mt-4 max-w-lg font-mono text-sm leading-relaxed text-text-secondary">
+        One <code class="text-accent-warm/80">fetch()</code> call.<br />
+        Detection, payment, and retry happen inside the SDK.
+      </p>
+    </div>
+
+    <!-- Desktop: compact constellation — BoltzPay at center -->
+    <div class="mt-10 hidden md:block" id="constellation" style="contain: content;">
+      <svg viewBox="0 0 1000 320" class="w-full h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="sg" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="aura" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="glow" />
+            <feMerge>
+              <feMergeNode in="aura" />
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <pattern id="dg" width="40" height="40" patternUnits="userSpaceOnUse">
+            <circle cx="20" cy="20" r="0.7" fill="rgba(163,230,53,0.05)" />
+          </pattern>
+        </defs>
+
+        <rect width="1000" height="320" fill="url(#dg)" />
+
+        <!-- ═══ Base paths — symmetric arcs (38px amplitude, 30% control points) ═══ -->
+
+        <!-- 1. Agent → BoltzPay: arc up -->
+        <path class="fl-b" d="M145,170 C231,132 345,132 430,170" pathLength="1000" style="--dd:0ms" />
+        <!-- 2. BoltzPay → API: arc up (probe) -->
+        <path class="fl-b" d="M570,170 C654,132 766,132 850,170" pathLength="1000" style="--dd:200ms" />
+        <!-- 3. BoltzPay → Router: vertical up -->
+        <path class="fl-b" d="M500,153 C498,122 502,100 500,80" pathLength="1000" style="--dd:500ms" />
+        <!-- 4. Router → x402 (mirror of L402 around x=500) -->
+        <path class="fl-b fl-b-mini" d="M465,52 C455,42 435,34 412,30" pathLength="1000" style="--dd:650ms" />
+        <!-- 5. Router → L402 (mirror of x402 around x=500) -->
+        <path class="fl-b fl-b-mini" d="M535,52 C545,42 565,34 588,30" pathLength="1000" style="--dd:650ms" />
+        <!-- 6. BoltzPay → Budget: diagonal (mirror of pay around x=500) -->
+        <path class="fl-b" d="M460,187 C448,222 405,252 350,264" pathLength="1000" style="--dd:750ms" />
+        <!-- 7. BoltzPay → Wallet: diagonal (mirror of check around x=500) -->
+        <path class="fl-b" d="M540,187 C552,222 595,252 650,264" pathLength="1000" style="--dd:750ms" />
+        <!-- 8. BoltzPay → API: arc down (retry) -->
+        <path class="fl-b" d="M570,170 C654,208 766,208 850,170" pathLength="1000" style="--dd:1000ms" />
+        <!-- 9. BoltzPay → Agent: arc down (response) -->
+        <path class="fl-b" d="M430,170 C345,208 231,208 145,170" pathLength="1000" style="--dd:1200ms" />
+
+        <!-- ═══ Snake paths ═══ -->
+
+        <!-- 1. fetch: Agent → BoltzPay -->
+        <path class="fl-s" d="M145,170 C231,132 345,132 430,170" pathLength="1000" style="--sd:3.5s;--sl:0s" filter="url(#sg)" />
+        <!-- 2. probe: BoltzPay → API (arc up, gets 402) -->
+        <path class="fl-s" d="M570,170 C654,132 766,132 850,170" pathLength="1000" style="--sd:3.5s;--sl:0.5s" filter="url(#sg)" />
+        <!-- 3. detect: BoltzPay → Router -->
+        <path class="fl-s" d="M500,153 C498,122 502,100 500,80" pathLength="1000" style="--sd:2s;--sl:1s" filter="url(#sg)" />
+        <!-- 4. check: BoltzPay → Budget -->
+        <path class="fl-s" d="M460,187 C448,222 405,252 350,264" pathLength="1000" style="--sd:2.8s;--sl:1.5s" filter="url(#sg)" />
+        <!-- 5. pay: BoltzPay → Wallet -->
+        <path class="fl-s" d="M540,187 C552,222 595,252 650,264" pathLength="1000" style="--sd:2.8s;--sl:1.5s" filter="url(#sg)" />
+        <!-- 6. retry: BoltzPay → API (arc down, gets 200) -->
+        <path class="fl-s" d="M570,170 C654,208 766,208 850,170" pathLength="1000" style="--sd:3.5s;--sl:2s" filter="url(#sg)" />
+        <!-- 7. response: BoltzPay → Agent -->
+        <path class="fl-s" d="M430,170 C345,208 231,208 145,170" pathLength="1000" style="--sd:3.5s;--sl:2.5s" filter="url(#sg)" />
+
+        <!-- ═══ Edge labels ═══ -->
+
+        <text class="el" x="288" y="126" text-anchor="middle">fetch()</text>
+        <text class="el" x="695" y="126" text-anchor="middle">request</text>
+        <text class="el" x="512" y="112" text-anchor="start">detect</text>
+        <text class="el" x="410" y="242" text-anchor="end">check</text>
+        <text class="el" x="590" y="242" text-anchor="start">pay</text>
+        <text class="el" x="695" y="216" text-anchor="middle">retry</text>
+        <text class="el" x="288" y="216" text-anchor="middle">response</text>
+
+        <!-- ═══ Status indicators ═══ -->
+
+        <g class="el-badge badge-warn">
+          <rect x="785" y="133" width="28" height="16" rx="8" />
+          <text x="799" y="145" text-anchor="middle" class="badge-label">402</text>
+        </g>
+        <g class="el-badge badge-ok">
+          <rect x="778" y="195" width="42" height="16" rx="8" />
+          <text x="799" y="207" text-anchor="middle" class="badge-label">200 &#x2713;</text>
+        </g>
+
+        <!-- ═══ Nodes (on top) ═══ -->
+
+        <g class="fn">
+          <rect x="35" y="154" width="110" height="32" rx="8" />
+          <text x="90" y="174" text-anchor="middle" class="nl">Your Agent</text>
+        </g>
+        <g class="fn fn-main">
+          <rect x="430" y="153" width="140" height="34" rx="10" />
+          <text x="500" y="174" text-anchor="middle" class="nl nl-m">BoltzPay</text>
+        </g>
+        <g class="fn">
+          <rect x="850" y="154" width="90" height="32" rx="8" />
+          <text x="895" y="174" text-anchor="middle" class="nl">API</text>
+        </g>
+        <g class="fn">
+          <rect x="455" y="52" width="90" height="28" rx="8" />
+          <text x="500" y="70" text-anchor="middle" class="nl">Router</text>
+        </g>
+        <g class="fn fn-pill">
+          <rect x="390" y="12" width="44" height="18" rx="9" />
+          <text x="412" y="25" text-anchor="middle" class="nl-pill">x402</text>
+        </g>
+        <g class="fn fn-pill">
+          <rect x="566" y="12" width="44" height="18" rx="9" />
+          <text x="588" y="25" text-anchor="middle" class="nl-pill">L402</text>
+        </g>
+        <g class="fn">
+          <rect x="305" y="264" width="90" height="28" rx="8" />
+          <text x="350" y="282" text-anchor="middle" class="nl">Budget</text>
+        </g>
+        <g class="fn">
+          <rect x="605" y="264" width="90" height="28" rx="8" />
+          <text x="650" y="282" text-anchor="middle" class="nl">Wallet</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Mobile: vertical flow -->
+    <div class="mt-10 md:hidden" id="constellation-m">
+      <svg viewBox="0 0 300 460" class="mx-auto w-full max-w-[280px] h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="sg-m" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="aura" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="glow" />
+            <feMerge>
+              <feMergeNode in="aura" />
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <path class="fl-b" d="M150,58 C125,85 175,108 150,135" pathLength="1000" style="--dd:0ms" />
+        <path class="fl-b" d="M150,173 C175,200 125,228 150,255" pathLength="1000" style="--dd:200ms" />
+        <path class="fl-b" d="M150,293 C125,320 175,348 150,375" pathLength="1000" style="--dd:400ms" />
+
+        <path class="fl-s" d="M150,58 C125,85 175,108 150,135" pathLength="1000" style="--sd:2.2s;--sl:0.3s" filter="url(#sg-m)" />
+        <path class="fl-s" d="M150,173 C175,200 125,228 150,255" pathLength="1000" style="--sd:2.2s;--sl:0.5s" filter="url(#sg-m)" />
+        <path class="fl-s" d="M150,293 C125,320 175,348 150,375" pathLength="1000" style="--sd:2.2s;--sl:0.7s" filter="url(#sg-m)" />
+
+        <g class="fn">
+          <rect x="90" y="20" width="120" height="38" rx="8" />
+          <text x="150" y="43" text-anchor="middle" class="nl">fetch(url)</text>
+        </g>
+        <g class="fn">
+          <rect x="110" y="135" width="80" height="38" rx="8" />
+          <text x="150" y="158" text-anchor="middle" class="nl">402</text>
+        </g>
+        <g class="fn fn-main">
+          <rect x="45" y="255" width="210" height="38" rx="8" />
+          <text x="150" y="278" text-anchor="middle" class="nl nl-m">detect · check · pay</text>
+        </g>
+        <g class="fn fn-ok">
+          <rect x="75" y="375" width="150" height="38" rx="8" />
+          <text x="150" y="398" text-anchor="middle" class="nl">retry → 200 &#x2713;</text>
+        </g>
+      </svg>
+    </div>
+
+  </div>
+</section>
+
+<style is:global>
+  .fl-b {
+    stroke: color-mix(in srgb, var(--color-accent-warm) 15%, transparent);
+    stroke-width: 1;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition-delay: var(--dd, 0ms);
+  }
+
+  .cst-active .fl-b {
+    stroke-dashoffset: 0;
+  }
+
+  .fl-s {
+    stroke: var(--color-accent-warm);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 180 820;
+    stroke-dashoffset: 1000;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+
+  .cst-active .fl-s {
+    opacity: 0.6;
+    animation: snk-flow var(--sd, 3s) ease-in-out infinite;
+    animation-delay: var(--sl, 0s);
+  }
+
+  .cst-paused .fl-s {
+    animation-play-state: paused;
+  }
+
+  @keyframes snk-flow {
+    from { stroke-dashoffset: 1000; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  .el {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    fill: color-mix(in srgb, var(--color-accent-warm) 45%, transparent);
+    opacity: 0;
+    transition: opacity 0.6s ease 1s;
+  }
+
+  .cst-active .el {
+    opacity: 1;
+  }
+
+  .fn {
+    opacity: 0;
+    transition: opacity 0.5s ease 0.2s;
+  }
+
+  .cst-active .fn {
+    opacity: 1;
+  }
+
+  .fn rect {
+    fill: color-mix(in srgb, var(--color-bg-primary) 95%, transparent);
+    stroke: color-mix(in srgb, var(--color-accent-warm) 15%, transparent);
+    stroke-width: 1;
+  }
+
+  .fn-main rect {
+    stroke: color-mix(in srgb, var(--color-accent-warm) 30%, transparent);
+    stroke-width: 1.5;
+  }
+
+  .fn-ok rect {
+    fill: color-mix(in srgb, var(--color-accent-warm) 4%, var(--color-bg-primary));
+    stroke: color-mix(in srgb, var(--color-accent-warm) 30%, transparent);
+  }
+
+  .nl {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    fill: var(--color-text-primary);
+  }
+
+  .nl-m {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .fl-b-mini {
+    stroke-width: 0.7;
+  }
+
+  .fn-pill rect {
+    fill: color-mix(in srgb, var(--color-accent-warm) 6%, var(--color-bg-primary));
+    stroke: color-mix(in srgb, var(--color-accent-warm) 25%, transparent);
+    stroke-width: 0.8;
+  }
+
+  .nl-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: color-mix(in srgb, var(--color-accent-warm) 70%, var(--color-text-primary));
+  }
+
+  .el-badge {
+    opacity: 0;
+    transition: opacity 0.6s ease 1s;
+  }
+
+  .cst-active .el-badge {
+    opacity: 1;
+  }
+
+  .badge-warn rect {
+    fill: color-mix(in srgb, #f59e0b 8%, var(--color-bg-primary));
+    stroke: color-mix(in srgb, #f59e0b 30%, transparent);
+    stroke-width: 0.7;
+  }
+
+  .badge-ok rect {
+    fill: color-mix(in srgb, var(--color-accent-warm) 10%, var(--color-bg-primary));
+    stroke: color-mix(in srgb, var(--color-accent-warm) 40%, transparent);
+    stroke-width: 0.7;
+  }
+
+  .badge-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    fill: var(--color-text-primary);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fl-b {
+      stroke-dashoffset: 0;
+      transition: none;
+    }
+    .fl-s {
+      opacity: 0.25;
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 0;
+      animation: none !important;
+    }
+    .el, .fn, .el-badge {
+      opacity: 1;
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    for (const id of ["constellation", "constellation-m"]) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+
+      const drawObs = new IntersectionObserver(
+        ([e]) => {
+          if (e?.isIntersecting) {
+            el.classList.add("cst-active");
+            drawObs.disconnect();
+          }
+        },
+        { threshold: 0.2 },
+      );
+      drawObs.observe(el);
+
+      const pauseObs = new IntersectionObserver(
+        ([e]) => {
+          el.classList.toggle("cst-paused", !e?.isIntersecting);
+        },
+        { threshold: 0 },
+      );
+      pauseObs.observe(el);
+    }
+  }
+</script>

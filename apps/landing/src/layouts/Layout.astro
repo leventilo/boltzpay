@@ -1,0 +1,91 @@
+---
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BoltzPay — AI Agent Payment SDK</title>
+    <meta
+      name="description"
+      content="Give your AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain (Bitcoin Lightning, Base, Solana), open source SDK."
+    />
+    <link rel="canonical" href="https://boltzpay.ai/" />
+
+    <meta property="og:title" content="BoltzPay — AI Agent Payment SDK" />
+    <meta
+      property="og:description"
+      content="Give your AI agents a fetch() that pays. Bitcoin Lightning + stablecoins. Multi-protocol, open source."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://boltzpay.ai" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="BoltzPay — AI Agent Payment SDK" />
+    <meta
+      name="twitter:description"
+      content="Give your AI agents a fetch() that pays. Bitcoin Lightning + stablecoins. Multi-protocol, open source."
+    />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="font-sans antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-accent-cyan focus:px-4 focus:py-2 focus:text-bg-primary">
+      Skip to content
+    </a>
+    <slot />
+
+    <script>
+      const COPY_FEEDBACK_MS = 2000;
+      const SCROLL_VISIBILITY_THRESHOLD = 0.1;
+
+      document.querySelectorAll<HTMLButtonElement>(".copy-code").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const pre = btn.closest(".group")?.querySelector("pre");
+          if (!pre) return;
+          await navigator.clipboard.writeText(pre.textContent || "");
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => { btn.textContent = original; }, COPY_FEEDBACK_MS);
+        });
+      });
+
+      document.querySelectorAll<HTMLButtonElement>("[data-copy]:not(.copy-code)").forEach((btn) => {
+        const textSpan = btn.querySelector("span:nth-child(2)");
+        if (!textSpan) return;
+        const originalText = textSpan.textContent;
+        let resetId: ReturnType<typeof setTimeout> | undefined;
+        btn.addEventListener("click", async () => {
+          const text = btn.getAttribute("data-copy");
+          if (!text) return;
+          await navigator.clipboard.writeText(text);
+          if (!btn.style.minWidth) btn.style.minWidth = `${btn.offsetWidth}px`;
+          textSpan.textContent = " Copied! ";
+          if (resetId) clearTimeout(resetId);
+          resetId = setTimeout(() => {
+            textSpan.textContent = originalText;
+            btn.style.minWidth = "";
+            resetId = undefined;
+          }, COPY_FEEDBACK_MS);
+        });
+      });
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("visible");
+              observer.unobserve(entry.target);
+            }
+          }
+        },
+        { threshold: SCROLL_VISIBILITY_THRESHOLD },
+      );
+      document.querySelectorAll(".animate-on-scroll").forEach((el) => {
+        observer.observe(el);
+      });
+    </script>
+  </body>
+</html>

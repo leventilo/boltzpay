@@ -1,0 +1,176 @@
+---
+title: Quickstart
+description: Get your first paid API call working in under 2 minutes.
+---
+
+## Step 1: Explore Mode (no keys)
+
+Create a BoltzPay instance with an empty config. No credentials needed: you can discover APIs, check prices, and get quotes for free.
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+
+const agent = new BoltzPay({});
+
+// Check what this instance can do
+const caps = agent.getCapabilities();
+console.log("Can pay:", caps.canPay);     // false (no keys)
+console.log("Protocols:", caps.protocols); // ["x402"]
+```
+
+### Get a price quote
+
+```typescript
+const quote = await agent.quote("https://invy.bot/api");
+
+console.log("Protocol:", quote.protocol);             // "x402"
+console.log("Price:", quote.amount.toDisplayString()); // "$0.05"
+console.log("Network:", quote.network);                // "base"
+```
+
+### Multi-chain pricing
+
+Some endpoints accept payment on multiple chains. The quote includes all options:
+
+```typescript
+if (quote.allAccepts && quote.allAccepts.length > 1) {
+  console.log("Available chains:");
+  for (const accept of quote.allAccepts) {
+    console.log(` - ${accept.network}: ${accept.amount} cents`);
+  }
+}
+```
+
+### Discover compatible APIs
+
+Browse the built-in directory of verified endpoints:
+
+```typescript
+const entries = await agent.discover();
+
+for (const entry of entries) {
+  console.log(`${entry.name} — ${entry.url}`);
+  if (entry.live.status === "live") {
+    console.log(`  Price: ${entry.live.livePrice} via ${entry.live.protocol}`);
+  }
+}
+```
+
+## Step 2: Payment Mode (x402 — USDC)
+
+Add Coinbase CDP credentials to pay x402 endpoints (USDC on Base). The SDK detects whether an endpoint requires payment, negotiates the protocol, pays, and returns the data.
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+});
+
+const response = await agent.fetch("https://invy.bot/api");
+console.log("Status:", response.status); // 200
+```
+
+<Tip>
+  Don't have Coinbase keys yet? See [Installation](/getting-started/installation#coinbase-cdp-required-for-payments) for setup instructions.
+</Tip>
+
+## Step 2b: Lightning Mode (L402 — Bitcoin, optional)
+
+Add an NWC connection string to also pay L402 endpoints (Bitcoin via Lightning Network). Both protocols can be enabled simultaneously — the SDK auto-detects which one each endpoint uses.
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+  nwcConnectionString: process.env.NWC_CONNECTION_STRING!, // Lightning wallet
+});
+
+// Same fetch() call — protocol is transparent
+const response = await agent.fetch("https://satring.com/api/v1/analytics"); // L402, pays in sats
+const data = await response.json();
+console.log("Paid:", response.payment?.amount.toDisplayString()); // "100 sats"
+```
+
+<Tip>
+  Get your NWC connection string for free from [Coinos](https://coinos.io), [Primal](https://primal.net), or any [NWC-compatible wallet](https://nwc.dev). See [Installation](/getting-started/installation#nwc-optional-for-l402-protocol) for details.
+</Tip>
+
+## Step 3: Read the Response
+
+`agent.fetch()` returns a `BoltzPayResponse` with familiar methods (`json()`, `text()`) plus payment metadata.
+
+```typescript
+const response = await agent.fetch("https://invy.bot/api");
+
+// Read the response body
+const data = await response.json();
+console.log("Data:", data);
+
+// Check payment details (null if endpoint was free)
+if (response.payment) {
+  console.log("Amount:", response.payment.amount.toDisplayString()); // "$0.05"
+  console.log("Protocol:", response.payment.protocol);               // "x402"
+  console.log("Tx hash:", response.payment.txHash);                  // "0xabc..."
+}
+```
+
+### Free endpoints pass through
+
+If the endpoint does not require payment, `fetch()` works like a normal HTTP call. No payment is made, and `response.payment` is `null`.
+
+```typescript
+const free = await agent.fetch("https://api.example.com/public");
+console.log(free.payment); // null
+```
+
+## Full Example
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+  budget: {
+    daily: "5.00",        // $5/day spending limit
+    perTransaction: "1.00", // $1 max per request
+  },
+});
+
+// Quote before paying
+const quote = await agent.quote("https://invy.bot/api");
+console.log(`This will cost ${quote.amount.toDisplayString()}`);
+
+// Pay and fetch
+const response = await agent.fetch("https://invy.bot/api");
+const data = await response.json();
+console.log(data);
+
+// Check remaining budget
+const budget = agent.getBudget();
+console.log("Daily remaining:", budget.dailyRemaining?.toDisplayString());
+
+// Review payment history
+const history = agent.getHistory();
+console.log("Payments:", history.length);
+```
+
+## Quick CLI Check
+
+Verify an endpoint from your terminal without writing any code:
+
+```bash
+npx @boltzpay/cli check https://invy.bot/api
+# Protocol: x402 | Price: $0.05 | Chain: Base
+```
+
+## Next Steps
+
+- [Configuration](/getting-started/configuration) - all constructor options, budget settings, environment variables
+- [Claude Desktop](/guides/mcp-claude-desktop) - give Claude the ability to pay for APIs
+- [CLI Reference](/guides/cli) - terminal commands and Python bridge

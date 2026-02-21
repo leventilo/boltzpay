@@ -1,0 +1,359 @@
+---
+title: Claude Desktop (MCP)
+description: Give Claude the ability to discover and pay for APIs.
+---
+
+The BoltzPay MCP server gives Claude 7 tools for discovering, quoting, and paying for API data, all through natural language. It communicates via the [Model Context Protocol](https://modelcontextprotocol.io/), an open standard for AI tool use.
+
+## Quick Start
+
+<Steps>
+  <Step title="Open your Claude Desktop config file">
+    <Tabs>
+      <Tab title="macOS">
+        ```
+        ~/Library/Application Support/Claude/claude_desktop_config.json
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```
+        %APPDATA%\Claude\claude_desktop_config.json
+        ```
+      </Tab>
+      <Tab title="Linux">
+        ```
+        ~/.config/claude/claude_desktop_config.json
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Add the BoltzPay server (Explore mode, no keys needed)">
+    ```json
+    {
+      "mcpServers": {
+        "boltzpay": {
+          "command": "npx",
+          "args": ["-y", "@boltzpay/mcp"]
+        }
+      }
+    }
+    ```
+
+    This gives Claude read-only tools: `check`, `quote`, `discover`, `budget`, `history`, and `wallet`. No credentials required.
+  </Step>
+  <Step title="Restart Claude Desktop">
+    Quit and reopen the app. Open Settings > MCP Servers to confirm BoltzPay is listed, or type `/mcp` in a conversation to check.
+  </Step>
+</Steps>
+
+<Tip>
+  You can also run `npx @boltzpay/mcp setup` to launch an interactive wizard that writes the config file for you.
+</Tip>
+
+## Enable Payments
+
+To let Claude actually pay for API data, add your Coinbase Developer Platform keys:
+
+```json
+{
+  "mcpServers": {
+    "boltzpay": {
+      "command": "npx",
+      "args": ["-y", "@boltzpay/mcp"],
+      "env": {
+        "COINBASE_API_KEY_ID": "your-key-id",
+        "COINBASE_API_KEY_SECRET": "your-key-secret",
+        "COINBASE_WALLET_SECRET": "your-wallet-secret",
+        "BOLTZPAY_DAILY_BUDGET": "5.00"
+      }
+    }
+  }
+}
+```
+
+<Tip>
+  Get your keys at [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com). The wallet is automatically provisioned on first use. No manual wallet setup needed.
+</Tip>
+
+<Warning>
+  On Windows, use `"command": "cmd"` and `"args": ["/c", "npx", "-y", "@boltzpay/mcp"]` instead.
+</Warning>
+
+### Credential requirements
+
+Not every tool needs keys. Only `boltzpay_fetch` requires credentials to make payments:
+
+| Tool | Coinbase keys | NWC string |
+|------|:---:|:---:|
+| `boltzpay_fetch` | Required (x402) | For L402 only |
+| `boltzpay_quote` | — | — |
+| `boltzpay_check` | — | — |
+| `boltzpay_discover` | — | — |
+| `boltzpay_budget` | — | — |
+| `boltzpay_history` | — | — |
+| `boltzpay_wallet` | — | — |
+
+## Budget Control
+
+Set spending limits via environment variables in your config. When a limit is hit, `boltzpay_fetch` returns a structured error and Claude informs you.
+
+| Variable | Description | Example |
+|---|---|---|
+| `BOLTZPAY_DAILY_BUDGET` | Max spend per day | `"5.00"` |
+| `BOLTZPAY_MONTHLY_BUDGET` | Max spend per month | `"50.00"` |
+| `BOLTZPAY_PER_TRANSACTION` | Max per single request | `"1.00"` |
+
+See [Configuration](/getting-started/configuration) for all environment variables and advanced options.
+
+## Tools
+
+### boltzpay_fetch
+
+Fetch data from a paid API. Automatically detects the payment protocol (x402 or L402), pays the required amount, and returns the response.
+
+| Parameter | Type | Required | Description |
+|-----------|------|:---:|-------------|
+| `url` | `string` | Yes | URL of the paid API endpoint |
+| `method` | `string` | No | HTTP method (default: `GET`) |
+| `headers` | `Record<string, string>` | No | Additional HTTP headers |
+| `body` | `string` | No | Request body |
+| `chain` | `"evm"` \| `"svm"` | No | Override chain selection |
+
+```json title="Success"
+{
+  "status": 200,
+  "ok": true,
+  "body": "{\"holdings\": [...]}",
+  "payment": {
+    "protocol": "x402",
+    "amount": "$0.05"
+  }
+}
+```
+
+The `payment` field is only present when a payment was made. Free endpoints omit it.
+
+```json title="Error"
+{
+  "error": "PROTOCOL_ERROR",
+  "message": "Payment was not accepted by the server (HTTP 402)",
+  "hint": "Check the URL and try boltzpay_check first"
+}
+```
+
+---
+
+### boltzpay_quote
+
+Check an endpoint's cost without paying. Returns protocol, price, currency, and multi-chain alternatives when available.
+
+| Parameter | Type | Required | Description |
+|-----------|------|:---:|-------------|
+| `url` | `string` | Yes | URL to check for pricing |
+
+```json title="Paid endpoint"
+{
+  "protocol": "x402",
+  "amount": "$0.05",
+  "currency": "USD",
+  "network": "eip155:8453",
+  "alternatives": [
+    { "chain": "Solana", "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": "$0.05" }
+  ]
+}
+```
+
+Free endpoints return a plain text response: `This endpoint does not require payment (free)`.
+
+---
+
+### boltzpay_check
+
+Detect if a URL requires payment. Returns `isPaid` status with protocol and pricing details.
+
+| Parameter | Type | Required | Description |
+|-----------|------|:---:|-------------|
+| `url` | `string` | Yes | URL to check |
+
+```json title="Paid"
+{
+  "isPaid": true,
+  "protocol": "x402",
+  "amount": "$0.05",
+  "currency": "USD",
+  "options": [
+    { "chain": "Base", "network": "eip155:8453", "amount": "$0.05" }
+  ]
+}
+```
+
+```json title="Free"
+{
+  "isPaid": false
+}
+```
+
+---
+
+### boltzpay_discover
+
+Browse a directory of known paid API endpoints. Each endpoint is probed in real-time to verify availability and current pricing.
+
+| Parameter | Type | Required | Description |
+|-----------|------|:---:|-------------|
+| `category` | `string` | No | Filter: `crypto-data`, `utilities`, `demo` |
+
+```json title="Output"
+[
+  {
+    "name": "Invy — Token Holdings",
+    "url": "https://invy.bot/api",
+    "category": "crypto-data",
+    "status": "live",
+    "price": "$0.05",
+    "detectedProtocol": "x402",
+    "network": "eip155:8453"
+  }
+]
+```
+
+Each entry has one of four statuses:
+
+| Status | Meaning |
+|--------|---------|
+| `live` | Online, price verified |
+| `free` | Online, no payment protocol detected |
+| `offline` | Unreachable or timed out |
+| `error` | Probing encountered an unexpected error |
+
+---
+
+### boltzpay_budget
+
+View current spending limits, amount spent, and remaining balance. No parameters.
+
+```json title="With budget configured"
+{
+  "daily": {
+    "limit": "$10.00",
+    "spent": "$1.25",
+    "remaining": "$8.75"
+  },
+  "perTransaction": {
+    "limit": "$1.00"
+  }
+}
+```
+
+Returns `No budget limits configured` when no limits are set.
+
+---
+
+### boltzpay_history
+
+List all payments made during the current session. No parameters.
+
+```json title="Output"
+[
+  {
+    "url": "https://invy.bot/api",
+    "protocol": "x402",
+    "amount": "$0.05",
+    "chain": "Base",
+    "network": "eip155:8453",
+    "timestamp": "2026-02-19T14:30:00.000Z",
+    "txHash": "0xabc123..."
+  }
+]
+```
+
+Returns `No payments made yet` when the session has no transactions.
+
+---
+
+### boltzpay_wallet
+
+View wallet addresses, balances, network, supported protocols, and budget configuration. No parameters.
+
+```json title="Output"
+{
+  "network": "base",
+  "protocols": ["x402", "l402"],
+  "chains": ["evm", "svm"],
+  "addresses": {
+    "evm": "0x1234...abcd",
+    "svm": "7xKX...9mNq"
+  },
+  "balances": {
+    "evm": "$12.50",
+    "svm": "$5.00"
+  },
+  "budget": {
+    "daily": { "limit": "$10.00", "spent": "$1.25", "remaining": "$8.75" }
+  }
+}
+```
+
+When credentials are not set, `balances` returns `"Balance unavailable"`. Without budget config, `budget` returns `"No limits configured"`.
+
+## Error Handling
+
+All tools return structured errors with `isError: true`. The format is consistent:
+
+```json
+{
+  "error": "ERROR_TYPE",
+  "message": "Human-readable description",
+  "hint": "Suggested next step"
+}
+```
+
+| Error type | Trigger | Hint |
+|---|---|---|
+| `BUDGET_EXCEEDED` | Exceeds a configured budget limit | Use `boltzpay_budget` to check limits |
+| `INSUFFICIENT_FUNDS` | Not enough USDC in wallet | Top up your USDC balance |
+| `MISSING_CREDENTIALS` | Coinbase credentials not set | Set the three `COINBASE_*` env vars |
+| `PROTOCOL_ERROR` | Payment protocol failure | Try `boltzpay_check` first to verify |
+| `NETWORK_ERROR` | Endpoint unreachable or timeout | Verify the endpoint is reachable |
+| `INTERNAL_ERROR` | Unexpected server error | Check logs (`BOLTZPAY_LOG_LEVEL=debug`) |
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `COINBASE_API_KEY_ID` | CDP API key ID | — |
+| `COINBASE_API_KEY_SECRET` | CDP API key secret | — |
+| `COINBASE_WALLET_SECRET` | CDP wallet secret | — |
+| `NWC_CONNECTION_STRING` | Enables L402 protocol (Lightning) | — |
+| `BOLTZPAY_DAILY_BUDGET` | Daily spending cap in USD | No limit |
+| `BOLTZPAY_MONTHLY_BUDGET` | Monthly spending cap in USD | No limit |
+| `BOLTZPAY_PER_TRANSACTION` | Per-request spending cap in USD | No limit |
+| `BOLTZPAY_NETWORK` | `base` or `base-sepolia` | `base` |
+| `BOLTZPAY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` | `warn` |
+
+## Troubleshooting
+
+### "Tool not found" or no hammer icon
+
+Claude Desktop didn't load the MCP server. Check:
+1. The JSON config is valid (no trailing commas, correct braces).
+2. The file is at the correct path for your OS.
+3. You restarted Claude Desktop after editing the config.
+
+### "npx fails" or "command not found"
+
+Node.js is not in Claude Desktop's PATH.
+- **macOS**: Install Node.js via the official installer (not just nvm). Or use the full path: `"command": "/usr/local/bin/npx"`.
+- **Windows**: Use the `cmd` wrapper: `"command": "cmd", "args": ["/c", "npx", "-y", "@boltzpay/mcp"]`.
+
+### "MISSING_CREDENTIALS" error
+
+The `boltzpay_fetch` tool requires Coinbase keys to make payments. Read-only tools (`check`, `quote`, `discover`) work without credentials. To enable payments, add the three `COINBASE_*` env vars to your config.
+
+### "BUDGET_EXCEEDED" error
+
+You've hit your configured spending limit. Ask Claude to run `boltzpay_budget` to see the current state, or increase the limit in your config and restart.
+
+### Payments work but responses are empty
+
+Some endpoints only accept POST requests. Ask Claude to use `method: "POST"` with the appropriate body. Check the endpoint's documentation for the correct method.

@@ -1,0 +1,791 @@
+---
+title: SDK API
+description: Complete API reference for @boltzpay/sdk.
+---
+
+Complete API reference for the `@boltzpay/sdk` package. Every public class, method, type, and error is documented here with exact TypeScript signatures.
+
+## Installation
+
+```bash
+npm install @boltzpay/sdk
+```
+
+---
+
+## BoltzPay class
+
+The main entry point. Instantiate once and reuse across requests.
+
+### Constructor
+
+```ts
+import { BoltzPay } from '@boltzpay/sdk';
+
+const sdk = new BoltzPay(config: BoltzPayConfig);
+```
+
+See [BoltzPayConfig](#boltzpayconfig) for the full configuration type.
+
+<Tip>
+Coinbase credentials are optional at construction time. Read-only methods (`quote`, `getBudget`, `getHistory`, `getCapabilities`, `discover`) work without them. Payment methods (`fetch`) require credentials and will throw at execution time if missing.
+</Tip>
+
+### Methods
+
+#### `fetch(url, options?)`
+
+Fetch data from a paid API endpoint. Automatically detects the payment protocol, pays the required amount, and returns the response. If no payment protocol is detected, the request passes through as a normal fetch. Concurrent calls are serialized internally to prevent double-spend.
+
+```ts
+async fetch(url: string, options?: FetchOptions): Promise<BoltzPayResponse>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `url` | `string` | Yes | URL of the paid API endpoint |
+| `options` | [`FetchOptions`](#fetchoptions) | No | Request options (method, headers, body, maxAmount, chain) |
+
+**Returns:** [`BoltzPayResponse`](#boltzpayresponse)
+
+**Throws:** [`ProtocolError`](#protocolerror), [`BudgetExceededError`](#budgetexceedederror), [`NetworkError`](#networkerror)
+
+```ts
+const response = await sdk.fetch('https://invy.bot/api');
+const data = await response.json();
+console.log(data);
+console.log(response.payment); // { protocol: 'x402', amount: Money, ... }
+```
+
+---
+
+#### `quote(url)`
+
+Check the cost of a paid endpoint without paying. Probes the URL and returns pricing information.
+
+```ts
+async quote(url: string): Promise<QuoteResult>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `url` | `string` | Yes | URL of the paid endpoint |
+
+**Returns:** [`QuoteResult`](#quoteresult)
+
+**Throws:** [`ProtocolError`](#protocolerror) with code `protocol_detection_failed` if the endpoint is free.
+
+```ts
+const quote = await sdk.quote('https://invy.bot/api');
+console.log(quote.amount.toDisplayString()); // "$0.05"
+console.log(quote.protocol);                 // "x402"
+```
+
+---
+
+#### `getBudget()`
+
+Get the current budget state, including limits, spending, and remaining amounts.
+
+```ts
+getBudget(): BudgetState
+```
+
+**Returns:** [`BudgetState`](#budgetstate)
+
+```ts
+const budget = sdk.getBudget();
+console.log(budget.dailySpent.toDisplayString());     // "$1.25"
+console.log(budget.dailyRemaining?.toDisplayString()); // "$8.75"
+```
+
+---
+
+#### `resetDailyBudget()`
+
+Reset the daily spending counter to zero. Call this at the start of each day if you manage budget resets manually.
+
+```ts
+resetDailyBudget(): void
+```
+
+---
+
+#### `getHistory()`
+
+Get all payment records. When persistence is enabled, history survives restarts (stored as `history.jsonl`, last 500 entries by default).
+
+```ts
+getHistory(): readonly PaymentRecord[]
+```
+
+**Returns:** Array of [`PaymentRecord`](#paymentrecord), ordered chronologically.
+
+---
+
+#### `getCapabilities()`
+
+Return the configured network, supported protocols, payment readiness, chain namespaces, and cached wallet addresses.
+
+```ts
+getCapabilities(): {
+  network: string;
+  protocols: string[];
+  canPay: boolean;
+  canPayLightning: boolean;
+  chains: ChainNamespace[];
+  addresses: { evm?: string; svm?: string };
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `network` | `string` | `"base"` or `"base-sepolia"` |
+| `protocols` | `string[]` | `["x402"]` or `["x402", "l402"]` |
+| `canPay` | `boolean` | `true` if Coinbase credentials are configured |
+| `canPayLightning` | `boolean` | `true` if NWC connection string is configured |
+| `chains` | `ChainNamespace[]` | `["evm", "svm"]` |
+| `addresses` | `{ evm?: string; svm?: string }` | Cached wallet addresses (populated after first use) |
+
+---
+
+#### `getBalances()`
+
+Query USDC balance per chain from the wallet manager. Degrades gracefully: returns an empty object if credentials are missing or the query fails.
+
+```ts
+async getBalances(): Promise<{
+  evm?: { address: string; balance: Money | undefined };
+  svm?: { address: string; balance: Money | undefined };
+}>
+```
+
+---
+
+#### `getWalletStatus()`
+
+Comprehensive wallet health check. Probes Coinbase CDP connectivity, fetches on-chain balances, checks Lightning (NWC) wallet connectivity and balance, and reports credential and budget status. This is the only method that actively tests connections — other methods use cached data.
+
+```ts
+async getWalletStatus(): Promise<WalletStatus>
+```
+
+**Returns:** [`WalletStatus`](#walletstatus-1)
+
+```ts
+const status = await sdk.getWalletStatus();
+console.log(status.connection.status); // "connected"
+console.log(status.canPay);           // true
+if (status.lightning?.balance) {
+  console.log(status.lightning.balance.display); // "4800 sats"
+}
+```
+
+---
+
+#### `discover(options?)`
+
+Browse the built-in API directory with real-time endpoint probing. Each endpoint is checked live to verify availability and current pricing. Optionally merges live endpoints from the Bazaar Discovery API.
+
+```ts
+async discover(options?: DiscoverOptions): Promise<readonly DiscoveredEntry[]>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `options` | [`DiscoverOptions`](#discoveroptions) | No | Filter by category, toggle live discovery, pass an AbortSignal |
+
+---
+
+#### `close()`
+
+Close open connections (NWC WebSocket, etc.). Call when done using the SDK instance.
+
+```ts
+close(): void
+```
+
+---
+
+#### `on(event, callback)`
+
+Subscribe to SDK events. Returns `this` for chaining.
+
+```ts
+on<E extends EventName>(event: E, listener: EventListener<E>): this
+```
+
+See [BoltzPayEvents](#boltzpayevents) for the complete event map.
+
+---
+
+#### `off(event, callback)`
+
+Unsubscribe from SDK events. Returns `this` for chaining.
+
+```ts
+off<E extends EventName>(event: E, listener: EventListener<E>): this
+```
+
+---
+
+```ts
+sdk
+  .on('payment', (record) => {
+    console.log(`Paid ${record.amount.toDisplayString()} via ${record.protocol}`);
+  })
+  .on('budget:warning', (event) => {
+    console.log(`${(event.usage * 100).toFixed(0)}% of ${event.period} budget used`);
+  })
+  .on('error', (err) => {
+    console.error('SDK error:', err.message);
+  });
+```
+
+---
+
+## Types
+
+### BoltzPayConfig
+
+Configuration object passed to the `BoltzPay` constructor. All fields are optional.
+
+```ts
+interface BoltzPayConfig {
+  coinbaseApiKeyId?: string;
+  coinbaseApiKeySecret?: string;
+  coinbaseWalletSecret?: string;
+  nwcConnectionString?: string;      // Must start with "nostr+walletconnect://"
+  network?: "base" | "base-sepolia"; // Default: "base"
+  preferredChains?: ChainNamespace[];
+  budget?: BudgetConfig;
+  persistence?: {
+    enabled?: boolean;                // Default: false
+    directory?: string;               // Default: "~/.boltzpay/"
+    historyMaxRecords?: number;       // Default: 500
+  };
+  logLevel?: "debug" | "info" | "warn" | "error" | "silent"; // Default: "warn"
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `coinbaseApiKeyId` | `string` | — | Coinbase CDP API key ID |
+| `coinbaseApiKeySecret` | `string` | — | Coinbase CDP API key secret |
+| `coinbaseWalletSecret` | `string` | — | Coinbase CDP wallet secret |
+| `nwcConnectionString` | `string` | — | NWC connection string (enables L402 protocol) |
+| `network` | `"base" \| "base-sepolia"` | `"base"` | Blockchain network |
+| `preferredChains` | `ChainNamespace[]` | — | Preferred chain order for multi-chain endpoints |
+| `budget` | `BudgetConfig` | — | Spending limits |
+| `persistence` | `PersistenceConfig` | — | Enable history and budget persistence to disk |
+| `logLevel` | `string` | `"warn"` | Logging verbosity |
+
+### BudgetConfig
+
+```ts
+interface BudgetConfig {
+  daily?: string | number;            // e.g. "10.00" or 10
+  monthly?: string | number;
+  perTransaction?: string | number;
+  warningThreshold?: number;          // 0..1, default: 0.8
+  satToUsdRate?: number;              // Default: 0.001 (~$100K/BTC)
+}
+```
+
+Budget amounts accept both string (`"10.50"`) and number (`10.50`) for convenience. Strings must match the pattern `^\d+(\.\d{1,2})?$`. The `warningThreshold` controls when the `budget:warning` event fires (e.g. `0.8` = 80% of the limit).
+
+The `satToUsdRate` converts L402 satoshi payments to USD for budget accounting. At the default rate of `0.001` (1 sat = $0.001, ~$100K/BTC), a 100-sat payment counts as $0.10 in the budget.
+
+---
+
+### FetchOptions
+
+```ts
+interface FetchOptions {
+  maxAmount?: number | string;
+  headers?: Record<string, string>;
+  method?: string;                    // Default: "GET"
+  body?: Uint8Array;
+  chain?: ChainNamespace;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `maxAmount` | `number \| string` | Maximum amount in dollars (e.g. `1` or `"1.00"`). Throws `BudgetExceededError` with code `per_transaction_exceeded` if the price exceeds this. Prefer strings to avoid float rounding. |
+| `headers` | `Record<string, string>` | Additional HTTP headers sent with the request. |
+| `method` | `string` | HTTP method. Defaults to `"GET"`. |
+| `body` | `Uint8Array` | Request body as raw bytes. |
+| `chain` | `ChainNamespace` | Override chain selection for this request. Takes priority over `preferredChains` in config. |
+
+---
+
+### BoltzPayResponse
+
+Returned by `fetch()`. Wraps the HTTP response with payment metadata.
+
+```ts
+class BoltzPayResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  readonly headers: Record<string, string>;
+  readonly payment: PaymentDetails | undefined;
+  readonly protocol: string | undefined;
+
+  async json<T = unknown>(): Promise<T>;
+  async text(): Promise<string>;
+  get body(): ReadableStream<Uint8Array> | null;
+}
+```
+
+| Field / Method | Type | Description |
+|----------------|------|-------------|
+| `ok` | `boolean` | `true` if status is 200-299 |
+| `status` | `number` | HTTP status code |
+| `headers` | `Record<string, string>` | Response headers |
+| `payment` | `PaymentDetails \| undefined` | Payment metadata, or `undefined` for free endpoints |
+| `protocol` | `string \| undefined` | Protocol used (`"x402"`, `"l402"`, or `undefined`) |
+| `json<T>()` | `Promise<T>` | Parse body as JSON |
+| `text()` | `Promise<string>` | Decode body as UTF-8 string |
+| `body` | `ReadableStream<Uint8Array> \| null` | Raw body as a ReadableStream |
+
+---
+
+### QuoteResult
+
+Returned by `quote()`.
+
+```ts
+interface QuoteResult {
+  amount: Money;
+  protocol: string;
+  network: string | undefined;
+  allAccepts?: readonly AcceptOption[];
+  inputHints?: EndpointInputHints;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `amount` | `Money` | Price of the endpoint |
+| `protocol` | `string` | Detected protocol (`"x402"` or `"l402"`) |
+| `network` | `string \| undefined` | CAIP-2 network identifier (e.g. `"eip155:8453"`) |
+| `allAccepts` | `readonly AcceptOption[]` | All available payment options (multi-chain) |
+| `inputHints` | `EndpointInputHints` | Hints about expected parameters (from 402 metadata) |
+
+---
+
+### PaymentDetails
+
+Attached to `BoltzPayResponse.payment` after a successful payment.
+
+```ts
+interface PaymentDetails {
+  readonly protocol: string;
+  readonly amount: Money;
+  readonly url: string;
+  readonly timestamp: Date;
+  readonly txHash: string | undefined;
+}
+```
+
+---
+
+### PaymentRecord
+
+Stored in payment history. Extends `PaymentDetails` with additional fields.
+
+```ts
+interface PaymentRecord {
+  readonly id: string;                // UUID
+  readonly url: string;
+  readonly protocol: string;
+  readonly amount: Money;
+  readonly timestamp: Date;
+  readonly txHash: string | undefined;
+  readonly network: string | undefined;
+}
+```
+
+---
+
+### BudgetState
+
+Returned by `getBudget()`.
+
+```ts
+interface BudgetState {
+  readonly dailySpent: Money;
+  readonly monthlySpent: Money;
+  readonly dailyLimit: Money | undefined;
+  readonly monthlyLimit: Money | undefined;
+  readonly perTransactionLimit: Money | undefined;
+  readonly dailyRemaining: Money | undefined;
+  readonly monthlyRemaining: Money | undefined;
+}
+```
+
+When no budget is configured, limits and remaining values are `undefined` and spent values are `Money.zero()`.
+
+---
+
+### DiscoverOptions
+
+```ts
+interface DiscoverOptions {
+  readonly category?: string;
+  readonly signal?: AbortSignal;
+  readonly enableLiveDiscovery?: boolean; // Default: true
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `category` | `string` | — | Filter by category (e.g. `"crypto-data"`, `"utilities"`) |
+| `signal` | `AbortSignal` | — | Abort signal for cancellation |
+| `enableLiveDiscovery` | `boolean` | `true` | Fetch live endpoints from Bazaar Discovery API and merge with static directory |
+
+---
+
+### DiscoveredEntry
+
+```ts
+interface DiscoveredEntry extends ApiDirectoryEntry {
+  readonly live: DiscoverEntryStatus;
+}
+```
+
+Where `DiscoverEntryStatus` is:
+
+```ts
+type DiscoverEntryStatus =
+  | { status: "live"; livePrice: string; protocol: string; network: string | undefined }
+  | { status: "free" }
+  | { status: "offline"; reason: string }
+  | { status: "error"; reason: string };
+```
+
+---
+
+### WalletStatus
+
+Returned by `getWalletStatus()`.
+
+```ts
+interface WalletStatus {
+  readonly network: string;
+  readonly isTestnet: boolean;
+  readonly protocols: readonly string[];
+  readonly canPay: boolean;
+  readonly credentials: {
+    readonly coinbase: CredentialStatus;
+  };
+  readonly connection: ConnectionStatus;
+  readonly accounts: {
+    readonly evm: AccountStatus | undefined;
+    readonly svm: AccountStatus | undefined;
+  };
+  readonly budget: BudgetState;
+  readonly lightning?: LightningStatus;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `network` | `string` | `"base"` or `"base-sepolia"` |
+| `isTestnet` | `boolean` | `true` on `"base-sepolia"` |
+| `protocols` | `string[]` | `["x402"]` or `["x402", "l402"]` |
+| `canPay` | `boolean` | `true` if Coinbase credentials are configured |
+| `credentials` | `object` | Credential configuration status |
+| `connection` | `ConnectionStatus` | CDP connection probe result |
+| `accounts` | `object` | EVM and Solana wallet addresses + USDC balances |
+| `budget` | `BudgetState` | Current spending state |
+| `lightning` | `LightningStatus` | Lightning wallet status (only present if NWC configured) |
+
+Where `ConnectionStatus` is:
+
+```ts
+type ConnectionStatus =
+  | { status: "connected"; latencyMs: number }
+  | { status: "error"; error: string; latencyMs?: number }
+  | { status: "skipped"; reason: string };
+```
+
+And `LightningStatus` is:
+
+```ts
+interface LightningStatus {
+  readonly configured: boolean;
+  readonly connection: {
+    readonly status: "connected" | "error" | "skipped";
+    readonly latencyMs?: number;
+    readonly error?: string;
+  };
+  readonly balance?: { readonly sats: bigint; readonly display: string };
+}
+```
+
+---
+
+### BoltzPayEvents
+
+Event map for the `on()` method.
+
+```ts
+interface BoltzPayEvents {
+  payment: [PaymentRecord];
+  "budget:warning": [BudgetWarningEvent];
+  "budget:exceeded": [BudgetExceededEvent];
+  error: [Error];
+}
+```
+
+| Event | Payload | When |
+|-------|---------|------|
+| `payment` | [`PaymentRecord`](#paymentrecord) | After every successful payment |
+| `budget:warning` | [`BudgetWarningEvent`](#budgetwarningevent) | When spending crosses the warning threshold |
+| `budget:exceeded` | [`BudgetExceededEvent`](#budgetexceededevent) | When a transaction is rejected for exceeding a budget limit |
+| `error` | `Error` | On any SDK error (protocol, budget, network) |
+
+#### BudgetWarningEvent
+
+```ts
+interface BudgetWarningEvent {
+  readonly spent: Money;
+  readonly limit: Money;
+  readonly period: "daily" | "monthly";
+  readonly usage: number; // 0..1 ratio
+}
+```
+
+#### BudgetExceededEvent
+
+```ts
+interface BudgetExceededEvent {
+  readonly requested: Money;
+  readonly limit: Money;
+  readonly period: "daily" | "monthly" | "per_transaction";
+}
+```
+
+---
+
+## Re-exported types from @boltzpay/core
+
+The SDK re-exports commonly used types so you do not need to install `@boltzpay/core` separately.
+
+### Money
+
+Immutable value object representing a USD amount. Uses `bigint` internally for precision.
+
+```ts
+import { Money } from '@boltzpay/sdk';
+```
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `Money.fromDollars(dollars)` | `static fromDollars(dollars: string): Money` | Parse from dollar string (e.g. `"10.50"` or `"$10.50"`) |
+| `Money.fromCents(cents)` | `static fromCents(cents: bigint): Money` | Create from cent amount as bigint |
+| `Money.zero()` | `static zero(): Money` | Create a zero-value Money |
+| `money.cents` | `readonly cents: bigint` | Raw cent amount |
+| `money.currency` | `readonly currency: "USD"` | Always `"USD"` |
+| `money.add(other)` | `add(other: Money): Money` | Addition |
+| `money.subtract(other)` | `subtract(other: Money): Money` | Subtraction (throws if result would be negative) |
+| `money.multiply(factor)` | `multiply(factor: bigint): Money` | Multiply by integer factor |
+| `money.isZero()` | `isZero(): boolean` | Check if zero |
+| `money.greaterThan(other)` | `greaterThan(other: Money): boolean` | Comparison |
+| `money.greaterThanOrEqual(other)` | `greaterThanOrEqual(other: Money): boolean` | Comparison |
+| `money.equals(other)` | `equals(other: Money): boolean` | Equality check |
+| `money.toDisplayString()` | `toDisplayString(): string` | Format as `"$10.50"` |
+| `money.toJSON()` | `toJSON(): { cents: string; currency: string; display: string }` | JSON-safe representation (avoids BigInt serialization crash) |
+
+### ChainNamespace
+
+```ts
+type ChainNamespace = "evm" | "svm";
+```
+
+### AcceptOption
+
+A single payment option from a multi-chain endpoint.
+
+```ts
+interface AcceptOption {
+  readonly namespace: ChainNamespace;
+  readonly network: string;
+  readonly amount: bigint;     // USD cents
+  readonly payTo: string;
+  readonly asset: string;
+  readonly scheme: string;
+}
+```
+
+### Other re-exports
+
+```ts
+export type { ProtocolType, WalletInfo } from '@boltzpay/core';
+```
+
+---
+
+## API Directory exports
+
+The SDK exports the static API directory for programmatic access:
+
+```ts
+import {
+  API_DIRECTORY,
+  getDirectoryCategories,
+  filterDirectory,
+  toDiscoverJson,
+} from '@boltzpay/sdk';
+```
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `API_DIRECTORY` | `readonly ApiDirectoryEntry[]` | Full directory of verified endpoints |
+| `getDirectoryCategories()` | `() => string[]` | Get all distinct categories |
+| `filterDirectory(category?)` | `(category?: string) => readonly ApiDirectoryEntry[]` | Filter directory by category |
+| `toDiscoverJson(entry)` | `(entry: DiscoveredEntry) => DiscoverJsonEntry` | Convert a discovered entry to a JSON-serializable format |
+
+### ApiDirectoryEntry
+
+```ts
+interface ApiDirectoryEntry {
+  readonly name: string;
+  readonly url: string;
+  readonly protocol: string;
+  readonly category: string;
+  readonly description: string;
+  readonly pricing: string;
+  readonly chain?: string;
+  readonly status?: "live" | "testnet";
+}
+```
+
+---
+
+## Errors
+
+```ts
+import {
+  BoltzPayError,
+  BudgetExceededError,
+  ConfigurationError,
+  InsufficientFundsError,
+  NetworkError,
+  ProtocolError,
+} from '@boltzpay/sdk';
+```
+
+<Note>
+The SDK wraps all internal errors. You only need to catch `BoltzPayError` subclasses.
+</Note>
+
+### Error hierarchy
+
+All subclasses extend the abstract `BoltzPayError`, which adds `code` and `statusCode` to the native `Error`.
+
+```
+BoltzPayError (abstract)
+├── BudgetExceededError      429   + requested: Money, limit: Money
+├── ConfigurationError       400
+├── InsufficientFundsError   402
+├── NetworkError             503
+└── ProtocolError            502
+```
+
+```ts
+abstract class BoltzPayError extends Error {
+  abstract readonly code: string;
+  abstract readonly statusCode: number;
+}
+```
+
+### Error codes
+
+| Code | Class | When thrown |
+|------|-------|------------|
+| `daily_budget_exceeded` | `BudgetExceededError` | Payment would exceed daily budget |
+| `monthly_budget_exceeded` | `BudgetExceededError` | Payment would exceed monthly budget |
+| `per_transaction_exceeded` | `BudgetExceededError` | Payment exceeds per-transaction or `maxAmount` limit |
+| `missing_coinbase_credentials` | `ConfigurationError` | Coinbase keys required but missing |
+| `invalid_config` | `ConfigurationError` | Config fails Zod validation |
+| `insufficient_usdc` | `InsufficientFundsError` | Not enough USDC in wallet |
+| `insufficient_lightning_balance` | `InsufficientFundsError` | Not enough Lightning balance |
+| `network_timeout` | `NetworkError` | Request timed out |
+| `endpoint_unreachable` | `NetworkError` | Endpoint unreachable |
+| `blockchain_error` | `NetworkError` | Blockchain RPC or transaction error |
+| `protocol_detection_failed` | `ProtocolError` | No payment protocol detected |
+| `protocol_not_supported` | `ProtocolError` | Requested protocol adapter not available |
+| `payment_failed` | `ProtocolError` | Payment not accepted by server (may include `diagnosis`) |
+| `no_compatible_chain` | `ProtocolError` | No chain overlap between endpoint and SDK |
+| `x402_payment_failed` | `ProtocolError` | x402 payment execution failed |
+| `x402_quote_failed` | `ProtocolError` | x402 quote extraction failed |
+| `l402_payment_failed` | `ProtocolError` | L402 payment execution failed |
+| `l402_quote_failed` | `ProtocolError` | L402 quote extraction failed |
+| `l402_detection_failed` | `ProtocolError` | L402 protocol detection failed |
+| `l402_credentials_missing` | `ProtocolError` | L402 detected but no NWC connection string |
+| `cdp_provisioning_failed` | `ProtocolError` | CDP wallet provisioning failed |
+
+### Catching errors
+
+#### By class (instanceof)
+
+```ts
+try {
+  const response = await sdk.fetch('https://invy.bot/api');
+} catch (error) {
+  if (error instanceof BudgetExceededError) {
+    console.log(`Budget: ${error.requested.toDisplayString()} exceeds ${error.limit.toDisplayString()}`);
+  } else if (error instanceof InsufficientFundsError) {
+    console.log('Wallet needs more USDC');
+  } else if (error instanceof ConfigurationError) {
+    console.log('Check your API keys');
+  } else if (error instanceof ProtocolError) {
+    console.log(`Protocol error: ${error.code}`);
+  } else if (error instanceof NetworkError) {
+    console.log('Network issue, retrying...');
+  } else if (error instanceof BoltzPayError) {
+    console.log(`SDK error [${error.code}]: ${error.message}`);
+  } else {
+    throw error;
+  }
+}
+```
+
+#### By code (switch)
+
+```ts
+try {
+  await sdk.fetch(url);
+} catch (error) {
+  if (error instanceof BoltzPayError) {
+    switch (error.code) {
+      case 'daily_budget_exceeded':
+      case 'monthly_budget_exceeded':
+        console.log('Budget exhausted — wait for reset');
+        break;
+      case 'per_transaction_exceeded':
+        console.log('This endpoint is too expensive');
+        break;
+      case 'missing_coinbase_credentials':
+        console.log('Configure Coinbase keys to enable payments');
+        break;
+      case 'insufficient_usdc':
+        console.log('Fund your wallet with USDC');
+        break;
+      default:
+        console.log(`${error.code}: ${error.message}`);
+    }
+  }
+}
+```
+
+---
+
+## Constants
+
+```ts
+export const VERSION = "0.1.0";
+```

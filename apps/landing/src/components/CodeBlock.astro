@@ -1,0 +1,36 @@
+---
+interface Props {
+  code: string;
+  title?: string;
+  lineNumbers?: boolean;
+}
+
+const { code, title, lineNumbers = false } = Astro.props;
+const lines = lineNumbers ? code.split('\n') : [];
+---
+
+<div class="glow-border overflow-hidden rounded-lg">
+<div class="group relative rounded-[7px] bg-bg-primary font-mono text-xs leading-relaxed md:text-sm">
+  <div class="flex items-center gap-2 border-b border-accent-warm/15 bg-bg-secondary/30 px-4 py-2.5">
+    <span class="h-2.5 w-2.5 rounded-full bg-dot-red/60"></span>
+    <span class="h-2.5 w-2.5 rounded-full bg-dot-yellow/60"></span>
+    <span class="h-2.5 w-2.5 rounded-full bg-dot-green/60"></span>
+    {title && <span class="ml-2 text-xs text-accent-warm/60">{title}</span>}
+  </div>
+  <div class="relative p-4 md:p-5">
+    <button
+      class="copy-code absolute right-3 top-3 rounded border border-accent-cyan/20 bg-bg-secondary px-2 py-1 font-mono text-xs text-text-secondary opacity-60 transition-opacity hover:text-text-primary sm:opacity-0 sm:group-hover:opacity-100"
+      aria-label="Copy code"
+    >
+      Copy
+    </button>
+    {lineNumbers ? (
+      <pre class="overflow-x-auto"><code>{lines.map((line, i) => (
+        <span class="block"><span class="mr-4 inline-block w-5 select-none text-right text-text-secondary/25">{i + 1}</span><span set:html={line} /></span>
+      ))}</code></pre>
+    ) : (
+      <pre class="overflow-x-auto"><code set:html={code} /></pre>
+    )}
+  </div>
+</div>
+</div>

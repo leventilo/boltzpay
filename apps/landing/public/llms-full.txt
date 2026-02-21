@@ -1,0 +1,313 @@
+# BoltzPay
+
+> Open-source SDK that gives AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain (Base + Solana), your own keys.
+
+## SDK API
+
+### Constructor
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+
+const agent = new BoltzPay({
+  // Coinbase Developer Platform credentials (optional — enables payments)
+  coinbaseApiKeyId?: string,
+  coinbaseApiKeySecret?: string,
+  coinbaseWalletSecret?: string,
+  // NWC connection string (optional — enables L402 protocol)
+  nwcConnectionString?: string,
+  // Network: "base" (default) or "base-sepolia" (testnet)
+  network?: string,
+  // Preferred chains for multi-chain endpoints: ["evm"] or ["svm"]
+  preferredChains?: string[],
+  // Budget limits (all optional)
+  budget?: {
+    daily?: string | number,      // e.g. "5.00" or 5
+    monthly?: string | number,
+    perTransaction?: string | number,
+    warningThreshold?: number,    // 0-1, default 0.8
+    satToUsdRate?: number,        // 1 sat = X USD, default 0.001 (~$100K/BTC)
+  },
+  // Persistence (optional — enables history and budget persistence to disk)
+  persistence?: {
+    enabled?: boolean,            // default: false
+    directory?: string,           // default: "~/.boltzpay/"
+    historyMaxRecords?: number,   // default: 500
+  },
+  // Log level: "debug" | "info" | "warn" | "error" | "silent"
+  logLevel?: string,
+});
+```
+
+All config options are optional. Without Coinbase keys, the SDK runs in read-only mode (quote, check, discover work; fetch with payment does not).
+
+### Methods
+
+**`fetch(url: string, options?: FetchOptions): Promise<BoltzPayResponse>`**
+Fetch a URL. If 402 Payment Required is detected, automatically pays via the appropriate protocol and retries. Options: `maxAmount` (number | string), `headers`, `method`, `body`, `chain`.
+
+**`quote(url: string): Promise<QuoteResult>`**
+Check if a URL requires payment and how much it costs, without paying. Returns `{ amount, protocol, network, allAccepts?, inputHints? }`.
+
+**`getBudget(): BudgetState`**
+Returns current budget state: `{ dailySpent, monthlySpent, dailyLimit, monthlyLimit, perTransactionLimit, dailyRemaining, monthlyRemaining }`. All values are Money objects.
+
+**`resetDailyBudget(): void`**
+Reset the daily spending counter to zero.
+
+**`getHistory(): readonly PaymentRecord[]`**
+Get all payment records. When persistence is enabled, history survives restarts (stored as `history.jsonl`, last 500 entries by default).
+
+**`getCapabilities(): { network, protocols, canPay, canPayLightning, chains, addresses }`**
+Returns configured network, available protocols, whether payment is possible (x402 and Lightning separately), supported chains, and cached wallet addresses.
+
+**`getBalances(): Promise<{ evm?, svm? }>`**
+Query USDC balance per chain. Each entry has `{ address, balance }`. Degrades gracefully on failure.
+
+**`getWalletStatus(): Promise<WalletStatus>`**
+Comprehensive wallet health check. Probes Coinbase CDP connectivity, fetches on-chain balances, checks Lightning (NWC) connectivity and balance, reports credential and budget status.
+
+**`discover(options?: DiscoverOptions): Promise<readonly DiscoveredEntry[]>`**
+Browse the built-in API directory with real-time endpoint probing. Options: `category`, `signal` (AbortSignal), `enableLiveDiscovery` (default: true).
+
+**`close(): void`**
+Close open connections (NWC WebSocket, etc.). Call when done using the SDK.
+
+**`on(event, callback): this`**
+Subscribe to events. Chainable.
+
+**`off(event, callback): this`**
+Unsubscribe from events. Chainable.
+
+### Response Type
+
+```typescript
+class BoltzPayResponse {
+  ok: boolean;              // true if status 200-299
+  status: number;           // HTTP status code
+  headers: Record<string, string>;
+  json<T>(): Promise<T>;    // Parse body as JSON
+  text(): Promise<string>;  // Body as text
+  arrayBuffer(): Promise<ArrayBuffer>;
+  blob(): Promise<Blob>;
+  body: ReadableStream<Uint8Array> | null;
+  payment: PaymentDetails | undefined; // Defined when a payment was made
+  protocol: string | undefined;        // Protocol used (x402, l402)
+}
+
+interface PaymentDetails {
+  protocol: string;
+  amount: Money;            // e.g. Money with .toDisplayString() -> "$0.05"
+  url: string;
+  timestamp: Date;
+  txHash: string | undefined; // Blockchain transaction hash
+}
+```
+
+### Events
+
+- **`payment`** — Emitted after successful payment. Payload: `PaymentRecord` with id, url, protocol, amount, timestamp, txHash, network.
+- **`budget:warning`** — Emitted when spending crosses the warning threshold. Payload: `{ spent: Money, limit: Money, period: "daily" | "monthly", usage: number }`.
+- **`budget:exceeded`** — Emitted when a transaction would exceed budget. Payload: `{ requested: Money, limit: Money, period: "daily" | "monthly" | "per_transaction" }`.
+- **`error`** — Emitted on protocol or network errors. Payload: `Error` (typically a `BoltzPayError` subclass).
+
+### Errors
+
+- **`BoltzPayError`** — Abstract base error with `code` and `statusCode` properties.
+- **`BudgetExceededError`** (429) — Transaction exceeds configured budget. Codes: `daily_budget_exceeded`, `monthly_budget_exceeded`, `per_transaction_exceeded`. Extra fields: `requested: Money`, `limit: Money`.
+- **`ConfigurationError`** (400) — Invalid SDK configuration. Codes: `missing_coinbase_credentials`, `invalid_config`.
+- **`InsufficientFundsError`** (402) — Wallet balance too low. Codes: `insufficient_usdc`, `insufficient_lightning_balance`.
+- **`NetworkError`** (503) — Network communication failure. Codes: `network_timeout`, `endpoint_unreachable`, `blockchain_error`.
+- **`ProtocolError`** (502) — Payment protocol error. Codes: `protocol_detection_failed`, `protocol_not_supported`, `payment_failed`, `no_compatible_chain`, `x402_payment_failed`, `x402_quote_failed`, `l402_payment_failed`, `l402_quote_failed`, `l402_detection_failed`, `l402_credentials_missing`, `cdp_provisioning_failed`. May include `diagnosis: DeliveryDiagnosis` with structured error details.
+
+## Protocols
+
+### x402 (HTTP 402)
+
+Crypto-native payment protocol. Server responds with HTTP 402 and payment requirements in headers. SDK reads price, signs a USDC transaction on-chain (Base EVM or Solana SVM), and retries the request with payment proof. Settlement is on-chain, verified by a facilitator service. Supports V1 and V2 header formats.
+
+### L402 (Lightning)
+
+Bitcoin Lightning payment protocol by Lightning Labs. Server responds with HTTP 402 and a `WWW-Authenticate: L402` header containing a BOLT11 invoice. SDK pays the invoice via NWC (Nostr Wallet Connect) and retries with the payment preimage. Requires `nwcConnectionString` in config.
+
+## MCP Tools
+
+The `@boltzpay/mcp` package provides 7 tools for Claude Desktop and other MCP clients:
+
+| Tool | Description | Requires Keys |
+|------|-------------|---------------|
+| `boltzpay_fetch` | Fetch data from a paid API endpoint, auto-detect and pay | Yes |
+| `boltzpay_quote` | Check price of an endpoint without paying | No |
+| `boltzpay_check` | Detect if a URL requires payment | No |
+| `boltzpay_discover` | Browse directory of compatible paid APIs | No |
+| `boltzpay_budget` | View current spending budget status | No |
+| `boltzpay_history` | List payments made during session | No |
+| `boltzpay_wallet` | View wallet config, addresses, balances | No |
+
+### MCP Setup (Claude Desktop)
+
+```json
+{
+  "mcpServers": {
+    "boltzpay": {
+      "command": "npx",
+      "args": ["-y", "@boltzpay/mcp"],
+      "env": {
+        "COINBASE_API_KEY_ID": "your-key-id",
+        "COINBASE_API_KEY_SECRET": "your-key-secret",
+        "COINBASE_WALLET_SECRET": "your-wallet-secret"
+      }
+    }
+  }
+}
+```
+
+Omit the `env` block to run in explore-only mode (quote, check, discover work without keys).
+
+## CLI Commands
+
+The `@boltzpay/cli` package provides 8 commands:
+
+| Command | Description | Requires Keys |
+|---------|-------------|---------------|
+| `boltzpay fetch <url>` | Fetch a paid API endpoint | Yes |
+| `boltzpay quote <url>` | Check endpoint price | No |
+| `boltzpay check <url>` | Detect if URL requires payment | No |
+| `boltzpay discover [-c, --category]` | Browse API directory | No |
+| `boltzpay budget` | Show budget status | No |
+| `boltzpay history` | Show payment history | No |
+| `boltzpay wallet` | Show wallet info and balances | No |
+| `boltzpay demo [--yes, --testnet]` | Interactive demo walkthrough | No |
+
+### Global Flags
+
+- `--json` — Output as JSON (for scripting and Python bridge)
+- `--verbose` — Show additional details
+- `--debug` — Show debug information (headers, timing)
+
+### Environment Variables
+
+- `COINBASE_API_KEY_ID` — Coinbase CDP API key ID
+- `COINBASE_API_KEY_SECRET` — Coinbase CDP API key secret
+- `COINBASE_WALLET_SECRET` — Coinbase CDP wallet secret
+- `NWC_CONNECTION_STRING` — NWC connection string (for L402 protocol)
+- `BOLTZPAY_NETWORK` — Network override (base or base-sepolia)
+- `BOLTZPAY_DAILY_BUDGET` — Daily spending limit (e.g. "5.00")
+- `BOLTZPAY_MONTHLY_BUDGET` — Monthly spending limit
+- `BOLTZPAY_PER_TRANSACTION` — Per-transaction limit
+
+## API Directory
+
+BoltzPay ships a built-in directory of 25 verified paid API endpoints:
+
+### Categories
+
+- **crypto-data** — Token holdings, DeFi protocols, whale tracking, market data, transaction history
+- **utilities** — Holidays, RNG, IPFS, events, concerts
+- **demo** — Testnet and sanity-test endpoints for development
+- **research** — Academic publication trends, intelligence reports
+- **dev-tools** — UI components and developer resources
+
+### Endpoints
+
+#### x402 (USDC on-chain) — 23 endpoints
+
+| Name | URL | Price | Category |
+|------|-----|-------|----------|
+| Invy — Token Holdings | invy.bot/api | $0.05 | crypto-data |
+| x402-tools — Polymarket Trending | x402-tools.vercel.app/api/polymarket/trending | $0.01 | crypto-data |
+| Einstein AI — Top Tokens | emc2ai.io/x402/bitquery/top-tokens | $0.55 | crypto-data |
+| Einstein AI — Whale Intel | emc2ai.io/x402/bitquery/whale-intel/raw | $0.85 | crypto-data |
+| Silverback — DeFi Top Protocols | silverback-x402.onrender.com/api/v1/top-protocols | $0.01 | crypto-data |
+| x402scan — Top Merchants | x402scan-j55w7ornb-merit-systems.vercel.app/api/data/merchants | $0.01 | crypto-data |
+| OttoAI — Token Security Audit | x402.ottoai.services/token-security | $0.01 | crypto-data |
+| Zapper — Token Ranking | public.zapper.xyz/x402/token-ranking | $0.01 | crypto-data |
+| Zapper — DeFi Balances | public.zapper.xyz/x402/defi-balances | $0.01 | crypto-data |
+| Zapper — Transaction History | public.zapper.xyz/x402/transaction-history | $0.01 | crypto-data |
+| x402-tools — Concerts | x402-tools.vercel.app/api/concerts | $0.01 | utilities |
+| Auor — Public Holidays | api.auor.io/open-holidays/v1/public | $0.01 | utilities |
+| SocioLogic — Cryptographic RNG | rng.sociologic.ai/random/int | $0.01 | utilities |
+| Grapevine — IPFS Gateway | gateway.grapevine.fyi/x402/cid/... | $0.01 | utilities |
+| PubMed Trends | pubmed.sekgen.xyz/api/v1/trends | $0.01 | research |
+| Hugen Scout — Intelligence Report | scout.hugen.tokyo/scout/report | $0.01 | research |
+| Creative-Tim — Shadcn Blocks | x402.creative-tim.com/shadcn-blocks/user-payment | $0.01 | dev-tools |
+| Nickel Joke (Testnet) | nickeljoke.vercel.app/api/joke | $0.005 (testnet) | demo |
+| Hello World | hello-world-x402.vercel.app/hello | $0.01 | demo |
+| BoostPass Ping | boostpass.qrbase.xyz/api/x402/ping | $0.01 | demo |
+| SkillfulAI — Demo Premium | api-dev.agents.skillfulai.io/api/x402/demo/mainnet/premium | $0.01 | demo |
+
+#### L402 (Bitcoin Lightning) — 2 endpoints
+
+| Name | URL | Price | Category |
+|------|-----|-------|----------|
+| Satring — Analytics | satring.com/api/v1/analytics | 100 sats | crypto-data |
+| Satring — Service Reputation | satring.com/api/v1/services/lightning-faucet-fortune/reputation | 100 sats | crypto-data |
+
+## Examples
+
+### Basic Usage — Fetch a Paid API
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+});
+const response = await agent.fetch("https://invy.bot/api");
+const data = await response.json();
+if (response.payment) {
+  console.log("Paid:", response.payment.amount.toDisplayString());
+}
+```
+
+### Explore APIs (No Keys Required)
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+const agent = new BoltzPay({});
+console.log("Can pay:", agent.getCapabilities().canPay); // false
+const quote = await agent.quote("https://invy.bot/api");
+console.log(`${quote.protocol}: ${quote.amount.toDisplayString()}`);
+```
+
+### With Budget Control and Events
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+  budget: { daily: "5.00", perTransaction: "1.00" },
+});
+agent.on("payment", (r) => console.log(`Paid ${r.amount.toDisplayString()}`));
+agent.on("budget:warning", (e) => console.log(`${(e.usage*100).toFixed(0)}% used`));
+const response = await agent.fetch("https://invy.bot/api");
+console.log("Remaining:", agent.getBudget().dailyRemaining?.toDisplayString());
+```
+
+### With Persistence
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+  persistence: { enabled: true },
+});
+// Budget and history survive restarts (stored in ~/.boltzpay/)
+```
+
+### Lightning (L402)
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+  nwcConnectionString: process.env.NWC_CONNECTION_STRING!,
+});
+const response = await agent.fetch("https://satring.com/api/v1/analytics");
+console.log(response.payment?.amount.toDisplayString()); // "100 sats"
+```

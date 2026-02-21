@@ -1,0 +1,20 @@
+{
+  "name": "@boltzpay/landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "clean": "rm -rf dist .astro"
+  },
+  "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.5",
+    "@fontsource/crimson-pro": "^5.2.5",
+    "@fontsource/space-grotesk": "^5.2.5",
+    "@tailwindcss/vite": "^4.2.0",
+    "astro": "^5.17.2",
+    "tailwindcss": "^4.2.0"
+  }
+}

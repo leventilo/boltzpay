@@ -1,0 +1,89 @@
+---
+title: FAQ
+description: Frequently asked questions about BoltzPay.
+---
+
+## General
+
+<AccordionGroup>
+  <Accordion title="What is BoltzPay?">
+    BoltzPay is an open-source TypeScript SDK that lets AI agents pay for API data automatically. You call `agent.fetch(url)` and the SDK handles protocol detection, payment signing, and settlement. Your agent gets the data, the server gets paid.
+  </Accordion>
+
+  <Accordion title="What protocols does BoltzPay support?">
+    Two protocols today:
+    - **x402** (Coinbase) — USDC on-chain payments via HTTP 402 status codes. Live on Base and Base Sepolia.
+    - **L402** (Lightning Labs) — Bitcoin Lightning payments via HTTP 402 + L402 header. Uses an NWC (Nostr Wallet Connect) connection string.
+
+    The SDK auto-detects which protocol each endpoint uses.
+  </Accordion>
+
+  <Accordion title="Is BoltzPay free?">
+    Yes. The SDK, CLI, and MCP server are all MIT-licensed and free to use. You only pay for the API data you consume — those payments go directly to the API providers, not to us.
+  </Accordion>
+
+  <Accordion title="Is BoltzPay custodial?">
+    No. Your Coinbase CDP keys and NWC connection string stay on your machine. BoltzPay never touches, stores, or proxies your credentials. You sign your own transactions.
+  </Accordion>
+</AccordionGroup>
+
+## Payments & Wallets
+
+<AccordionGroup>
+  <Accordion title="What is x402?">
+    x402 is a payment protocol built by Coinbase that uses the HTTP 402 status code ("Payment Required"). When you hit a paid endpoint, the server responds with a 402 and payment details in the headers. The client signs a USDC transaction, sends the payment proof, and gets the data. All on-chain, all automatic.
+  </Accordion>
+
+  <Accordion title="What currency does BoltzPay use?">
+    USDC (USD Coin) for x402 payments, on the Base blockchain. Prices are denominated in USD. For L402, payments use Bitcoin via the Lightning Network.
+  </Accordion>
+
+  <Accordion title="Do I need crypto to use BoltzPay?">
+    For x402 endpoints: yes, you need USDC on Base. You get USDC through Coinbase CDP — no manual wallet setup or seed phrases. For L402 endpoints: you need a Lightning wallet with an NWC connection string (e.g. [Coinos](https://coinos.io), free).
+
+    For explore mode (checking prices, discovering APIs): no crypto, no keys, nothing.
+  </Accordion>
+
+  <Accordion title="Can I test without spending real money?">
+    Yes. Set `network: "base-sepolia"` to use the Base Sepolia testnet with free test USDC. The [Nickel Joke](https://nickeljoke.vercel.app) endpoint is a testnet demo. You can also run the [local test server](/reference/api-directory) for fully offline testing.
+  </Accordion>
+
+  <Accordion title="How do budget limits work?">
+    Set `daily`, `monthly`, and `perTransaction` limits in the SDK config. Before every payment, the SDK checks all limits. If any would be exceeded, the payment is blocked and a `BudgetExceededError` is thrown. Lightning payments (sats) are converted to USD via `satToUsdRate` (default: 0.001, ~$100K/BTC) and count toward the same budget limits. See [Configuration](/getting-started/configuration#budget) for details.
+  </Accordion>
+
+  <Accordion title="Can I use BoltzPay with only a Lightning wallet (no Coinbase)?">
+    Yes. Set only `nwcConnectionString` in the config — no Coinbase credentials needed. The SDK will pay L402 endpoints via Lightning and pass through free endpoints normally. x402 endpoints will be detected but payment will fail gracefully (the SDK reports the price without paying). This is useful if you only want Bitcoin Lightning payments.
+  </Accordion>
+
+  <Accordion title="What is NWC (Nostr Wallet Connect)?">
+    NWC is an open protocol that lets apps connect to your Lightning wallet without touching your private keys. Think of it as "OAuth for Bitcoin wallets". You generate a connection string (`nostr+walletconnect://...`) from your wallet and paste it into BoltzPay. Free wallets with NWC support include [Coinos](https://coinos.io) and [Primal](https://primal.net). For advanced users, [Alby Hub](https://albyhub.com) (self-hosted or cloud) and [Umbrel](https://umbrel.com) also work. See the full list on [nwc.dev](https://nwc.dev).
+  </Accordion>
+</AccordionGroup>
+
+## Setup & Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Do I need Coinbase keys to use BoltzPay?">
+    Not for explore mode. You can discover APIs, check prices, get quotes, and browse the directory without any credentials. Coinbase keys are only required when you want to actually pay for data via `fetch()`.
+  </Accordion>
+
+  <Accordion title="Why does detection fail on my WiFi?">
+    Some corporate or coworking WiFi networks use proxies that intercept HTTP 402 responses or strip payment headers. This prevents x402 detection. Try on a direct connection, or use `--debug` in the CLI to inspect raw headers.
+  </Accordion>
+
+  <Accordion title="Can I use BoltzPay with Python?">
+    Yes. The CLI has a `--json` mode designed for cross-language use. Call it from Python via `subprocess` and parse the JSON output. See the [Python bridge guide](/guides/cli#python-bridge) for examples with LangChain and CrewAI.
+  </Accordion>
+
+  <Accordion title="How do I use BoltzPay with ChatGPT?">
+    ChatGPT doesn't support MCP, but a hosted REST API is on our roadmap (2026 Q2). Once live, you'll be able to create a Custom GPT with BoltzPay Actions using our OpenAPI spec. In the meantime, use the SDK or CLI directly.
+  </Accordion>
+
+  <Accordion title="How do I test without spending real money?">
+    Three options:
+    1. **Explore mode** — Use `BoltzPay({})` with no credentials. You can discover APIs, check prices, and get quotes for free.
+    2. **Testnet** — Set `network: "base-sepolia"` and get free testnet USDC from the [Circle faucet](https://faucet.circle.com/). The Nickel Joke endpoint works on testnet.
+    3. **Local test server** — Run `examples/test-server/` for fully offline testing with a mock facilitator. See `examples/test-server/README.md`.
+  </Accordion>
+</AccordionGroup>

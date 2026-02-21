@@ -1,0 +1,189 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "BoltzPay",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://boltzpay.ai"
+  },
+  "favicon": "/favicon.svg",
+  "appearance": {
+    "default": "dark"
+  },
+  "colors": {
+    "primary": "#a3e635",
+    "light": "#d9f99d",
+    "dark": "#84cc16"
+  },
+  "font": {
+    "headings": {
+      "family": "Space Grotesk",
+      "weight": 700
+    },
+    "body": {
+      "family": "Space Grotesk",
+      "weight": 400
+    }
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "codeblocks": {
+    "theme": "dracula"
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude"]
+  },
+  "seo": {
+    "indexHiddenPages": false
+  },
+  "metadata": {
+    "og:site_name": "BoltzPay",
+    "og:image": "/logo/dark.svg",
+    "og:description": "Open-source SDK that gives AI agents a fetch() that pays.",
+    "twitter:card": "summary"
+  },
+  "redirects": [],
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "getting-started/installation",
+              "getting-started/quickstart",
+              "getting-started/configuration"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/how-it-works",
+              "concepts/architecture",
+              "concepts/protocol-detection",
+              "concepts/budget-safety"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/cli",
+              "guides/mcp-claude-desktop"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/vercel-ai-sdk",
+              "integrations/langchain",
+              "integrations/crewai",
+              "integrations/n8n"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
+              "faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "API Reference",
+            "pages": [
+              "reference/sdk-api",
+              "reference/api-directory"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/leventilo/boltzpay",
+          "icon": "github"
+        },
+        {
+          "anchor": "npm",
+          "href": "https://www.npmjs.com/package/@boltzpay/sdk",
+          "icon": "box"
+        }
+      ]
+    }
+  },
+  "topbar": {
+    "announcement": {
+      "content": "BoltzPay v0.1 is live — [Star us on GitHub](https://github.com/leventilo/boltzpay)",
+      "dismissible": true,
+      "background": "decorative"
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "boltzpay.ai",
+        "href": "https://boltzpay.ai"
+      }
+    ],
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/leventilo/boltzpay"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/leventilo/boltzpay"
+    },
+    "links": [
+      {
+        "header": "Resources",
+        "items": [
+          {
+            "label": "Documentation",
+            "href": "/introduction"
+          },
+          {
+            "label": "SDK API Reference",
+            "href": "/reference/sdk-api"
+          },
+          {
+            "label": "API Directory",
+            "href": "/reference/api-directory"
+          }
+        ]
+      },
+      {
+        "header": "Community",
+        "items": [
+          {
+            "label": "GitHub",
+            "href": "https://github.com/leventilo/boltzpay"
+          },
+          {
+            "label": "npm",
+            "href": "https://www.npmjs.com/package/@boltzpay/sdk"
+          },
+          {
+            "label": "boltzpay.ai",
+            "href": "https://boltzpay.ai"
+          }
+        ]
+      }
+    ]
+  },
+  "errors": {
+    "404": {
+      "title": "Page not found",
+      "description": "This page doesn't exist. Try the [documentation home](/) or use the search bar above."
+    }
+  }
+}

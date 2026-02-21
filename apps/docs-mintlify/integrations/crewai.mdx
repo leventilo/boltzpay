@@ -1,0 +1,87 @@
+---
+title: CrewAI
+description: Two paths to add BoltzPay to your CrewAI agents.
+---
+
+## Recommended: MCP Integration
+
+CrewAI natively supports MCP. The BoltzPay MCP server works out of the box with no Python package needed.
+
+```python
+from crewai import Agent, Task, Crew
+from crewai_tools import MCPServerAdapter
+from mcp import StdioServerParameters
+
+server_params = StdioServerParameters(
+    command="npx",
+    args=["-y", "@boltzpay/mcp"],
+    env={"BOLTZPAY_DAILY_BUDGET": "5.00"},
+)
+
+with MCPServerAdapter(server_params) as tools:
+    agent = Agent(role="Researcher", goal="Access paid APIs", tools=tools)
+    task = Task(description="Discover paid APIs", expected_output="API list", agent=agent)
+    Crew(agents=[agent], tasks=[task]).kickoff()
+```
+
+This gives your agent all 7 BoltzPay tools automatically.
+
+<Tip>
+  Add Coinbase credentials to the `env` dict to enable payments. Without them, the agent can discover, check, and quote for free.
+</Tip>
+
+## Alternative: CLI Bridge Tools
+
+For teams who prefer native Python tools over MCP:
+
+```bash
+pip install boltzpay-crewai
+```
+
+Requires **Node.js 20+** (the tools call `npx @boltzpay/cli` under the hood).
+
+```python
+from crewai import Agent, Task, Crew
+from boltzpay_crewai import (
+    BoltzPayFetchTool,
+    BoltzPayCheckTool,
+    BoltzPayDiscoverTool,
+)
+
+agent = Agent(
+    role="Data Researcher",
+    goal="Find and access paid APIs using BoltzPay",
+    tools=[BoltzPayFetchTool(), BoltzPayCheckTool(), BoltzPayDiscoverTool()],
+)
+
+task = Task(
+    description="Discover paid APIs and check pricing for invy.bot",
+    expected_output="API pricing report",
+    agent=agent,
+)
+
+crew = Crew(agents=[agent], tasks=[task])
+result = crew.kickoff()
+```
+
+## Tools
+
+| Tool | Name | Description | Credentials |
+|------|------|-------------|:-----------:|
+| `BoltzPayFetchTool` | `boltzpay_fetch` | Fetch data from a paid API, auto-pay with USDC | Yes |
+| `BoltzPayCheckTool` | `boltzpay_check` | Check if a URL requires payment | No |
+| `BoltzPayQuoteTool` | `boltzpay_quote` | Get price quote without paying | No |
+| `BoltzPayDiscoverTool` | `boltzpay_discover` | Browse available paid APIs | No |
+| `BoltzPayBudgetTool` | `boltzpay_budget` | Show remaining spending budget | No |
+| `BoltzPayHistoryTool` | `boltzpay_history` | Show payment history | No |
+| `BoltzPayWalletTool` | `boltzpay_wallet` | Show wallet and config info | No |
+
+## Error Handling
+
+CLI bridge tools return error strings instead of raising exceptions (CrewAI pattern), so your agent can recover gracefully:
+
+```
+Error (NODE_NOT_FOUND): Node.js/npx not found. Install Node.js 20+ from https://nodejs.org
+Error (TIMEOUT): CLI command timed out after 30s
+Error (CLI_ERROR): Payment failed: budget exceeded
+```
