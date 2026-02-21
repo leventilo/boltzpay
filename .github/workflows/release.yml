@@ -1,7 +1,9 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -18,18 +20,19 @@ permissions:
   id-token: write
 
 jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
-
   release:
     name: Release
-    needs: ci
-    if: ${{ github.event_name == 'push' }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.changesets.outputs.published }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: pnpm/action-setup@v4
 
@@ -56,13 +59,18 @@ jobs:
 
   pypi-publish:
     name: Publish Python Packages
-    needs: [ci, release]
-    if: ${{ always() && needs.ci.result == 'success' && (needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch') }}
+    needs: release
+    if: >-
+      always() &&
+      (needs.release.outputs.published == 'true' ||
+       (github.event_name == 'workflow_dispatch' && inputs.pypi_only))
     runs-on: ubuntu-latest
     permissions:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:
