@@ -62,7 +62,7 @@ Expected output:
 
 ```
 Name: boltzpay
-Description: Pay for API data automatically — multi-protocol (x402 + L402), multi-chain (Base + Solana)
+Description: Pay for API data automatically — multi-protocol (x402 + L402), multi-chain
 Metadata: {"openclaw": {"emoji": "...", ...}}
 ```
 

@@ -1,6 +1,6 @@
 # BoltzPay
 
-> Open-source SDK that gives AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain (Base + Solana), your own keys.
+> Open-source SDK that gives AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain, your own keys.
 
 ## Quickstart
 

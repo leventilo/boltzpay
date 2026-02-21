@@ -2,7 +2,7 @@
 
 # @boltzpay/sdk
 
-Give your AI agents a `fetch()` that pays — multi-protocol (x402 + L402), multi-chain (Base + Solana), open source.
+Give your AI agents a `fetch()` that pays — multi-protocol (x402 + L402), multi-chain, open source.
 
 ## Install
 
