@@ -79,13 +79,14 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: integrations/langchain/dist/
+          skip-existing: true
 
       - name: Build boltzpay-crewai
         working-directory: integrations/crewai
         run: python -m build
 
       - name: Publish boltzpay-crewai to PyPI
-        continue-on-error: true
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: integrations/crewai/dist/
+          password: ${{ secrets.PYPI_TOKEN }}
