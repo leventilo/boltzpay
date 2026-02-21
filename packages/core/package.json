@@ -1,10 +1,16 @@
 {
   "name": "@boltzpay/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "Core domain types and value objects for BoltzPay SDK",
-  "keywords": ["boltzpay", "payment", "domain", "types", "money"],
+  "keywords": [
+    "boltzpay",
+    "payment",
+    "domain",
+    "types",
+    "money"
+  ],
   "homepage": "https://github.com/leventilo/boltzpay#readme",
   "repository": {
     "type": "git",
