@@ -1,8 +1,14 @@
+[![npm](https://img.shields.io/npm/v/@boltzpay/mcp)](https://www.npmjs.com/package/@boltzpay/mcp) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-blue.svg)](https://www.typescriptlang.org/)
+
 # @boltzpay/mcp
 
-MCP server for BoltzPay -- add paid API access to Claude Desktop and other MCP clients.
+MCP server for BoltzPay — add paid API access to Claude Desktop and other MCP clients. 7 tools, zero code.
 
-## Setup (Claude Desktop)
+## Quick Start
+
+```bash
+npx @boltzpay/mcp
+```
 
 Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
@@ -23,6 +29,14 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```
 
 Omit the `env` block to run in **explore-only mode** (quote, check, discover work without keys).
+
+## Features
+
+- **7 MCP tools** — fetch, quote, check, discover, budget, history, wallet
+- **Zero code** — Run with `npx`, configure via environment variables
+- **Explore mode** — Discover and quote APIs without credentials
+- **Budget enforcement** — Daily spending limits via `BOLTZPAY_DAILY_BUDGET`
+- **Multi-protocol** — x402 (USDC) and L402 (Lightning) auto-detection
 
 ## Tools
 
@@ -49,10 +63,14 @@ Omit the `env` block to run in **explore-only mode** (quote, check, discover wor
 
 ## Links
 
-- [Full Documentation](https://docs.boltzpay.ai/guides/mcp-claude-desktop)
+- [Documentation](https://docs.boltzpay.ai/guides/mcp-claude-desktop)
 - [GitHub](https://github.com/leventilo/boltzpay)
 - [SDK](https://www.npmjs.com/package/@boltzpay/sdk)
 - [CLI](https://www.npmjs.com/package/@boltzpay/cli)
+
+## Part of BoltzPay
+
+This package is part of the [BoltzPay](https://github.com/leventilo/boltzpay) open-source SDK — giving AI agents the ability to pay for APIs automatically.
 
 ## License
 
