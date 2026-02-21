@@ -2,7 +2,7 @@
 
 # BoltzPay
 
-> Give your AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain (Base + Solana), open source, your own keys.
+> Give your AI agents a fetch() that pays. Multi-protocol, multi-chain, open source.
 
 BoltzPay detects whether an API endpoint requires payment, negotiates the best protocol and chain, pays with your credentials, and returns the data. One call. No vendor lock-in.
 
