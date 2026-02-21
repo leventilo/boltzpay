@@ -1,0 +1,57 @@
+{
+  "name": "@boltzpay/core",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "leventilo (https://github.com/leventilo)",
+  "description": "Core domain types and value objects for BoltzPay SDK",
+  "keywords": ["boltzpay", "payment", "domain", "types", "money"],
+  "homepage": "https://github.com/leventilo/boltzpay#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leventilo/boltzpay.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/leventilo/boltzpay/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist",
+    "check:exports": "publint --strict && attw --pack ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@boltzpay/config": "workspace:*",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  }
+}
