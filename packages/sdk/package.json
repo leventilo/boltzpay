@@ -1,10 +1,22 @@
 {
   "name": "@boltzpay/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "Give your AI agents a fetch() that pays — multi-protocol, multi-chain, open source",
-  "keywords": ["boltzpay", "ai", "agent", "payment", "x402", "l402", "fetch", "sdk", "crypto", "base", "solana"],
+  "keywords": [
+    "boltzpay",
+    "ai",
+    "agent",
+    "payment",
+    "x402",
+    "l402",
+    "fetch",
+    "sdk",
+    "crypto",
+    "base",
+    "solana"
+  ],
   "homepage": "https://github.com/leventilo/boltzpay#readme",
   "repository": {
     "type": "git",

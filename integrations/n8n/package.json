@@ -1,8 +1,13 @@
 {
   "name": "@boltzpay/n8n-nodes-boltzpay",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "n8n community node for BoltzPay — pay for API data in your workflows",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leventilo/boltzpay.git",
+    "directory": "integrations/n8n"
+  },
   "keywords": [
     "n8n-community-node-package"
   ],
@@ -28,7 +33,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@boltzpay/sdk": "file:../../packages/sdk"
+    "@boltzpay/sdk": "workspace:*"
   },
   "peerDependencies": {
     "n8n-workflow": "^1.0.0"

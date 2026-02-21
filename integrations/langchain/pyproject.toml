@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "langchain-boltzpay"
-version = "0.1.0"
+version = "0.1.1"
 description = "LangChain tools for BoltzPay — pay for API data with AI agents"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "BoltzPay Contributors" }]
+authors = [{ name = "leventilo" }]
 keywords = ["langchain", "boltzpay", "x402", "acp", "ai-agent", "payment"]
 classifiers = [
     "Development Status :: 3 - Alpha",

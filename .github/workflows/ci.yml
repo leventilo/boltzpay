@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_call:
 
 jobs:
   ci:
@@ -14,7 +13,7 @@ jobs:
       matrix:
         node-version: [20, 22]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v4
         # version auto-detected from packageManager field in package.json
@@ -26,7 +25,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-node${{ matrix.node-version }}-${{ github.sha }}
@@ -50,3 +49,39 @@ jobs:
 
       - name: Check package sizes
         run: pnpm run check:size
+
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm turbo build
+
+      - name: Test langchain-boltzpay
+        working-directory: integrations/langchain
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -v
+
+      - name: Test boltzpay-crewai
+        working-directory: integrations/crewai
+        run: |
+          pip install -e ".[dev]"
+          pytest tests/ -v
