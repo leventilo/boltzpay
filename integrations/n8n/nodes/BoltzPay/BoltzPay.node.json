@@ -1,0 +1,18 @@
+{
+  "node": "n8n-nodes-base.boltzPay",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Finance & Payments"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://docs.boltzpay.ai/integrations/n8n"
+      }
+    ],
+    "credentialDocumentation": [
+      {
+        "url": "https://docs.boltzpay.ai/quickstart#credentials"
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "name": "@boltzpay/ai-sdk",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "leventilo (https://github.com/leventilo)",
+  "description": "Vercel AI SDK tools for BoltzPay — give your AI agent a fetch() that pays",
+  "keywords": ["boltzpay", "ai-sdk", "vercel", "ai", "agent", "payment", "x402", "l402", "tools"],
+  "homepage": "https://github.com/leventilo/boltzpay#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leventilo/boltzpay.git",
+    "directory": "packages/ai-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/leventilo/boltzpay/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist",
+    "check:exports": "publint --strict && attw --pack ."
+  },
+  "dependencies": {
+    "@boltzpay/sdk": "workspace:*"
+  },
+  "peerDependencies": {
+    "ai": "^6.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@boltzpay/config": "workspace:*",
+    "ai": "^6.0.0",
+    "@types/node": "^22.15.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18",
+    "zod": "^4.3.6"
+  }
+}

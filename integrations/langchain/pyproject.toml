@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langchain-boltzpay"
+version = "0.1.0"
+description = "LangChain tools for BoltzPay — pay for API data with AI agents"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "BoltzPay Contributors" }]
+keywords = ["langchain", "boltzpay", "x402", "acp", "ai-agent", "payment"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "langchain-core>=0.3.0",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.urls]
+Homepage = "https://github.com/leventilo/boltzpay"
+Documentation = "https://boltzpay.ai"
+Repository = "https://github.com/leventilo/boltzpay"
+Issues = "https://github.com/leventilo/boltzpay/issues"
+
+[tool.setuptools.packages.find]
+include = ["langchain_boltzpay*"]

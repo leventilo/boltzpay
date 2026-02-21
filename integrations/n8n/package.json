@@ -1,0 +1,42 @@
+{
+  "name": "@boltzpay/n8n-nodes-boltzpay",
+  "version": "0.1.0",
+  "description": "n8n community node for BoltzPay — pay for API data in your workflows",
+  "license": "MIT",
+  "keywords": [
+    "n8n-community-node-package"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "dist/",
+    "package.json",
+    "README.md"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/BoltzPay/BoltzPay.node.js"
+    ],
+    "credentials": [
+      "dist/credentials/BoltzPayApi.credentials.js"
+    ]
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@boltzpay/sdk": "file:../../packages/sdk"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "^1.0.0"
+  },
+  "devDependencies": {
+    "n8n-workflow": "^1.0.0",
+    "typescript": "^5.8.3",
+    "@types/node": "^22.15.0",
+    "vitest": "^3.1.1"
+  }
+}
