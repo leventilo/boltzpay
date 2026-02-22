@@ -242,6 +242,52 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
       "Detailed reputation report for L402 services (replace slug in URL)",
     pricing: "100 sats",
   },
+
+  {
+    name: "MaximumSats — BOLT11 Decoder",
+    url: "https://maximumsats.com/api/bolt11-decode",
+    protocol: "l402",
+    category: "crypto-data",
+    description:
+      "Decode Lightning BOLT11 invoices into structured fields (amount, expiry, description hash, route hints)",
+    pricing: "10 sats",
+  },
+  {
+    name: "MaximumSats — NIP-05 Verifier",
+    url: "https://maximumsats.com/api/nip05-verify",
+    protocol: "l402",
+    category: "crypto-data",
+    description:
+      "Verify Nostr NIP-05 identities from nostr.json — check if an npub maps to a valid lightning address",
+    pricing: "20 sats",
+  },
+  {
+    name: "MaximumSats — Web of Trust Report",
+    url: "https://maximumsats.com/api/wot-report",
+    protocol: "l402",
+    category: "crypto-data",
+    description:
+      "Nostr Web of Trust analysis via PageRank — check trust scores, detect sybils, verify identities",
+    pricing: "100 sats",
+  },
+  {
+    name: "MaximumSats — npub Decoder",
+    url: "https://maximumsats.com/api/npub-decode",
+    protocol: "l402",
+    category: "dev-tools",
+    description:
+      "Convert Nostr npub bech32 identifiers to hex pubkeys — essential for Nostr integration",
+    pricing: "5 sats",
+  },
+  {
+    name: "MaximumSats — Lightning Address Resolver",
+    url: "https://maximumsats.com/api/lnurlp-resolve",
+    protocol: "l402",
+    category: "crypto-data",
+    description:
+      "Resolve Lightning Addresses to LNURL-pay metadata — get min, max, comment allowed",
+    pricing: "15 sats",
+  },
 ] as const;
 
 /** All distinct categories present in the directory. */
