@@ -76,7 +76,7 @@
     "@boltzpay/config": "workspace:*",
     "@coinbase/cdp-sdk": "^1.44.1",
     "@hono/node-server": "^1.19.9",
-    "@types/node": "^22.15.0",
+    "@types/node": "^24.0.0",
     "@x402/core": "^2.3.1",
     "@x402/evm": "^2.3.1",
     "@x402/hono": "^2.3.0",

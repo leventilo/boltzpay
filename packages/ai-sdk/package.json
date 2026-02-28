@@ -67,7 +67,7 @@
   "devDependencies": {
     "@boltzpay/config": "workspace:*",
     "ai": "^6.0.0",
-    "@types/node": "^22.15.0",
+    "@types/node": "^24.0.0",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18",
