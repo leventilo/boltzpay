@@ -1,6 +1,60 @@
 import { NetworkError } from "./errors/network-error";
 import { ProtocolError } from "./errors/protocol-error";
 
+const REMOTE_DIRECTORY_URL =
+  "https://raw.githubusercontent.com/leventilo/boltzpay/main/directory.json";
+const DIRECTORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const DIRECTORY_FETCH_TIMEOUT_MS = 5_000;
+
+let directoryCache: {
+  data: readonly ApiDirectoryEntry[];
+  timestamp: number;
+} | null = null;
+
+/** Clear the in-memory remote directory cache. Useful for testing. */
+export function clearDirectoryCache(): void {
+  directoryCache = null;
+}
+
+/**
+ * Fetch the API directory from GitHub (cached for 5 minutes).
+ * Falls back to the embedded static `API_DIRECTORY` on any failure.
+ */
+export async function fetchRemoteDirectory(): Promise<
+  readonly ApiDirectoryEntry[]
+> {
+  if (
+    directoryCache &&
+    Date.now() - directoryCache.timestamp < DIRECTORY_CACHE_TTL_MS
+  ) {
+    return directoryCache.data;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      DIRECTORY_FETCH_TIMEOUT_MS,
+    );
+
+    const response = await fetch(REMOTE_DIRECTORY_URL, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      return API_DIRECTORY;
+    }
+
+    const data = (await response.json()) as ApiDirectoryEntry[];
+    directoryCache = { data, timestamp: Date.now() };
+    return data;
+  } catch {
+    return API_DIRECTORY;
+  }
+}
+
 /** A paid API endpoint entry in the static directory. */
 export interface ApiDirectoryEntry {
   readonly name: string;

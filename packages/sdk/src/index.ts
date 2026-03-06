@@ -28,6 +28,8 @@ export type {
 } from "./directory";
 export {
   API_DIRECTORY,
+  clearDirectoryCache,
+  fetchRemoteDirectory,
   filterDirectory,
   filterEntries,
   getDirectoryCategories,

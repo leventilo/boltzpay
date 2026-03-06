@@ -8,7 +8,7 @@
  */
 
 import type { ApiDirectoryEntry } from "./directory";
-import { API_DIRECTORY } from "./directory";
+import { fetchRemoteDirectory } from "./directory";
 
 interface BazaarAccept {
   readonly network: string;
@@ -166,18 +166,20 @@ export interface MergedDirectoryOptions {
 export async function getMergedDirectory(
   options?: MergedDirectoryOptions,
 ): Promise<readonly ApiDirectoryEntry[]> {
+  const directory = await fetchRemoteDirectory();
+
   if (!options?.live) {
-    return API_DIRECTORY;
+    return directory;
   }
 
   const bazaarEntries = await fetchBazaarDirectory();
 
   if (bazaarEntries.length === 0) {
-    return API_DIRECTORY;
+    return directory;
   }
 
-  const staticUrls = new Set(API_DIRECTORY.map((e) => e.url));
-  const uniqueBazaar = bazaarEntries.filter((e) => !staticUrls.has(e.url));
+  const directoryUrls = new Set(directory.map((e) => e.url));
+  const uniqueBazaar = bazaarEntries.filter((e) => !directoryUrls.has(e.url));
 
-  return [...API_DIRECTORY, ...uniqueBazaar];
+  return [...directory, ...uniqueBazaar];
 }

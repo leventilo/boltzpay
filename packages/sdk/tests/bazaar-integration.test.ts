@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiDirectoryEntry } from "../src/directory";
 import { API_DIRECTORY, filterEntries } from "../src/directory";
+import * as directoryModule from "../src/directory";
 import { clearBazaarCache, getMergedDirectory } from "../src/bazaar";
 
 function bazaarResponse(items: unknown[], total?: number) {
@@ -79,6 +80,9 @@ describe("filterEntries", () => {
 describe("getMergedDirectory integration", () => {
   beforeEach(() => {
     clearBazaarCache();
+    vi.spyOn(directoryModule, "fetchRemoteDirectory").mockResolvedValue(
+      API_DIRECTORY,
+    );
   });
 
   afterEach(() => {
@@ -86,13 +90,14 @@ describe("getMergedDirectory integration", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns static directory only when live is false", async () => {
+  it("returns directory only when live is false", async () => {
     const mockFetch = vi.fn();
     vi.stubGlobal("fetch", mockFetch);
 
     const result = await getMergedDirectory({ live: false });
 
     expect(result).toBe(API_DIRECTORY);
+    // fetch should not be called for Bazaar (remote directory is mocked)
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -118,7 +123,7 @@ describe("getMergedDirectory integration", () => {
     expect(bazaarEntry?.category).toBe("bazaar");
   });
 
-  it("deduplicates by URL — static entries take priority over bazaar entries", async () => {
+  it("deduplicates by URL — directory entries take priority over bazaar entries", async () => {
     const existingStaticUrl = API_DIRECTORY[0].url;
 
     const mockFetch = vi.fn().mockResolvedValue({
