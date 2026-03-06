@@ -264,7 +264,7 @@ importers:
         version: 2.4.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/hono':
         specifier: ^2.3.0
-        version: 2.4.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.5)(typescript@5.9.3)(utf-8-validate@5.0.10)
+        version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.5)(typescript@5.9.3)(utf-8-validate@5.0.10)
       hono:
         specifier: ^4.11.9
         version: 4.12.5
@@ -2284,13 +2284,16 @@ packages:
   '@x402/extensions@2.4.0':
     resolution: {integrity: sha512-tg/mSAS+NgwUaOdjt8agSjVkO1s9NYy+kSPubVlZf/Fy884qu7dSW81Ixu1NRYEz+vBk0rtz6b+eEvS0v72tMQ==}
 
+  '@x402/extensions@2.6.0':
+    resolution: {integrity: sha512-aLY9xAOOiRLKDN9HT2r9TYUXbD+IsoBces9qPZNVJGO2TBi2rfmbIBc3pcKCtWKn3iTvG2QFr3gpOFdpJRzqww==}
+
   '@x402/fetch@2.6.0':
     resolution: {integrity: sha512-OnHXw/mv76ig4UBJEgfQIWHSWcrgIOT2i8RxEuGl12QtaYwSgBcgDub2GdllL/iIB9OneM1m0UWlrPh23JdVjQ==}
 
-  '@x402/hono@2.4.0':
-    resolution: {integrity: sha512-3n6Ii1F/VYg96ial6595Vzw68EZpnP+n+vK2ocs5a60ISGspjBYgHERWzQWRRyqWuC7OHi0A5jy9kKsK0Cr6gA==}
+  '@x402/hono@2.6.0':
+    resolution: {integrity: sha512-Wt+7Ik6gnVNEY57O+A8/hueL9j+DvbNtHvvqKkTvpq6gadvU2ZtOn++0sWtDIFKRaTq3MVix/rWKlNCRoG0hDQ==}
     peerDependencies:
-      '@x402/paywall': 2.4.0
+      '@x402/paywall': 2.6.0
       hono: ^4.0.0
     peerDependenciesMeta:
       '@x402/paywall':
@@ -6792,6 +6795,21 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@x402/extensions@2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@scure/base': 1.2.6
+      '@x402/core': 2.6.0
+      ajv: 8.18.0
+      siwe: 2.3.2(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))
+      tweetnacl: 1.0.3
+      viem: 2.47.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - ethers
+      - typescript
+      - utf-8-validate
+
   '@x402/fetch@2.6.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@x402/core': 2.6.0
@@ -6802,10 +6820,10 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/hono@2.4.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.5)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+  '@x402/hono@2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.5)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
-      '@x402/core': 2.4.0
-      '@x402/extensions': 2.4.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@x402/core': 2.6.0
+      '@x402/extensions': 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
       hono: 4.12.5
       zod: 3.25.76
     transitivePeerDependencies:
