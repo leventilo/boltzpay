@@ -5,6 +5,7 @@ import {
   fetchBazaarDirectory,
   getMergedDirectory,
 } from "../src/bazaar";
+import * as directoryModule from "../src/directory";
 import { API_DIRECTORY } from "../src/directory";
 
 // ---------------------------------------------------------------------------
@@ -246,23 +247,27 @@ describe("fetchBazaarDirectory", () => {
 describe("getMergedDirectory", () => {
   beforeEach(() => {
     clearBazaarCache();
+    // Mock fetchRemoteDirectory to return the embedded static directory
+    vi.spyOn(directoryModule, "fetchRemoteDirectory").mockResolvedValue(
+      API_DIRECTORY,
+    );
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("should return only static entries when live is false (default)", async () => {
+  it("should return directory entries when live is false (default)", async () => {
     const result = await getMergedDirectory();
     expect(result).toBe(API_DIRECTORY);
   });
 
-  it("should return only static entries when live is explicitly false", async () => {
+  it("should return directory entries when live is explicitly false", async () => {
     const result = await getMergedDirectory({ live: false });
     expect(result).toBe(API_DIRECTORY);
   });
 
-  it("should merge Bazaar entries with static when live is true", async () => {
+  it("should merge Bazaar entries with directory when live is true", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () =>
@@ -282,8 +287,7 @@ describe("getMergedDirectory", () => {
     vi.unstubAllGlobals();
   });
 
-  it("should deduplicate by URL — static entries take priority", async () => {
-    // Use a URL that exists in the static directory
+  it("should deduplicate by URL — directory entries take priority", async () => {
     const existingUrl = API_DIRECTORY[0].url;
 
     const mockFetch = vi.fn().mockResolvedValue({
@@ -301,10 +305,8 @@ describe("getMergedDirectory", () => {
 
     const result = await getMergedDirectory({ live: true });
 
-    // Should have static + 1 unique bazaar entry (not the duplicate)
     expect(result.length).toBe(API_DIRECTORY.length + 1);
 
-    // The entry for existingUrl should be the static one, not Bazaar's
     const matchingEntry = result.find((e) => e.url === existingUrl);
     expect(matchingEntry?.description).not.toBe("Bazaar duplicate");
     expect(matchingEntry?.description).toBe(API_DIRECTORY[0].description);
@@ -312,7 +314,7 @@ describe("getMergedDirectory", () => {
     vi.unstubAllGlobals();
   });
 
-  it("should return static directory when Bazaar fetch fails", async () => {
+  it("should return directory when Bazaar fetch fails", async () => {
     const mockFetch = vi
       .fn()
       .mockRejectedValue(new Error("API down"));
