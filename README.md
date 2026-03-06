@@ -8,6 +8,20 @@ BoltzPay detects whether an API endpoint requires payment, negotiates the best p
 
 **[Docs](https://docs.boltzpay.ai)** · **[npm](https://www.npmjs.com/package/@boltzpay/sdk)** · **[GitHub](https://github.com/leventilo/boltzpay)**
 
+<p align="center">
+  <img src="assets/demo.gif" alt="BoltzPay CLI — discover, check and quote paid APIs" width="800">
+</p>
+
+## Try it now (no keys required)
+
+Browse paid APIs and check prices from your terminal — zero configuration:
+
+```bash
+npx @boltzpay/cli discover        # list 25+ paid API endpoints with live prices
+npx @boltzpay/cli check https://invy.bot/api   # detect protocol, show price and chains
+npx @boltzpay/cli quote https://invy.bot/api   # detailed quote with alternatives
+```
+
 ## Install
 
 ```bash
@@ -18,8 +32,6 @@ npm install @boltzpay/sdk
 
 ### Explore Mode (no keys required)
 
-Discover paid APIs, check prices, and get quotes — no credentials needed.
-
 ```typescript
 import { BoltzPay } from "@boltzpay/sdk";
 
@@ -28,9 +40,7 @@ const quote = await agent.quote("https://invy.bot/api");
 console.log(quote.amount.toDisplayString(), quote.protocol); // "$0.05" "x402"
 ```
 
-### Payment Mode
-
-Add Coinbase CDP credentials to enable automatic payments.
+### x402 — USDC payments (Coinbase)
 
 ```typescript
 import { BoltzPay } from "@boltzpay/sdk";
@@ -43,6 +53,31 @@ const agent = new BoltzPay({
 
 const response = await agent.fetch("https://invy.bot/api");
 const data = await response.json();
+```
+
+### L402 — Bitcoin payments (Lightning)
+
+```typescript
+const agent = new BoltzPay({
+  nwcConnectionString: process.env.NWC_CONNECTION_STRING, // nostr+walletconnect://...
+});
+
+const response = await agent.fetch("https://wot.klabo.world/score?pubkey=abc123");
+const data = await response.json(); // paid via Lightning, transparent
+```
+
+### Both protocols — the SDK auto-detects
+
+```typescript
+const agent = new BoltzPay({
+  coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID,
+  coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET,
+  coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET,
+  nwcConnectionString: process.env.NWC_CONNECTION_STRING,
+});
+
+// Same fetch() call — protocol is detected automatically
+const response = await agent.fetch(url);
 ```
 
 ## Why BoltzPay

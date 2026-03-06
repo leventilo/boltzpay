@@ -1,3 +1,6 @@
+# Private working files
+.private/
+
 # Dependencies
 node_modules/
 .pnpm-store/
