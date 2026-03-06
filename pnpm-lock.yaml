@@ -71,7 +71,7 @@ importers:
         version: 22.19.11
       n8n-workflow:
         specifier: ^1.0.0
-        version: 1.120.8
+        version: 1.120.9
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -3722,8 +3722,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  n8n-workflow@1.120.8:
-    resolution: {integrity: sha512-dKKLocJYCcgBPmNsbgf2YfWqqPp2nuy5Vr6mIBKgS4ArJETyugajRf13eW/YJCn1Yfggb50xpMPfl6jkxOtA+w==}
+  n8n-workflow@1.120.9:
+    resolution: {integrity: sha512-wLyfAZ68XH8ys7ImLNhhDHJPRwC8KjY1IRCoBYRh0AwwDLLIf45bKoJHciBeZSZD/S/tSZOHQwlY731P5/VGDw==}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -4094,6 +4094,10 @@ packages:
 
   sax@1.4.4:
     resolution: {integrity: sha512-1n3r/tGXO6b6VXMdFT54SHzT9ytu9yr7TaELowdYpMqY/Ao7EnlQGmAQ1+RatX7Tkkdm6hONI2owqNx2aZj5Sw==}
+    engines: {node: '>=11.0.0'}
+
+  sax@1.5.0:
+    resolution: {integrity: sha512-21IYA3Q5cQf089Z6tgaUTr7lDAyzoTPx5HRtbhsME8Udispad8dC/+sziTNugOEx54ilvatQ9YCzl4KQLPcRHA==}
     engines: {node: '>=11.0.0'}
 
   semver@7.7.4:
@@ -8619,7 +8623,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  n8n-workflow@1.120.8:
+  n8n-workflow@1.120.9:
     dependencies:
       '@n8n/errors': 0.5.0
       '@n8n/tournament': 1.0.6
@@ -9083,6 +9087,8 @@ snapshots:
   safer-buffer@2.1.2: {}
 
   sax@1.4.4: {}
+
+  sax@1.5.0: {}
 
   semver@7.7.4: {}
 
@@ -9852,7 +9858,7 @@ snapshots:
 
   xml2js@0.6.2:
     dependencies:
-      sax: 1.4.4
+      sax: 1.5.0
       xmlbuilder: 11.0.1
 
   xmlbuilder@11.0.1: {}
