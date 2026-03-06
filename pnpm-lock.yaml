@@ -70,8 +70,8 @@ importers:
         specifier: ^22.15.0
         version: 22.19.15
       n8n-workflow:
-        specifier: ^1.0.0
-        version: 1.120.9
+        specifier: ^2.0.0
+        version: 2.10.2
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -1016,8 +1016,8 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@n8n/errors@0.5.0':
-    resolution: {integrity: sha512-0Vk1Eb3Uor+zeF/WVnuhFgJc51wEBTZNBlVQy3mvyr3sGmW86bP1jA7wmRsd0DZbswPwN0vNOl/TmkDTEopOtQ==}
+  '@n8n/errors@0.6.0':
+    resolution: {integrity: sha512-oVJ0lgRYJY6/aPOW2h37ea5T+nX7/wULRn5FymwYeaiYlsLdqwIQEtGwZrajpzxJB0Os74u4lSH3WWQgZCkgxQ==}
 
   '@n8n/tournament@1.0.6':
     resolution: {integrity: sha512-UGSxYXXVuOX0yL6HTLBStKYwLIa0+JmRKiSZSCMcM2s2Wax984KWT6XIA1TR/27i7yYpDk1MY14KsTPnuEp27A==}
@@ -3029,8 +3029,8 @@ packages:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
     engines: {node: '>= 0.4'}
 
-  form-data@4.0.0:
-    resolution: {integrity: sha512-ETEklSGi5t0QMZuiXoA/Q6vcnxcLQP5vdugSpuAyi6SVGi2clPPp+xgEhuMaHC+zGgn31Kd235W35f7Hykkaww==}
+  form-data@4.0.4:
+    resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
     engines: {node: '>= 6'}
 
   form-data@4.0.5:
@@ -3459,8 +3459,8 @@ packages:
     resolution: {integrity: sha512-ESL2CrkS/2wTPfuend7Zhkzo2u0daGJ/A2VucJOgQ/C48S/zB8MMeMHSGKYpXhIjbPxfuezITkaBH1wqv00DDQ==}
     engines: {node: 20 || >=22}
 
-  luxon@3.4.4:
-    resolution: {integrity: sha512-zobTr7akeGHnv7eBOXcRgMeCP6+uyYsczwmeRCauvpvaAltgNyTbLH/+VaEAPUeWBT+1GuNmz4wC/6jtQzbbVA==}
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
     engines: {node: '>=12'}
 
   magic-string@0.30.21:
@@ -3671,8 +3671,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  n8n-workflow@1.120.9:
-    resolution: {integrity: sha512-wLyfAZ68XH8ys7ImLNhhDHJPRwC8KjY1IRCoBYRh0AwwDLLIf45bKoJHciBeZSZD/S/tSZOHQwlY731P5/VGDw==}
+  n8n-workflow@2.10.2:
+    resolution: {integrity: sha512-Z9pNsGMYjRc5/MaFLPxj9o0xYjDZaywjpvh9cLIPyVmmSa6Pjojb1eh2hRqadbxlc6nXPI2URqGvCC9bVMIYVw==}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -5415,7 +5415,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@n8n/errors@0.5.0':
+  '@n8n/errors@0.6.0':
     dependencies:
       callsites: 3.1.0
 
@@ -7649,10 +7649,12 @@ snapshots:
     dependencies:
       is-callable: 1.2.7
 
-  form-data@4.0.0:
+  form-data@4.0.4:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8
+      es-set-tostringtag: 2.1.0
+      hasown: 2.0.2
       mime-types: 2.1.35
 
   form-data@4.0.5:
@@ -8071,7 +8073,7 @@ snapshots:
 
   lru-cache@11.2.6: {}
 
-  luxon@3.4.4: {}
+  luxon@3.7.2: {}
 
   magic-string@0.30.21:
     dependencies:
@@ -8462,20 +8464,20 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  n8n-workflow@1.120.9:
+  n8n-workflow@2.10.2:
     dependencies:
-      '@n8n/errors': 0.5.0
+      '@n8n/errors': 0.6.0
       '@n8n/tournament': 1.0.6
       ast-types: 0.16.1
       callsites: 3.1.0
       esprima-next: 5.8.4
-      form-data: 4.0.0
+      form-data: 4.0.4
       jmespath: 0.16.0
       js-base64: 3.7.2
       jsonrepair: 3.13.1
       jssha: 3.3.1
       lodash: 4.17.23
-      luxon: 3.4.4
+      luxon: 3.7.2
       md5: 2.3.0
       recast: 0.22.0
       title-case: 3.0.3
