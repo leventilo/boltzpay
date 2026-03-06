@@ -252,7 +252,7 @@ importers:
         version: 1.44.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@hono/node-server':
         specifier: ^1.19.9
-        version: 1.19.9(hono@4.12.5)
+        version: 1.19.11(hono@4.12.5)
       '@types/node':
         specifier: ^22.15.0
         version: 22.19.11
@@ -827,6 +827,12 @@ packages:
   '@getalby/sdk@7.0.0':
     resolution: {integrity: sha512-0c8gyvFbRDHZIgHmOD/dfyPukxZLeidx/hx7SXlMIS/hsx4mXpKpo9Gx1zW90buElnd3k9TVB/S/bnFSEZPE7w==}
     engines: {node: '>=14'}
+
+  '@hono/node-server@1.19.11':
+    resolution: {integrity: sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: ^4
 
   '@hono/node-server@1.19.9':
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
@@ -5362,13 +5368,13 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
+  '@hono/node-server@1.19.11(hono@4.12.5)':
+    dependencies:
+      hono: 4.12.5
+
   '@hono/node-server@1.19.9(hono@4.12.0)':
     dependencies:
       hono: 4.12.0
-
-  '@hono/node-server@1.19.9(hono@4.12.5)':
-    dependencies:
-      hono: 4.12.5
 
   '@img/colour@1.0.0':
     optional: true
