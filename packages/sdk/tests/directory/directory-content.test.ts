@@ -18,8 +18,8 @@ const KNOWN_CATEGORIES = new Set([
 ]);
 
 describe("API_DIRECTORY content validation", () => {
-  it("should contain at least 23 verified entries", () => {
-    expect(API_DIRECTORY.length).toBeGreaterThanOrEqual(23);
+  it("should contain at least 21 verified entries", () => {
+    expect(API_DIRECTORY.length).toBeGreaterThanOrEqual(21);
   });
 
   it("should have all required fields on every entry", () => {

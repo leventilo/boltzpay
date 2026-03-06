@@ -277,25 +277,6 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
       "Multi-source intelligence report from HN, GitHub, npm, PyPI (pass ?q=search+terms)",
     pricing: "$0.01",
   },
-
-  {
-    name: "Satring — Analytics",
-    url: "https://satring.com/api/v1/analytics",
-    protocol: "l402",
-    category: "crypto-data",
-    description:
-      "Bitcoin and Lightning network analytics (90 services, categories, pricing)",
-    pricing: "100 sats",
-  },
-  {
-    name: "Satring — Service Reputation",
-    url: "https://satring.com/api/v1/services/lightning-faucet-fortune/reputation",
-    protocol: "l402",
-    category: "crypto-data",
-    description:
-      "Detailed reputation report for L402 services (replace slug in URL)",
-    pricing: "100 sats",
-  },
 ] as const;
 
 /** All distinct categories present in the directory. */
@@ -304,6 +285,7 @@ export function getDirectoryCategories(): string[] {
 }
 
 export const DISCOVER_PROBE_TIMEOUT_MS = 5_000;
+export const DISCOVER_CONCURRENCY = 10;
 
 /** Filter the static API directory by category. Returns all entries if no category given. */
 export function filterDirectory(
@@ -329,7 +311,12 @@ export function classifyProbeError(err: unknown): DiscoverEntryStatus {
     err instanceof ProtocolError &&
     err.code === "protocol_detection_failed"
   ) {
-    return { status: "free" };
+    const msg = err.message;
+    const httpStatusMatch = msg.match(/got (\d{3})/);
+    if (httpStatusMatch) {
+      return { status: "offline", reason: `HTTP ${httpStatusMatch[1]}` };
+    }
+    return { status: "offline", reason: "No protocol detected" };
   }
   if (err instanceof NetworkError) {
     return { status: "offline", reason: err.message };
@@ -344,6 +331,36 @@ export function classifyProbeError(err: unknown): DiscoverEntryStatus {
     status: "error",
     reason: err instanceof Error ? err.message : String(err),
   };
+}
+
+/**
+ * Run async tasks with bounded concurrency.
+ * Returns results in the same order as the input array.
+ */
+export async function pMap<T, R>(
+  items: readonly T[],
+  fn: (item: T) => Promise<R>,
+  concurrency: number,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      const item = items[i];
+      if (item !== undefined) {
+        results[i] = await fn(item);
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 const STATUS_ORDER: Record<DiscoverEntryStatus["status"], number> = {

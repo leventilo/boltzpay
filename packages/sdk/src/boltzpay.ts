@@ -37,8 +37,10 @@ import type {
 } from "./directory";
 import {
   classifyProbeError,
+  DISCOVER_CONCURRENCY,
   DISCOVER_PROBE_TIMEOUT_MS,
   filterEntries,
+  pMap,
   sortDiscoveredEntries,
   withTimeout,
 } from "./directory";
@@ -987,8 +989,10 @@ export class BoltzPay {
     const live = options?.enableLiveDiscovery ?? true;
     const allEntries = await getMergedDirectory({ live });
     const entries = filterEntries(allEntries, options?.category);
-    const results = await Promise.all(
-      entries.map((entry) => this.probeDirectoryEntry(entry, options?.signal)),
+    const results = await pMap(
+      entries,
+      (entry) => this.probeDirectoryEntry(entry, options?.signal),
+      DISCOVER_CONCURRENCY,
     );
     return sortDiscoveredEntries(results);
   }

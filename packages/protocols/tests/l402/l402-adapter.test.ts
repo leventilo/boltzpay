@@ -97,12 +97,55 @@ describe("L402Adapter", () => {
       expect(result).toBe(false);
     });
 
-    it("should return false for 200 response", async () => {
+    it("should return false for 200 response when POST also returns 200", async () => {
+      fetchMock.mockResolvedValueOnce(make200Response());
       fetchMock.mockResolvedValueOnce(make200Response());
       const adapter = new L402Adapter(undefined, validateUrl);
 
       const result = await adapter.detect("https://free.example.com");
       expect(result).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should detect L402 via POST fallback when GET returns 200", async () => {
+      fetchMock.mockResolvedValueOnce(make200Response());
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      const result = await adapter.detect("https://api.example.com/post-l402");
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("POST");
+    });
+
+    it("should detect L402 via POST when GET returns 404", async () => {
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      const result = await adapter.detect("https://api.example.com/post-only");
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should detect L402 via POST when GET returns 405", async () => {
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 405 }));
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      const result = await adapter.detect("https://api.example.com/post-only");
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should return false when GET returns 500 and POST also fails", async () => {
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      const result = await adapter.detect("https://api.example.com/broken");
+      expect(result).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     it("should return false for 402 without www-authenticate", async () => {
@@ -137,13 +180,34 @@ describe("L402Adapter", () => {
       expect(quote.amount.toDisplayString()).toBe("200 sats");
     });
 
-    it("should throw L402QuoteError for non-402 response", async () => {
+    it("should throw L402QuoteError when GET and POST both return non-402", async () => {
+      fetchMock.mockResolvedValueOnce(make200Response());
       fetchMock.mockResolvedValueOnce(make200Response());
       const adapter = new L402Adapter(undefined, validateUrl);
 
       await expect(
         adapter.quote("https://free.example.com"),
       ).rejects.toThrow(L402QuoteError);
+    });
+
+    it("should quote via POST fallback when GET returns 404", async () => {
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      const quote = await adapter.quote("https://api.example.com/post-l402");
+      expect(quote.protocol).toBe("l402");
+      expect(quote.amount.cents).toBe(200n);
+    });
+
+    it("should quote via POST fallback when GET returns 200", async () => {
+      fetchMock.mockResolvedValueOnce(make200Response());
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      const quote = await adapter.quote("https://api.example.com/post-l402");
+      expect(quote.protocol).toBe("l402");
+      expect(quote.amount.cents).toBe(200n);
     });
 
     it("should throw L402QuoteError when no WWW-Authenticate header", async () => {

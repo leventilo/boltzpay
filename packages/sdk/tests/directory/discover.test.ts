@@ -52,7 +52,9 @@ import type { DiscoveredEntry } from "../../src/directory";
 import {
   API_DIRECTORY,
   classifyProbeError,
+  DISCOVER_CONCURRENCY,
   filterDirectory,
+  pMap,
   sortDiscoveredEntries,
   toDiscoverJson,
   withTimeout,
@@ -81,9 +83,70 @@ describe("filterDirectory", () => {
 });
 
 describe("classifyProbeError", () => {
-  it("should classify ProtocolError protocol_detection_failed as free", () => {
-    const err = new ProtocolError("protocol_detection_failed", "No protocol");
-    expect(classifyProbeError(err)).toEqual({ status: "free" });
+  it("should classify protocol_detection_failed with generic message as offline", () => {
+    const err = new ProtocolError(
+      "protocol_detection_failed",
+      "No payment protocol detected for https://example.com",
+    );
+    expect(classifyProbeError(err)).toEqual({
+      status: "offline",
+      reason: "No protocol detected",
+    });
+  });
+
+  it("should classify protocol_detection_failed with HTTP 404 as offline", () => {
+    const err = new ProtocolError(
+      "protocol_detection_failed",
+      "Expected 402 status, got 404",
+    );
+    expect(classifyProbeError(err)).toEqual({
+      status: "offline",
+      reason: "HTTP 404",
+    });
+  });
+
+  it("should classify protocol_detection_failed with HTTP 405 as offline", () => {
+    const err = new ProtocolError(
+      "protocol_detection_failed",
+      "Expected 402 status, got 405",
+    );
+    expect(classifyProbeError(err)).toEqual({
+      status: "offline",
+      reason: "HTTP 405",
+    });
+  });
+
+  it("should classify protocol_detection_failed with HTTP 403 as offline", () => {
+    const err = new ProtocolError(
+      "protocol_detection_failed",
+      "Expected 402 status, got 403",
+    );
+    expect(classifyProbeError(err)).toEqual({
+      status: "offline",
+      reason: "HTTP 403",
+    });
+  });
+
+  it("should classify protocol_detection_failed with HTTP 500 as offline", () => {
+    const err = new ProtocolError(
+      "protocol_detection_failed",
+      "Expected 402 status, got 500",
+    );
+    expect(classifyProbeError(err)).toEqual({
+      status: "offline",
+      reason: "HTTP 500",
+    });
+  });
+
+  it("should classify protocol_detection_failed with HTTP 200 as offline", () => {
+    const err = new ProtocolError(
+      "protocol_detection_failed",
+      "Expected 402 status, got 200",
+    );
+    expect(classifyProbeError(err)).toEqual({
+      status: "offline",
+      reason: "HTTP 200",
+    });
   });
 
   it("should classify ProtocolError payment_failed as error", () => {
@@ -131,6 +194,50 @@ describe("classifyProbeError", () => {
       status: "error",
       reason: "string error",
     });
+  });
+});
+
+describe("pMap", () => {
+  it("should process all items and preserve order", async () => {
+    const items = [1, 2, 3, 4, 5];
+    const results = await pMap(items, async (x) => x * 2, 3);
+    expect(results).toEqual([2, 4, 6, 8, 10]);
+  });
+
+  it("should respect concurrency limit", async () => {
+    let running = 0;
+    let maxRunning = 0;
+    const items = Array.from({ length: 20 }, (_, i) => i);
+
+    await pMap(
+      items,
+      async (x) => {
+        running++;
+        maxRunning = Math.max(maxRunning, running);
+        await new Promise((r) => setTimeout(r, 10));
+        running--;
+        return x;
+      },
+      5,
+    );
+
+    expect(maxRunning).toBeLessThanOrEqual(5);
+    expect(maxRunning).toBeGreaterThan(1);
+  });
+
+  it("should handle empty array", async () => {
+    const results = await pMap([], async (x: number) => x, 5);
+    expect(results).toEqual([]);
+  });
+
+  it("should handle concurrency greater than items length", async () => {
+    const items = [1, 2];
+    const results = await pMap(items, async (x) => x * 10, 100);
+    expect(results).toEqual([10, 20]);
+  });
+
+  it("should default DISCOVER_CONCURRENCY to 10", () => {
+    expect(DISCOVER_CONCURRENCY).toBe(10);
   });
 });
 
@@ -394,7 +501,7 @@ describe("BoltzPay.discover()", () => {
     const results = await sdk.discover();
 
     expect(results).toHaveLength(4);
-    // Sorted: live, offline (timeout), error, free
+    // Sorted: live, offline (no protocol + timeout), error
     expect(results[0].live.status).toBe("live");
     expect(results[0].name).toBe("A");
     if (results[0].live.status === "live") {
@@ -403,13 +510,13 @@ describe("BoltzPay.discover()", () => {
     }
 
     expect(results[1].live.status).toBe("offline");
-    expect(results[1].name).toBe("C");
+    expect(results[1].name).toBe("B");
 
-    expect(results[2].live.status).toBe("error");
-    expect(results[2].name).toBe("D");
+    expect(results[2].live.status).toBe("offline");
+    expect(results[2].name).toBe("C");
 
-    expect(results[3].live.status).toBe("free");
-    expect(results[3].name).toBe("B");
+    expect(results[3].live.status).toBe("error");
+    expect(results[3].name).toBe("D");
 
     mergedSpy.mockRestore();
     quoteSpy.mockRestore();

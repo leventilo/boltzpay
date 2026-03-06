@@ -50,15 +50,30 @@ export class X402Adapter implements ProtocolAdapter {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new X402QuoteError(`Cannot reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
-      return false;
+    if (response.status === 402) {
+      try {
+        const info = await extractPaymentInfo(response);
+        if (info !== null) return true;
+      } catch {}
     }
+
     try {
-      const info = await extractPaymentInfo(response);
-      return info !== null;
-    } catch {
-      return false;
-    }
+      const postResponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        redirect: "manual",
+        signal: AbortSignal.timeout(DETECTION_TIMEOUT_MS),
+      });
+      if (postResponse.status === 402) {
+        try {
+          const info = await extractPaymentInfo(postResponse);
+          if (info !== null) return true;
+        } catch {}
+      }
+    } catch {}
+
+    return false;
   }
 
   async quote(
@@ -120,10 +135,24 @@ export class X402Adapter implements ProtocolAdapter {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new X402QuoteError(`Failed to reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
-      throw new X402QuoteError(`Expected 402 status, got ${response.status}`);
+    if (response.status === 402) {
+      return response;
     }
-    return response;
+
+    try {
+      const postResponse = await fetch(url, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: "{}",
+        redirect: "error",
+        signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+      });
+      if (postResponse.status === 402) {
+        return postResponse;
+      }
+    } catch {}
+
+    throw new X402QuoteError(`Expected 402 status, got ${response.status}`);
   }
 
   private async parsePaymentRequired(

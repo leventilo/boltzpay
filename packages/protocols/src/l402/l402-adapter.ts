@@ -57,12 +57,26 @@ export class L402Adapter implements ProtocolAdapter {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new L402QuoteError(`Cannot reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
-      return false;
+    if (response.status === 402) {
+      const wwwAuth = response.headers.get("www-authenticate");
+      if (wwwAuth && isL402Challenge(wwwAuth)) return true;
     }
-    const wwwAuth = response.headers.get("www-authenticate");
-    if (!wwwAuth) return false;
-    return isL402Challenge(wwwAuth);
+
+    try {
+      const postResponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        redirect: "manual",
+        signal: AbortSignal.timeout(DETECTION_TIMEOUT_MS),
+      });
+      if (postResponse.status === 402) {
+        const wwwAuth = postResponse.headers.get("www-authenticate");
+        if (wwwAuth && isL402Challenge(wwwAuth)) return true;
+      }
+    } catch {}
+
+    return false;
   }
 
   async quote(
@@ -251,10 +265,24 @@ export class L402Adapter implements ProtocolAdapter {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new L402QuoteError(`Failed to reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
-      throw new L402QuoteError(`Expected 402 status, got ${response.status}`);
+    if (response.status === 402) {
+      return response;
     }
-    return response;
+
+    try {
+      const postResponse = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        redirect: "error",
+        signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+      });
+      if (postResponse.status === 402) {
+        return postResponse;
+      }
+    } catch {}
+
+    throw new L402QuoteError(`Expected 402 status, got ${response.status}`);
   }
 
   private parseChallenge(wwwAuth: string): L402ParsedChallenge {

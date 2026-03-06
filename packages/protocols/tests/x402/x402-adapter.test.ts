@@ -427,6 +427,169 @@ describe("X402Adapter", () => {
     });
   });
 
+  describe("detect — POST fallback", () => {
+    it("should detect x402 via POST when GET returns 200", async () => {
+      const header = makeV2Header("10000");
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      fetchMock.mockResolvedValueOnce(
+        mock402Response({ headers: new Headers({ "payment-required": header }) }),
+      );
+      globalThis.fetch = fetchMock;
+
+      expect(await adapter.detect("https://example.com/post-only")).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("POST");
+    });
+
+    it("should return false when GET returns 200 and POST also returns 200", async () => {
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      globalThis.fetch = fetchMock;
+
+      expect(await adapter.detect("https://example.com/free")).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should detect via POST when GET returns 404", async () => {
+      const header = makeV2Header("10000");
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        status: 404,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      fetchMock.mockResolvedValueOnce(
+        mock402Response({ headers: new Headers({ "payment-required": header }) }),
+      );
+      globalThis.fetch = fetchMock;
+
+      expect(await adapter.detect("https://example.com/post-only")).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should detect via POST when GET returns 405", async () => {
+      const header = makeV2Header("10000");
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        status: 405,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      fetchMock.mockResolvedValueOnce(
+        mock402Response({ headers: new Headers({ "payment-required": header }) }),
+      );
+      globalThis.fetch = fetchMock;
+
+      expect(await adapter.detect("https://example.com/post-only")).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should return false when GET returns 500 and POST also fails", async () => {
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        status: 500,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      fetchMock.mockResolvedValueOnce({
+        status: 500,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      globalThis.fetch = fetchMock;
+
+      expect(await adapter.detect("https://example.com/broken")).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should handle POST network failure gracefully", async () => {
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce({
+        status: 200,
+        headers: new Headers(),
+        json: vi.fn().mockRejectedValue(new Error("no body")),
+      });
+      fetchMock.mockRejectedValueOnce(new Error("POST failed"));
+      globalThis.fetch = fetchMock;
+
+      expect(await adapter.detect("https://example.com/post-fail")).toBe(false);
+    });
+  });
+
+  describe("quote — POST fallback", () => {
+    it("should quote via POST fallback when GET returns 200", async () => {
+      const header = makeV2Header("10000");
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce(
+        new Response(null, { status: 200 }),
+      );
+      fetchMock.mockResolvedValueOnce(
+        new Response(null, {
+          status: 402,
+          headers: { "payment-required": header },
+        }),
+      );
+      globalThis.fetch = fetchMock;
+
+      const quote = await adapter.quote("https://example.com/post-only");
+      expect(quote.protocol).toBe("x402");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should throw when GET returns 200 and POST also returns 200", async () => {
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+      globalThis.fetch = fetchMock;
+
+      await expect(
+        adapter.quote("https://example.com/free"),
+      ).rejects.toThrow(X402QuoteError);
+    });
+
+    it("should quote via POST when GET returns 404", async () => {
+      const header = makeV2Header("10000");
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+      fetchMock.mockResolvedValueOnce(
+        new Response(null, {
+          status: 402,
+          headers: { "payment-required": header },
+        }),
+      );
+      globalThis.fetch = fetchMock;
+
+      const quote = await adapter.quote("https://example.com/post-only");
+      expect(quote.protocol).toBe("x402");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("should throw when GET returns 404 and POST also fails", async () => {
+      const fetchMock = vi.fn();
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+      globalThis.fetch = fetchMock;
+
+      await expect(
+        adapter.quote("https://example.com/dead"),
+      ).rejects.toThrow(X402QuoteError);
+    });
+  });
+
   describe("quote — V2 (PAYMENT-REQUIRED header)", () => {
     it("should parse V2 header and convert amount", async () => {
       const header = makeV2Header("1000000");
