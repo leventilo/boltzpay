@@ -400,9 +400,9 @@ describe("BoltzPay n8n node", () => {
   describe("createSdkFromCredentials", () => {
     it("creates SDK with credentials when provided", () => {
       const MockBoltzPay = vi.mocked(BoltzPaySdk);
-      MockBoltzPay.mockImplementation(
-        () => createMockSdk() as unknown as BoltzPaySdk,
-      );
+      MockBoltzPay.mockImplementation(function () {
+        return createMockSdk() as unknown as BoltzPaySdk;
+      });
 
       createSdkFromCredentials({
         apiKeyId: "key-id",
@@ -419,9 +419,9 @@ describe("BoltzPay n8n node", () => {
 
     it("creates SDK without credentials for read-only mode", () => {
       const MockBoltzPay = vi.mocked(BoltzPaySdk);
-      MockBoltzPay.mockImplementation(
-        () => createMockSdk() as unknown as BoltzPaySdk,
-      );
+      MockBoltzPay.mockImplementation(function () {
+        return createMockSdk() as unknown as BoltzPaySdk;
+      });
 
       createSdkFromCredentials(null);
 
