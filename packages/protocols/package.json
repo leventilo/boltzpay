@@ -1,6 +1,6 @@
 {
   "name": "@boltzpay/protocols",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "Protocol adapters for x402 and L402 payment protocols",

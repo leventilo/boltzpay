@@ -1,6 +1,6 @@
 {
   "name": "@boltzpay/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "Give your AI agents a fetch() that pays — multi-protocol, multi-chain, open source",

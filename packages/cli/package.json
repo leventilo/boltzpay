@@ -1,6 +1,6 @@
 {
   "name": "@boltzpay/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "CLI for BoltzPay — fetch paid APIs from the terminal",
