@@ -179,9 +179,7 @@ export async function getMergedDirectory(
   }
 
   const directoryUrls = new Set(directory.map((e) => e.url));
-  const uniqueBazaar = bazaarEntries.filter(
-    (e) => !directoryUrls.has(e.url),
-  );
+  const uniqueBazaar = bazaarEntries.filter((e) => !directoryUrls.has(e.url));
 
   return [...directory, ...uniqueBazaar];
 }

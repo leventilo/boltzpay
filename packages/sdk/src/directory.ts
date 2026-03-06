@@ -32,7 +32,10 @@ export async function fetchRemoteDirectory(): Promise<
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), DIRECTORY_FETCH_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => controller.abort(),
+      DIRECTORY_FETCH_TIMEOUT_MS,
+    );
 
     const response = await fetch(REMOTE_DIRECTORY_URL, {
       signal: controller.signal,
