@@ -71,7 +71,7 @@ importers:
         version: 22.19.15
       n8n-workflow:
         specifier: ^2.0.0
-        version: 2.10.2
+        version: 2.11.1
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -3464,8 +3464,8 @@ packages:
   json-stringify-safe@5.0.1:
     resolution: {integrity: sha512-ZClg6AaYvamvYEE82d3Iyd3vSSIjQ+odgjaTzRuO3s7toCdFKczob2i0zCh7JE8kWn17yvAWhUVxvqGwUalsRA==}
 
-  jsonrepair@3.13.1:
-    resolution: {integrity: sha512-WJeiE0jGfxYmtLwBTEk8+y/mYcaleyLXWaqp5bJu0/ZTSeG0KQq/wWQ8pmnkKenEdN6pdnn6QtcoSUkbqDHWNw==}
+  jsonrepair@3.13.2:
+    resolution: {integrity: sha512-Leuly0nbM4R+S5SVJk3VHfw1oxnlEK9KygdZvfUtEtTawNDyzB4qa1xWTmFt1aeoA7sXZkVTRuIixJ8bAvqVUg==}
     hasBin: true
 
   jssha@3.3.1:
@@ -3803,8 +3803,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  n8n-workflow@2.10.2:
-    resolution: {integrity: sha512-Z9pNsGMYjRc5/MaFLPxj9o0xYjDZaywjpvh9cLIPyVmmSa6Pjojb1eh2hRqadbxlc6nXPI2URqGvCC9bVMIYVw==}
+  n8n-workflow@2.11.1:
+    resolution: {integrity: sha512-pln5b5Uu8f0ecaIdRt7RBxulatJz5DGZ6azqzGmekavYtMI3XIqzF60cozO0bXjRJ8mGUEZXcvlttMnIp5dxxg==}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -8196,7 +8196,7 @@ snapshots:
 
   json-stringify-safe@5.0.1: {}
 
-  jsonrepair@3.13.1: {}
+  jsonrepair@3.13.2: {}
 
   jssha@3.3.1: {}
 
@@ -8670,7 +8670,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  n8n-workflow@2.10.2:
+  n8n-workflow@2.11.1:
     dependencies:
       '@n8n/errors': 0.6.0
       '@n8n/tournament': 1.0.6
@@ -8680,7 +8680,7 @@ snapshots:
       form-data: 4.0.4
       jmespath: 0.16.0
       js-base64: 3.7.2
-      jsonrepair: 3.13.1
+      jsonrepair: 3.13.2
       jssha: 3.3.1
       lodash: 4.17.23
       luxon: 3.7.2
