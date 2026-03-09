@@ -1,13 +1,9 @@
 import { Money } from "@boltzpay/core";
-import { appendLine, readLines, writeLines } from "../persistence/storage";
+import type { StorageAdapter } from "../persistence/storage-adapter";
 import type { PaymentRecord } from "./types";
 
-const DEFAULT_MAX_SIZE = 100;
-
-interface PersistenceConfig {
-  readonly filePath: string;
-  readonly maxRecords: number;
-}
+const DEFAULT_MAX_RECORDS = 1000;
+const HISTORY_KEY_PREFIX = "history:";
 
 interface SerializedRecord {
   readonly id: string;
@@ -17,6 +13,7 @@ interface SerializedRecord {
   readonly timestamp: string;
   readonly txHash: string | undefined;
   readonly network: string | undefined;
+  readonly durationMs?: number;
 }
 
 function serializeRecord(record: PaymentRecord): string {
@@ -31,13 +28,14 @@ function serializeRecord(record: PaymentRecord): string {
     timestamp: record.timestamp.toISOString(),
     txHash: record.txHash,
     network: record.network,
+    durationMs: record.durationMs,
   };
   return JSON.stringify(data);
 }
 
-function deserializeRecord(line: string): PaymentRecord | undefined {
+function deserializeRecord(raw: string): PaymentRecord | undefined {
   try {
-    const data = JSON.parse(line) as SerializedRecord;
+    const data = JSON.parse(raw) as SerializedRecord;
     return {
       id: data.id,
       url: data.url,
@@ -46,9 +44,9 @@ function deserializeRecord(line: string): PaymentRecord | undefined {
       timestamp: new Date(data.timestamp),
       txHash: data.txHash,
       network: data.network,
+      durationMs: data.durationMs,
     };
   } catch {
-    // Corrupt line — skip gracefully
     return undefined;
   }
 }
@@ -56,22 +54,47 @@ function deserializeRecord(line: string): PaymentRecord | undefined {
 export class PaymentHistory {
   private records: PaymentRecord[] = [];
   private readonly maxSize: number;
-  private readonly persistence: PersistenceConfig | undefined;
+  private readonly storage: StorageAdapter | undefined;
 
-  constructor(options?: { persistence?: PersistenceConfig }) {
-    this.persistence = options?.persistence;
-    this.maxSize = this.persistence?.maxRecords ?? DEFAULT_MAX_SIZE;
+  constructor(options?: {
+    storage?: StorageAdapter;
+    maxRecords?: number;
+  }) {
+    this.storage = options?.storage;
+    this.maxSize = options?.maxRecords ?? DEFAULT_MAX_RECORDS;
+  }
 
-    if (this.persistence) {
-      this.loadFromFile(this.persistence.filePath);
+  async loadFromStorage(): Promise<void> {
+    if (!this.storage) return;
+
+    const keys = await this.storage.keys(HISTORY_KEY_PREFIX);
+    const records: PaymentRecord[] = [];
+    for (const key of keys) {
+      const raw = await this.storage.get(key);
+      if (!raw) continue;
+      const record = deserializeRecord(raw);
+      if (record) {
+        records.push(record);
+      }
+    }
+
+    records.sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    );
+
+    if (records.length > this.maxSize) {
+      this.records = records.slice(-this.maxSize);
+    } else {
+      this.records = records;
     }
   }
 
   add(record: PaymentRecord): void {
     this.records.push(record);
     if (this.records.length > this.maxSize) {
-      this.records = this.records.slice(-this.maxSize);
-      this.rotateFile();
+      const evicted = this.records.splice(0, this.records.length - this.maxSize);
+      this.persistRecord(record);
+      this.deleteOldRecords(evicted.map((r) => r.id));
     } else {
       this.persistRecord(record);
     }
@@ -85,27 +108,17 @@ export class PaymentHistory {
     return this.records.length;
   }
 
-  private loadFromFile(filePath: string): void {
-    const lines = readLines(filePath);
-    for (const line of lines) {
-      const record = deserializeRecord(line);
-      if (record) {
-        this.records.push(record);
-      }
-    }
-    if (this.records.length > this.maxSize) {
-      this.records = this.records.slice(-this.maxSize);
-    }
-  }
-
   private persistRecord(record: PaymentRecord): void {
-    if (!this.persistence) return;
-    appendLine(this.persistence.filePath, serializeRecord(record));
+    if (!this.storage) return;
+    this.storage
+      .set(`${HISTORY_KEY_PREFIX}${record.id}`, serializeRecord(record))
+      .catch(() => {});
   }
 
-  private rotateFile(): void {
-    if (!this.persistence) return;
-    const lines = this.records.map(serializeRecord);
-    writeLines(this.persistence.filePath, lines);
+  private deleteOldRecords(ids: string[]): void {
+    if (!this.storage) return;
+    for (const id of ids) {
+      this.storage.delete(`${HISTORY_KEY_PREFIX}${id}`).catch(() => {});
+    }
   }
 }

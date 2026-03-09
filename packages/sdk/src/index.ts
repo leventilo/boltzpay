@@ -13,11 +13,25 @@ export {
 } from "./bazaar";
 export type { FetchOptions, QuoteResult } from "./boltzpay";
 export { BoltzPay } from "./boltzpay";
+export type {
+  ChainInfo,
+  DeathReason,
+  DiagnoseResult,
+  DiagnoseTiming,
+  EndpointClassification,
+  EndpointHealth,
+  FormatVersion,
+} from "./diagnostics/diagnose";
+export type {
+  DryRunFailureReason,
+  DryRunResult,
+} from "./diagnostics/dry-run";
 export type { BudgetLimits, BudgetState } from "./budget/budget-manager";
 export type {
   BoltzPayConfig,
   BudgetConfig,
   ValidatedConfig,
+  WalletConfig,
 } from "./config/types";
 export type {
   ApiDirectoryEntry,
@@ -45,7 +59,12 @@ export {
   ConfigurationError,
   InsufficientFundsError,
   NetworkError,
+  NoWalletError,
+  PaymentUncertainError,
   ProtocolError,
+  RateLimitError,
+  UnsupportedNetworkError,
+  UnsupportedSchemeError,
 } from "./errors/index";
 export type {
   BoltzPayEvents,
@@ -53,9 +72,20 @@ export type {
   BudgetWarningEvent,
   EventListener,
   EventName,
+  PaymentUncertainEvent,
+  RetryAttemptEvent,
+  RetryExhaustedEvent,
+  UnsupportedNetworkEvent,
+  UnsupportedSchemeEvent,
+  WalletSelectedEvent,
 } from "./events/types";
 export type { PaymentDetails, PaymentRecord } from "./history/types";
+export type { PaymentMetrics } from "./metrics/metrics";
 export { isTestnet, networkToShortName } from "./network-utils";
+export type { StorageAdapter } from "./persistence/storage-adapter";
+export type { StorageConfig } from "./config/types";
+export { MemoryAdapter } from "./persistence/memory-adapter";
+export { FileAdapter } from "./persistence/file-adapter";
 export { BoltzPayResponse } from "./response/boltzpay-response";
 export type {
   AccountStatus,
@@ -65,5 +95,4 @@ export type {
   WalletStatus,
 } from "./wallet-status";
 
-/** SDK version string, following semver. */
 export const VERSION = "0.1.1";

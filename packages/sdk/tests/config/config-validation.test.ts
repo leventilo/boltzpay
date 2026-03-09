@@ -4,6 +4,7 @@ import {
   validateConfig,
 } from "../../src/config/schema";
 import { ConfigurationError } from "../../src/errors/configuration-error";
+import type { BoltzPayConfig } from "../../src/config/types";
 
 const validBase = {
   coinbaseApiKeyId: "test-key-id",
@@ -170,6 +171,284 @@ describe("Config Validation", () => {
         expect((err as ConfigurationError).code).toBe("invalid_config");
         expect((err as ConfigurationError).message).toContain("network");
       }
+    });
+  });
+
+  describe("Phase 8: timeouts", () => {
+    it("validates timeouts with partial fields and applies defaults", () => {
+      const result = validateConfig({ timeouts: { detect: 5000 } });
+      expect(result.timeouts).toBeDefined();
+      expect(result.timeouts!.detect).toBe(5000);
+      expect(result.timeouts!.quote).toBe(15_000);
+      expect(result.timeouts!.payment).toBe(30_000);
+    });
+
+    it("rejects negative timeout values", () => {
+      expect(() =>
+        validateConfig({ timeouts: { detect: -1 } }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("rejects non-integer timeout values", () => {
+      expect(() =>
+        validateConfig({ timeouts: { detect: 5.5 } }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("applies all timeout defaults when timeouts is provided as empty object", () => {
+      const result = validateConfig({ timeouts: {} });
+      expect(result.timeouts!.detect).toBe(10_000);
+      expect(result.timeouts!.quote).toBe(15_000);
+      expect(result.timeouts!.payment).toBe(30_000);
+    });
+
+    it("provides default timeouts when not provided", () => {
+      const result = validateConfig({});
+      expect(result.timeouts).toEqual({
+        detect: 10_000,
+        quote: 15_000,
+        payment: 30_000,
+      });
+    });
+  });
+
+  describe("Phase 8: maxAmountPerRequest", () => {
+    it('validates string dollar amount "10.00"', () => {
+      const result = validateConfig({ maxAmountPerRequest: "10.00" });
+      expect(result.maxAmountPerRequest).toBe("10.00");
+    });
+
+    it("validates positive number amount", () => {
+      const result = validateConfig({ maxAmountPerRequest: 5 });
+      expect(result.maxAmountPerRequest).toBe(5);
+    });
+
+    it("rejects negative number", () => {
+      expect(() =>
+        validateConfig({ maxAmountPerRequest: -5 }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("rejects invalid string format", () => {
+      expect(() =>
+        validateConfig({ maxAmountPerRequest: "abc" }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("leaves maxAmountPerRequest undefined when not provided", () => {
+      const result = validateConfig({});
+      expect(result.maxAmountPerRequest).toBeUndefined();
+    });
+  });
+
+  describe("Phase 8: allowlist / blocklist", () => {
+    it("validates allowlist with domain strings", () => {
+      const result = validateConfig({ allowlist: ["example.com"] });
+      expect(result.allowlist).toEqual(["example.com"]);
+    });
+
+    it("validates blocklist with domain strings", () => {
+      const result = validateConfig({ blocklist: ["evil.com"] });
+      expect(result.blocklist).toEqual(["evil.com"]);
+    });
+
+    it("rejects allowlist with empty string", () => {
+      expect(() =>
+        validateConfig({ allowlist: [""] }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("rejects blocklist with empty string", () => {
+      expect(() =>
+        validateConfig({ blocklist: [""] }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("leaves allowlist/blocklist undefined when not provided", () => {
+      const result = validateConfig({});
+      expect(result.allowlist).toBeUndefined();
+      expect(result.blocklist).toBeUndefined();
+    });
+  });
+
+  describe("Phase 8: logFormat", () => {
+    it('validates logFormat "json"', () => {
+      const result = validateConfig({ logFormat: "json" });
+      expect(result.logFormat).toBe("json");
+    });
+
+    it('validates logFormat "text"', () => {
+      const result = validateConfig({ logFormat: "text" });
+      expect(result.logFormat).toBe("text");
+    });
+
+    it('defaults logFormat to "text" when not provided', () => {
+      const result = validateConfig({});
+      expect(result.logFormat).toBe("text");
+    });
+
+    it("rejects invalid logFormat value", () => {
+      expect(() =>
+        validateConfig({ logFormat: "xml" }),
+      ).toThrow(ConfigurationError);
+    });
+  });
+
+  describe("Phase 8: ConfigurationError domain_blocked code", () => {
+    it('accepts "domain_blocked" code', () => {
+      const error = new ConfigurationError(
+        "domain_blocked",
+        "Domain evil.com is blocked by policy",
+      );
+      expect(error.code).toBe("domain_blocked");
+      expect(error.message).toContain("evil.com");
+      expect(error.statusCode).toBe(400);
+      expect(error).toBeInstanceOf(ConfigurationError);
+    });
+  });
+
+  describe("Phase 11: WalletSchema", () => {
+    it("validates coinbase wallet config", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "coinbase",
+            name: "prod",
+            coinbaseApiKeyId: "key-id",
+            coinbaseApiKeySecret: "key-secret",
+            coinbaseWalletSecret: "wallet-secret",
+          },
+        ],
+      });
+      expect(result.wallets).toHaveLength(1);
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "coinbase", name: "prod" }),
+      );
+    });
+
+    it("validates nwc wallet config", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "nwc",
+            name: "ln",
+            nwcConnectionString: "nostr+walletconnect://relay.example.com",
+          },
+        ],
+      });
+      expect(result.wallets).toHaveLength(1);
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "nwc", name: "ln" }),
+      );
+    });
+
+    it("rejects invalid wallet type", () => {
+      expect(() =>
+        validateConfig({
+          wallets: [{ type: "invalid", name: "x" }],
+        }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("rejects empty wallet name", () => {
+      expect(() =>
+        validateConfig({
+          wallets: [
+            {
+              type: "coinbase",
+              name: "",
+              coinbaseApiKeyId: "k",
+              coinbaseApiKeySecret: "s",
+              coinbaseWalletSecret: "w",
+            },
+          ],
+        }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("validates wallets with networks array", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "coinbase",
+            name: "multi",
+            coinbaseApiKeyId: "k",
+            coinbaseApiKeySecret: "s",
+            coinbaseWalletSecret: "w",
+            networks: ["evm", "svm"],
+          },
+        ],
+      });
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ networks: ["evm", "svm"] }),
+      );
+    });
+
+    it("backward compat — no wallets + flat creds still works", () => {
+      const result = validateConfig(validBase);
+      expect(result.wallets).toBeUndefined();
+      expect(result.coinbaseApiKeyId).toBe("test-key-id");
+    });
+
+    it("validates empty wallets array", () => {
+      const result = validateConfig({ wallets: [] });
+      expect(result.wallets).toEqual([]);
+    });
+  });
+
+  describe("Phase 10: StorageSchema", () => {
+    it('accepts storage: "file" shortcut', () => {
+      const result = validateConfig({ storage: "file" });
+      expect(result.storage).toBe("file");
+    });
+
+    it('accepts storage: "memory" shortcut', () => {
+      const result = validateConfig({ storage: "memory" });
+      expect(result.storage).toBe("memory");
+    });
+
+    it("accepts storage: { type: 'file', dir: '/tmp/test' }", () => {
+      const result = validateConfig({
+        storage: { type: "file", dir: "/tmp/test" },
+      });
+      expect(result.storage).toEqual(
+        expect.objectContaining({ type: "file", dir: "/tmp/test" }),
+      );
+    });
+
+    it("defaults maxHistoryRecords to 1000 for object config", () => {
+      const result = validateConfig({ storage: { type: "file" } });
+      expect((result.storage as { maxHistoryRecords: number }).maxHistoryRecords).toBe(1000);
+    });
+
+    it("accepts custom adapter (duck-typing)", () => {
+      const customAdapter = {
+        get: async () => undefined,
+        set: async () => {},
+        delete: async () => {},
+        keys: async () => [],
+      };
+      const result = validateConfig({ storage: customAdapter });
+      expect(result.storage).toBe(customAdapter);
+    });
+
+    it("leaves storage undefined when not provided (default)", () => {
+      const result = validateConfig({});
+      expect(result.storage).toBeUndefined();
+    });
+
+    it("rejects invalid storage value", () => {
+      expect(() =>
+        validateConfig({ storage: "redis" }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("existing persistence config still works (backward compat)", () => {
+      const result = validateConfig({
+        persistence: { enabled: true, directory: "/tmp" },
+      });
+      expect(result.persistence).toBeDefined();
+      expect(result.persistence?.enabled).toBe(true);
     });
   });
 });

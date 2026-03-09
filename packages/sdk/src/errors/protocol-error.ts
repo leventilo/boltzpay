@@ -33,7 +33,6 @@ export function isProtocolErrorCode(value: string): value is ProtocolErrorCode {
   return PROTOCOL_ERROR_CODE_SET.has(value);
 }
 
-/** Individual delivery attempt result surfaced in the diagnosis. */
 export interface DiagnosisDeliveryAttempt {
   readonly method: string;
   readonly headerName: string;
@@ -41,18 +40,15 @@ export interface DiagnosisDeliveryAttempt {
   readonly serverMessage?: string;
 }
 
-/** Structured diagnostic attached to delivery failures so AI agents can understand and retry. */
 export interface DeliveryDiagnosis {
   readonly phase: "detection" | "payment" | "delivery";
   readonly paymentSent: boolean;
   readonly serverStatus?: number;
   readonly serverMessage?: string;
   readonly suggestion?: string;
-  /** Individual delivery attempt results when adaptive delivery was exhausted. */
   readonly deliveryAttempts?: readonly DiagnosisDeliveryAttempt[];
 }
 
-/** Thrown for payment protocol failures (detection, quoting, payment execution). */
 export class ProtocolError extends BoltzPayError {
   readonly code: ProtocolErrorCode;
   readonly statusCode = 502;

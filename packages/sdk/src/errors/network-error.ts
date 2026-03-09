@@ -5,7 +5,6 @@ type NetworkErrorCode =
   | "endpoint_unreachable"
   | "blockchain_error";
 
-/** Thrown for network-level failures (timeout, unreachable, blockchain). Codes: `network_timeout`, `endpoint_unreachable`, `blockchain_error`. */
 export class NetworkError extends BoltzPayError {
   readonly code: NetworkErrorCode;
   readonly statusCode = 503;

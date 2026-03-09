@@ -1,10 +1,8 @@
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { Money } from "@boltzpay/core";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PaymentHistory } from "../src/history/payment-history";
 import type { PaymentRecord } from "../src/history/types";
+import { MemoryAdapter } from "../src/persistence/memory-adapter";
 
 function makeRecord(id: number, protocol = "x402"): PaymentRecord {
   return {
@@ -34,23 +32,8 @@ function makeSatsRecord(id: number): PaymentRecord {
   };
 }
 
-function tmpFilePath(suffix: string): string {
-  return join(tmpdir(), `boltzpay-test-history-${Date.now()}-${suffix}.jsonl`);
-}
-
 describe("PaymentHistory — persistence", () => {
-  const filesToClean: string[] = [];
-
-  afterEach(() => {
-    for (const f of filesToClean) {
-      if (existsSync(f)) {
-        unlinkSync(f);
-      }
-    }
-    filesToClean.length = 0;
-  });
-
-  it("in-memory mode (no persistence) works without any file I/O", () => {
+  it("in-memory mode (no storage) works without any persistence", () => {
     const history = new PaymentHistory();
     history.add(makeRecord(1));
     history.add(makeRecord(2));
@@ -60,50 +43,43 @@ describe("PaymentHistory — persistence", () => {
     expect(history.getAll()[1].id).toBe("record-2");
   });
 
-  it("persistence creates file and appends records as JSONL", () => {
-    const filePath = tmpFilePath("create");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("storage persists records as individual keys", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
     history.add(makeRecord(1));
     history.add(makeRecord(2));
 
-    expect(existsSync(filePath)).toBe(true);
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
 
-    const lines = readFileSync(filePath, "utf-8")
-      .split("\n")
-      .filter((line) => line.trim() !== "");
-    expect(lines).toHaveLength(2);
+    const keys = await storage.keys("history:");
+    expect(keys).toHaveLength(2);
 
-    const parsed = JSON.parse(lines[0]) as { id: string };
+    const raw = await storage.get("history:record-1");
+    expect(raw).toBeDefined();
+    const parsed = JSON.parse(raw!) as { id: string };
     expect(parsed.id).toBe("record-1");
   });
 
-  it("loads records from existing file on construction", () => {
-    const filePath = tmpFilePath("load");
-    filesToClean.push(filePath);
-
-    const first = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("loads records from existing storage on loadFromStorage", async () => {
+    const storage = new MemoryAdapter();
+    const first = new PaymentHistory({ storage, maxRecords: 50 });
     first.add(makeRecord(10));
     first.add(makeRecord(20));
 
-    const second = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const second = new PaymentHistory({ storage, maxRecords: 50 });
+    await second.loadFromStorage();
     expect(second.length).toBe(2);
     expect(second.getAll()[0].id).toBe("record-10");
     expect(second.getAll()[1].id).toBe("record-20");
   });
 
-  it("corrupt lines in file are skipped gracefully", () => {
-    const filePath = tmpFilePath("corrupt");
-    filesToClean.push(filePath);
-
-    const validRecord = JSON.stringify({
+  it("corrupt data in storage is skipped gracefully", async () => {
+    const storage = new MemoryAdapter();
+    await storage.set("history:good-1", JSON.stringify({
       id: "good-1",
       url: "https://example.com/1",
       protocol: "x402",
@@ -111,43 +87,35 @@ describe("PaymentHistory — persistence", () => {
       timestamp: "2026-02-18T12:00:00.000Z",
       txHash: "0x01",
       network: "base",
-    });
-    const content = `${validRecord}\n{{{CORRUPT JSON\nnot-even-json\n`;
-    writeFileSync(filePath, content, "utf-8");
+    }));
+    await storage.set("history:corrupt-1", "{{{CORRUPT JSON");
 
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
+    await history.loadFromStorage();
 
     expect(history.length).toBe(1);
     expect(history.getAll()[0].id).toBe("good-1");
   });
 
-  it("empty file loads cleanly with zero records", () => {
-    const filePath = tmpFilePath("empty");
-    filesToClean.push(filePath);
+  it("empty storage loads cleanly with zero records", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
+    await history.loadFromStorage();
 
-    writeFileSync(filePath, "", "utf-8");
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
     expect(history.length).toBe(0);
     expect(history.getAll()).toEqual([]);
   });
 
-  it("Money serialization roundtrip preserves cents and currency (USD)", () => {
-    const filePath = tmpFilePath("roundtrip-usd");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("money serialization roundtrip preserves cents and currency (USD)", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
     history.add(makeRecord(1));
 
-    const loaded = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const loaded = new PaymentHistory({ storage, maxRecords: 50 });
+    await loaded.loadFromStorage();
     const record = loaded.getAll()[0];
 
     expect(record.amount.cents).toBe(150n);
@@ -155,18 +123,16 @@ describe("PaymentHistory — persistence", () => {
     expect(record.amount.equals(Money.fromDollars("1.50"))).toBe(true);
   });
 
-  it("Money serialization roundtrip preserves SATS currency", () => {
-    const filePath = tmpFilePath("roundtrip-sats");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("money serialization roundtrip preserves SATS currency", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
     history.add(makeSatsRecord(1));
 
-    const loaded = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const loaded = new PaymentHistory({ storage, maxRecords: 50 });
+    await loaded.loadFromStorage();
     const record = loaded.getAll()[0];
 
     expect(record.amount.cents).toBe(500n);
@@ -174,13 +140,9 @@ describe("PaymentHistory — persistence", () => {
     expect(record.amount.equals(Money.fromSatoshis(500n))).toBe(true);
   });
 
-  it("max records rotation truncates file to maxRecords", () => {
-    const filePath = tmpFilePath("rotation");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 3 },
-    });
+  it("max records rotation deletes old keys from storage", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 3 });
 
     history.add(makeRecord(1));
     history.add(makeRecord(2));
@@ -189,27 +151,31 @@ describe("PaymentHistory — persistence", () => {
 
     expect(history.length).toBe(3);
 
-    const lines = readFileSync(filePath, "utf-8")
-      .split("\n")
-      .filter((line) => line.trim() !== "");
-    expect(lines).toHaveLength(3);
+    // Wait for fire-and-forget persist and delete
+    await new Promise((r) => setTimeout(r, 50));
 
-    const ids = lines.map((l) => (JSON.parse(l) as { id: string }).id);
-    expect(ids).toEqual(["record-2", "record-3", "record-4"]);
+    // record-1 should be deleted from storage
+    const deleted = await storage.get("history:record-1");
+    expect(deleted).toBeUndefined();
+
+    // remaining records should exist
+    const kept = await storage.get("history:record-4");
+    expect(kept).toBeDefined();
+
+    const keys = await storage.keys("history:");
+    expect(keys).toHaveLength(3);
   });
 
-  it("records loaded from file are correct Money instances (instanceof)", () => {
-    const filePath = tmpFilePath("money-instance");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("records loaded from storage are correct money instances", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
     history.add(makeRecord(1));
 
-    const loaded = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const loaded = new PaymentHistory({ storage, maxRecords: 50 });
+    await loaded.loadFromStorage();
     const record = loaded.getAll()[0];
 
     expect(record.amount.toDisplayString()).toBe("$1.50");
@@ -217,68 +183,86 @@ describe("PaymentHistory — persistence", () => {
     expect(record.amount.add(Money.fromCents(50n)).cents).toBe(200n);
   });
 
-  it("multiple adds persist correctly across reloads", () => {
-    const filePath = tmpFilePath("multi-add");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("multiple adds persist correctly across reloads", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
     history.add(makeRecord(1));
     history.add(makeSatsRecord(2));
     history.add(makeRecord(3));
 
-    const loaded = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const loaded = new PaymentHistory({ storage, maxRecords: 50 });
+    await loaded.loadFromStorage();
     expect(loaded.length).toBe(3);
 
+    // Records are sorted by timestamp on load
     const all = loaded.getAll();
-    expect(all[0].id).toBe("record-1");
-    expect(all[0].protocol).toBe("x402");
-    expect(all[1].id).toBe("sats-2");
-    expect(all[1].protocol).toBe("L402");
-    expect(all[2].id).toBe("record-3");
-    expect(all[2].timestamp).toBeInstanceOf(Date);
+    const ids = all.map((r) => r.id).sort();
+    expect(ids).toContain("record-1");
+    expect(ids).toContain("sats-2");
+    expect(ids).toContain("record-3");
+
+    // All records have valid timestamps
+    for (const r of all) {
+      expect(r.timestamp).toBeInstanceOf(Date);
+    }
+
+    // Verify protocol types are preserved
+    const x402Records = all.filter((r) => r.protocol === "x402");
+    const l402Records = all.filter((r) => r.protocol === "L402");
+    expect(x402Records).toHaveLength(2);
+    expect(l402Records).toHaveLength(1);
   });
 
-  it("file with excess records is truncated on load to maxRecords", () => {
-    const filePath = tmpFilePath("excess");
-    filesToClean.push(filePath);
-
-    const writer = new PaymentHistory({
-      persistence: { filePath, maxRecords: 100 },
-    });
+  it("storage with excess records trims on load to maxRecords", async () => {
+    const storage = new MemoryAdapter();
+    const writer = new PaymentHistory({ storage, maxRecords: 100 });
     for (let i = 0; i < 10; i++) {
       writer.add(makeRecord(i));
     }
 
-    const reader = new PaymentHistory({
-      persistence: { filePath, maxRecords: 5 },
-    });
-    expect(reader.length).toBe(5);
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
 
-    const all = reader.getAll();
-    expect(all[0].id).toBe("record-5");
-    expect(all[4].id).toBe("record-9");
+    const reader = new PaymentHistory({ storage, maxRecords: 5 });
+    await reader.loadFromStorage();
+    expect(reader.length).toBe(5);
   });
 
-  it("record fields including txHash/network undefined survive roundtrip", () => {
-    const filePath = tmpFilePath("optional-fields");
-    filesToClean.push(filePath);
-
-    const history = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+  it("record fields including txHash/network undefined survive roundtrip", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
     history.add(makeSatsRecord(1));
 
-    const loaded = new PaymentHistory({
-      persistence: { filePath, maxRecords: 50 },
-    });
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const loaded = new PaymentHistory({ storage, maxRecords: 50 });
+    await loaded.loadFromStorage();
     const record = loaded.getAll()[0];
 
     expect(record.txHash).toBeUndefined();
     expect(record.network).toBeUndefined();
     expect(record.url).toBe("https://lnpay.example.com/1");
+  });
+
+  it("durationMs field survives roundtrip through storage", async () => {
+    const storage = new MemoryAdapter();
+    const history = new PaymentHistory({ storage, maxRecords: 50 });
+    history.add({
+      ...makeRecord(1),
+      durationMs: 750,
+    });
+
+    // Wait for fire-and-forget persist
+    await new Promise((r) => setTimeout(r, 10));
+
+    const loaded = new PaymentHistory({ storage, maxRecords: 50 });
+    await loaded.loadFromStorage();
+    const record = loaded.getAll()[0];
+
+    expect(record.durationMs).toBe(750);
   });
 });

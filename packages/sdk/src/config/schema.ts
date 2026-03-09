@@ -1,6 +1,8 @@
 import { SUPPORTED_NAMESPACES } from "@boltzpay/core";
 import { z } from "zod";
 import { ConfigurationError } from "../errors/configuration-error";
+import type { StorageAdapter } from "../persistence/storage-adapter";
+import { RateLimitSchema, RetrySchema } from "../retry/retry-config";
 
 const NETWORK = ["base", "base-sepolia"] as const;
 const LOG_LEVEL = ["debug", "info", "warn", "error", "silent"] as const;
@@ -24,7 +26,6 @@ export const BudgetSchema = z.object({
     .max(1)
     .optional()
     .default(DEFAULT_WARNING_THRESHOLD),
-  /** Conversion rate: 1 sat = X USD. Default 0.001 (~$100K/BTC). Used to count L402 sats in the USD budget. */
   satToUsdRate: z
     .number()
     .positive()
@@ -38,6 +39,57 @@ export const PersistenceSchema = z.object({
   historyMaxRecords: z.number().int().positive().optional().default(500),
 });
 
+const DEFAULT_DETECT_MS = 10_000;
+const DEFAULT_QUOTE_MS = 15_000;
+const DEFAULT_PAYMENT_MS = 30_000;
+
+export const TimeoutSchema = z.object({
+  detect: z.number().int().positive().default(DEFAULT_DETECT_MS),
+  quote: z.number().int().positive().default(DEFAULT_QUOTE_MS),
+  payment: z.number().int().positive().default(DEFAULT_PAYMENT_MS),
+});
+
+export const StorageSchema = z.union([
+  z.literal("file"),
+  z.literal("memory"),
+  z.object({
+    type: z.literal("file"),
+    dir: z.string().optional(),
+    maxHistoryRecords: z.number().int().positive().optional().default(1000),
+  }),
+  z.custom<StorageAdapter>(
+    (val) =>
+      val !== null &&
+      typeof val === "object" &&
+      "get" in val &&
+      "set" in val &&
+      "delete" in val &&
+      "keys" in val,
+    "Must implement StorageAdapter (get, set, delete, keys)",
+  ),
+]);
+
+const CoinbaseWalletSchema = z.object({
+  type: z.literal("coinbase"),
+  name: z.string().min(1),
+  coinbaseApiKeyId: z.string().min(1),
+  coinbaseApiKeySecret: z.string().min(1),
+  coinbaseWalletSecret: z.string().min(1),
+  networks: z.array(z.string().min(1)).optional(),
+});
+
+const NwcWalletSchema = z.object({
+  type: z.literal("nwc"),
+  name: z.string().min(1),
+  nwcConnectionString: z.string().startsWith("nostr+walletconnect://"),
+  networks: z.array(z.string().min(1)).optional(),
+});
+
+export const WalletSchema = z.discriminatedUnion("type", [
+  CoinbaseWalletSchema,
+  NwcWalletSchema,
+]);
+
 export const BoltzPayConfigSchema = z.object({
   coinbaseApiKeyId: z.string().min(1).optional(),
   coinbaseApiKeySecret: z.string().min(1).optional(),
@@ -50,7 +102,20 @@ export const BoltzPayConfigSchema = z.object({
   preferredChains: z.array(z.enum(SUPPORTED_NAMESPACES)).optional(),
   budget: BudgetSchema.optional(),
   persistence: PersistenceSchema.optional(),
+  storage: StorageSchema.optional(),
   logLevel: z.enum(LOG_LEVEL).optional().default("warn"),
+  timeouts: TimeoutSchema.default({
+    detect: DEFAULT_DETECT_MS,
+    quote: DEFAULT_QUOTE_MS,
+    payment: DEFAULT_PAYMENT_MS,
+  }),
+  maxAmountPerRequest: positiveAmount.optional(),
+  allowlist: z.array(z.string().min(1)).optional(),
+  blocklist: z.array(z.string().min(1)).optional(),
+  logFormat: z.enum(["text", "json"]).optional().default("text"),
+  retry: RetrySchema.optional(),
+  rateLimit: RateLimitSchema.optional(),
+  wallets: z.array(WalletSchema).optional(),
 });
 
 function formatZodIssues(issues: ReadonlyArray<z.core.$ZodIssue>): string {

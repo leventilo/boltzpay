@@ -1,17 +1,14 @@
 import { Money } from "@boltzpay/core";
-import { readJson, writeJson } from "../persistence/storage";
+import type { StorageAdapter } from "../persistence/storage-adapter";
 
-/** Resolved budget limits in Money. Created from `BudgetConfig` at construction time. */
 export interface BudgetLimits {
   readonly daily: Money | undefined;
   readonly monthly: Money | undefined;
   readonly perTransaction: Money | undefined;
   readonly warningThreshold: number;
-  /** 1 sat = X USD. Used to convert L402 sats to USD for budget accounting. */
   readonly satToUsdRate: number;
 }
 
-/** Current budget spending state returned by `BoltzPay.getBudget()`. */
 export interface BudgetState {
   readonly dailySpent: Money;
   readonly monthlySpent: Money;
@@ -40,12 +37,14 @@ type BudgetWarningResult =
       readonly usage: number;
     };
 
-// sats → cents conversion uses scaled bigint to avoid float precision loss.
-// cents = sats * rate * 100, computed as: sats * rateScaled / RATE_PRECISION
 const RATE_PRECISION = 1_000_000n;
-
-// Warning threshold comparison uses basis points to avoid Number(bigint) precision loss.
 const WARNING_BASIS_POINTS = 10000n;
+const BUDGET_STATE_KEY = "budget:state";
+const DEFAULT_SAT_TO_USD_RATE = 0.001;
+const CENTS_PER_DOLLAR = 100;
+const MINIMUM_BUDGET_CENTS = 1n;
+const DATE_SLICE_DAY = 10;
+const DATE_SLICE_MONTH = 7;
 
 interface PersistedBudget {
   readonly dailySpent: string;
@@ -55,36 +54,48 @@ interface PersistedBudget {
 }
 
 function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, DATE_SLICE_DAY);
 }
 
 function thisMonth(): string {
-  return new Date().toISOString().slice(0, 7);
+  return new Date().toISOString().slice(0, DATE_SLICE_MONTH);
 }
 
 export class BudgetManager {
   private dailySpent: Money = Money.zero();
   private monthlySpent: Money = Money.zero();
   private readonly limits: BudgetLimits | undefined;
-  private readonly persistPath: string | undefined;
+  private readonly storage: StorageAdapter;
 
-  constructor(limits: BudgetLimits | undefined, persistPath?: string) {
+  constructor(limits: BudgetLimits | undefined, storage: StorageAdapter) {
     this.limits = limits;
-    this.persistPath = persistPath;
-
-    if (persistPath) {
-      this.loadFromFile(persistPath);
-    }
+    this.storage = storage;
   }
 
-  /** Convert a SATS amount to USD equivalent using the configured rate. USD amounts pass through. */
+  async loadFromStorage(): Promise<void> {
+    const raw = await this.storage.get(BUDGET_STATE_KEY);
+    if (!raw) return;
+
+    try {
+      const data = JSON.parse(raw) as PersistedBudget;
+      const today = todayDate();
+      const month = thisMonth();
+
+      if (data.lastDailyReset === today) {
+        this.dailySpent = Money.fromCents(BigInt(data.dailySpent));
+      }
+      if (data.lastMonthlyReset === month) {
+        this.monthlySpent = Money.fromCents(BigInt(data.monthlySpent));
+      }
+    } catch {}
+  }
+
   convertToUsd(amount: Money): Money {
     if (amount.currency === "USD") return amount;
-    const rate = this.limits?.satToUsdRate ?? 0.001;
-    const rateScaled = BigInt(Math.round(rate * 100 * Number(RATE_PRECISION)));
+    const rate = this.limits?.satToUsdRate ?? DEFAULT_SAT_TO_USD_RATE;
+    const rateScaled = BigInt(Math.round(rate * CENTS_PER_DOLLAR * Number(RATE_PRECISION)));
     const cents = (amount.cents * rateScaled) / RATE_PRECISION;
-    // Minimum 1 cent if sats > 0 (never lose a payment from budget tracking)
-    const finalCents = cents === 0n && amount.cents > 0n ? 1n : cents;
+    const finalCents = cents === 0n && amount.cents > 0n ? MINIMUM_BUDGET_CENTS : cents;
     return Money.fromCents(finalCents);
   }
 
@@ -124,7 +135,7 @@ export class BudgetManager {
   recordSpending(amount: Money): void {
     this.dailySpent = this.dailySpent.add(amount);
     this.monthlySpent = this.monthlySpent.add(amount);
-    this.saveToFile();
+    this.persistState();
   }
 
   checkWarning(): BudgetWarningResult {
@@ -151,7 +162,7 @@ export class BudgetManager {
 
   resetDaily(): void {
     this.dailySpent = Money.zero();
-    this.saveToFile();
+    this.persistState();
   }
 
   getState(): BudgetState {
@@ -187,7 +198,6 @@ export class BudgetManager {
 
     if (spentBp < limitScaled) return undefined;
 
-    // Display-only usage ratio — acceptable float precision for UI, not financial decisions
     const usage = Number(spent.cents) / Number(limit.cents);
     return { warning: true, period, spent, limit, usage };
   }
@@ -202,30 +212,13 @@ export class BudgetManager {
       : Money.zero();
   }
 
-  private loadFromFile(filePath: string): void {
-    const data = readJson<PersistedBudget>(filePath);
-    if (!data) return;
-
-    const today = todayDate();
-    const month = thisMonth();
-
-    if (data.lastDailyReset === today) {
-      this.dailySpent = Money.fromCents(BigInt(data.dailySpent));
-    }
-    if (data.lastMonthlyReset === month) {
-      this.monthlySpent = Money.fromCents(BigInt(data.monthlySpent));
-    }
-  }
-
-  private saveToFile(): void {
-    if (!this.persistPath) return;
-
+  private persistState(): void {
     const data: PersistedBudget = {
       dailySpent: this.dailySpent.cents.toString(),
       monthlySpent: this.monthlySpent.cents.toString(),
       lastDailyReset: todayDate(),
       lastMonthlyReset: thisMonth(),
     };
-    writeJson(this.persistPath, data);
+    this.storage.set(BUDGET_STATE_KEY, JSON.stringify(data)).catch(() => {});
   }
 }

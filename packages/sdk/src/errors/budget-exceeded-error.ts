@@ -6,7 +6,6 @@ type BudgetExceededErrorCode =
   | "monthly_budget_exceeded"
   | "per_transaction_exceeded";
 
-/** Thrown when a payment would exceed a configured budget limit. Carries `requested` and `limit` Money values. */
 export class BudgetExceededError extends BoltzPayError {
   readonly code: BudgetExceededErrorCode;
   readonly statusCode = 429;

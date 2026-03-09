@@ -1,7 +1,6 @@
 import type { Money } from "@boltzpay/core";
 import type { PaymentRecord } from "../history/types";
 
-/** Emitted when spending reaches the configured warning threshold. */
 export interface BudgetWarningEvent {
   readonly spent: Money;
   readonly limit: Money;
@@ -9,25 +8,68 @@ export interface BudgetWarningEvent {
   readonly usage: number;
 }
 
-/** Emitted when a payment is blocked by a budget limit. */
 export interface BudgetExceededEvent {
   readonly requested: Money;
   readonly limit: Money;
   readonly period: "daily" | "monthly" | "per_transaction";
 }
 
-/** Event map for `BoltzPay.on()`. */
+export interface RetryAttemptEvent {
+  readonly attempt: number;
+  readonly maxRetries: number;
+  readonly delay: number;
+  readonly phase: string;
+  readonly error: Error;
+}
+
+export interface RetryExhaustedEvent {
+  readonly maxRetries: number;
+  readonly phase: string;
+  readonly error: Error;
+}
+
+export interface PaymentUncertainEvent {
+  readonly url: string;
+  readonly amount: Money;
+  readonly protocol: string;
+  readonly error: Error;
+  readonly nonce?: string;
+  readonly txHash?: string;
+}
+
+export interface UnsupportedSchemeEvent {
+  readonly scheme: string;
+  readonly maxAmount?: Money;
+  readonly network?: string;
+  readonly url: string;
+}
+
+export interface UnsupportedNetworkEvent {
+  readonly namespace: string;
+  readonly url: string;
+}
+
+export interface WalletSelectedEvent {
+  readonly walletName: string;
+  readonly network: string;
+  readonly reason: string;
+}
+
 export interface BoltzPayEvents {
   payment: [PaymentRecord];
   "budget:warning": [BudgetWarningEvent];
   "budget:exceeded": [BudgetExceededEvent];
+  "retry:attempt": [RetryAttemptEvent];
+  "retry:exhausted": [RetryExhaustedEvent];
+  "payment:uncertain": [PaymentUncertainEvent];
+  "protocol:unsupported-scheme": [UnsupportedSchemeEvent];
+  "protocol:unsupported-network": [UnsupportedNetworkEvent];
+  "wallet:selected": [WalletSelectedEvent];
   error: [Error];
 }
 
-/** Valid event names for `BoltzPay.on()`. */
 export type EventName = keyof BoltzPayEvents;
 
-/** Callback type for a specific event. */
 export type EventListener<E extends EventName> = (
   ...args: BoltzPayEvents[E]
 ) => void;
