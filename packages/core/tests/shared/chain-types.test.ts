@@ -2,8 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   formatNetworkIdentifier,
   parseNetworkIdentifier,
+  SUPPORTED_NAMESPACES,
 } from "../../src/shared/chain-types";
 import { InvalidNetworkIdentifierError } from "../../src/shared/payment-errors";
+
+describe("SUPPORTED_NAMESPACES", () => {
+  it("includes stellar", () => {
+    expect(SUPPORTED_NAMESPACES).toContain("stellar");
+  });
+
+  it("has evm, svm, and stellar", () => {
+    expect([...SUPPORTED_NAMESPACES]).toEqual(["evm", "svm", "stellar"]);
+  });
+});
 
 describe("parseNetworkIdentifier", () => {
   it('parses EVM Base mainnet "eip155:8453"', () => {
@@ -83,6 +94,28 @@ describe("parseNetworkIdentifier", () => {
       InvalidNetworkIdentifierError,
     );
   });
+
+  // Stellar namespace tests
+  it('parses Stellar pubnet "stellar:pubnet"', () => {
+    const result = parseNetworkIdentifier("stellar:pubnet");
+    expect(result).toEqual({ namespace: "stellar", reference: "pubnet" });
+  });
+
+  it('parses Stellar testnet "stellar:testnet"', () => {
+    const result = parseNetworkIdentifier("stellar:testnet");
+    expect(result).toEqual({ namespace: "stellar", reference: "testnet" });
+  });
+
+  it('parses Stellar custom reference "stellar:custom-ref"', () => {
+    const result = parseNetworkIdentifier("stellar:custom-ref");
+    expect(result).toEqual({ namespace: "stellar", reference: "custom-ref" });
+  });
+
+  it('throws on "stellar:" (empty reference)', () => {
+    expect(() => parseNetworkIdentifier("stellar:")).toThrow(
+      InvalidNetworkIdentifierError,
+    );
+  });
 });
 
 describe("formatNetworkIdentifier", () => {
@@ -100,5 +133,13 @@ describe("formatNetworkIdentifier", () => {
       reference: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     });
     expect(result).toBe("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
+  });
+
+  it("formats Stellar to CAIP-2", () => {
+    const result = formatNetworkIdentifier({
+      namespace: "stellar",
+      reference: "pubnet",
+    });
+    expect(result).toBe("stellar:pubnet");
   });
 });

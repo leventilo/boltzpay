@@ -24,6 +24,11 @@ const bothCaps: ChainCapabilities = {
   preferredChains: [],
 };
 
+const allCaps: ChainCapabilities = {
+  supportedNamespaces: ["evm", "svm", "stellar"],
+  preferredChains: [],
+};
+
 const evmOnly: ChainCapabilities = {
   supportedNamespaces: ["evm"],
   preferredChains: [],
@@ -166,5 +171,40 @@ describe("selectBestAccept", () => {
     };
     // svm preferred but absent from accepts. Preferred filter yields empty -> falls back to all compatible.
     expect(selectBestAccept([evm], caps)).toBe(evm);
+  });
+
+  // Stellar chain selection tests
+  it("stellar accept option selected when stellar is supported", () => {
+    const stellar = option({ namespace: "stellar", network: "stellar:pubnet", amount: 100n });
+    const stellarCaps: ChainCapabilities = {
+      supportedNamespaces: ["stellar"],
+      preferredChains: [],
+    };
+    expect(selectBestAccept([stellar], stellarCaps)).toBe(stellar);
+  });
+
+  it("tie-break order: evm(0) < svm(1) < stellar(2) when same price", () => {
+    const evm = option({ amount: 100n });
+    const svm = option({ namespace: "svm", network: "solana:main", amount: 100n });
+    const stellar = option({ namespace: "stellar", network: "stellar:pubnet", amount: 100n });
+    // All same price, tie-break should prefer evm first
+    expect(selectBestAccept([stellar, svm, evm], allCaps)).toBe(evm);
+  });
+
+  it("tie-break: svm beats stellar when same price (no evm)", () => {
+    const svm = option({ namespace: "svm", network: "solana:main", amount: 100n });
+    const stellar = option({ namespace: "stellar", network: "stellar:pubnet", amount: 100n });
+    const caps: ChainCapabilities = {
+      supportedNamespaces: ["svm", "stellar"],
+      preferredChains: [],
+    };
+    expect(selectBestAccept([stellar, svm], caps)).toBe(svm);
+  });
+
+  it("stellar wins when cheapest across all chains", () => {
+    const evm = option({ amount: 200n });
+    const svm = option({ namespace: "svm", network: "solana:main", amount: 150n });
+    const stellar = option({ namespace: "stellar", network: "stellar:pubnet", amount: 50n });
+    expect(selectBestAccept([evm, svm, stellar], allCaps)).toBe(stellar);
   });
 });
