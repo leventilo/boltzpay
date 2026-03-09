@@ -5,6 +5,7 @@ import { boltzpayTools } from "../src/index";
 const TOOL_KEYS = [
   "boltzpay_fetch",
   "boltzpay_check",
+  "boltzpay_diagnose",
   "boltzpay_quote",
   "boltzpay_discover",
   "boltzpay_budget",
@@ -18,7 +19,7 @@ describe("boltzpayTools factory", () => {
     for (const key of TOOL_KEYS) {
       expect(tools).toHaveProperty(key);
     }
-    expect(Object.keys(tools)).toHaveLength(7);
+    expect(Object.keys(tools)).toHaveLength(8);
   });
 
   it("creates default SDK instance with no args (read-only mode)", () => {

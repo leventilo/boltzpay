@@ -37,7 +37,6 @@ export function createFetchTool(sdk: BoltzPay) {
             : {}),
         };
       } catch (error: unknown) {
-        // Return structured error for LLM consumption instead of crashing the tool
         if (error instanceof BoltzPayError) {
           return {
             ok: false as const,

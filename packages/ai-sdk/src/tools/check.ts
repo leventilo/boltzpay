@@ -28,8 +28,6 @@ export function createCheckTool(sdk: BoltzPay) {
             : {}),
         };
       } catch (error: unknown) {
-        // Only treat protocol detection failures and network errors as "free endpoint"
-        // Re-throw configuration errors, type errors, and other unexpected bugs
         if (error instanceof ProtocolError || error instanceof NetworkError) {
           return { isPaid: false as const };
         }
