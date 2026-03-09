@@ -50,6 +50,7 @@ vi.mock("@boltzpay/protocols", () => {
   }
   class MockNwcWalletManager {
     constructor() {}
+    close() {}
   }
   class MockX402PaymentError extends MockAdapterError {
     deliveryAttempts?: readonly { method: string; headerName: string; status: number }[];
@@ -109,6 +110,7 @@ function makeSuccessResult(
       protocol,
       network: "eip155:84532",
       payTo: "0xabc",
+      scheme: "exact",
     },
     result: {
       success: true,
@@ -330,6 +332,12 @@ describe("SDK fetch flow", () => {
 
   describe("late detection (try-adapt-retry)", () => {
     it("should detect L402 on POST 402 when GET probe found nothing", async () => {
+      // Create agent with NWC credentials for L402 payment
+      const l402Agent = new BoltzPay({
+        ...validConfig,
+        nwcConnectionString: "nostr+walletconnect://relay.example.com",
+      });
+
       // GET probe → no protocol detected
       mockProbeAll.mockRejectedValueOnce(
         new ProtocolDetectionFailedError("https://postonly.com/api"),
@@ -351,6 +359,7 @@ describe("SDK fetch flow", () => {
         protocol: "l402",
         network: "lightning",
         payTo: undefined,
+        scheme: "exact",
       };
       const mockL402Adapter = { name: "l402" };
       mockProbeFromResponse.mockResolvedValueOnce([
@@ -366,7 +375,7 @@ describe("SDK fetch flow", () => {
         responseStatus: 200,
       });
 
-      const response = await agent.fetch("https://postonly.com/api", {
+      const response = await l402Agent.fetch("https://postonly.com/api", {
         method: "POST",
         body: new TextEncoder().encode('{"query":"test"}'),
       });
@@ -399,6 +408,7 @@ describe("SDK fetch flow", () => {
         protocol: "x402",
         network: "eip155:8453",
         payTo: "0xabc",
+        scheme: "exact",
       };
       mockProbeFromResponse.mockResolvedValueOnce([
         { adapter: { name: "x402" }, quote: x402Quote },
@@ -457,6 +467,12 @@ describe("SDK fetch flow", () => {
     });
 
     it("should emit payment event for late-detected payment", async () => {
+      // Create agent with NWC credentials for L402 payment
+      const l402Agent = new BoltzPay({
+        ...validConfig,
+        nwcConnectionString: "nostr+walletconnect://relay.example.com",
+      });
+
       mockProbeAll.mockRejectedValueOnce(
         new ProtocolDetectionFailedError("https://postonly.com/api"),
       );
@@ -477,6 +493,7 @@ describe("SDK fetch flow", () => {
           protocol: "l402",
           network: "lightning",
           payTo: undefined,
+          scheme: "exact",
         },
       }]);
 
@@ -489,9 +506,9 @@ describe("SDK fetch flow", () => {
       });
 
       const paymentListener = vi.fn();
-      agent.on("payment", paymentListener);
+      l402Agent.on("payment", paymentListener);
 
-      await agent.fetch("https://postonly.com/api", { method: "POST" });
+      await l402Agent.fetch("https://postonly.com/api", { method: "POST" });
 
       expect(paymentListener).toHaveBeenCalledTimes(1);
       expect(paymentListener.mock.calls[0][0].protocol).toBe("l402");

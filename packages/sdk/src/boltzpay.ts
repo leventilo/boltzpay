@@ -10,7 +10,6 @@ import {
   type ProtocolQuote,
   type ProtocolResult,
   parseNetworkIdentifier,
-  SUPPORTED_NAMESPACES,
   selectBestAccept,
 } from "@boltzpay/core";
 import {
@@ -25,7 +24,12 @@ import {
   X402Adapter,
   X402PaymentError,
 } from "@boltzpay/protocols";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { getMergedDirectory } from "./bazaar";
+import type { DiagnoseResult } from "./diagnostics/diagnose";
+import { diagnoseEndpoint } from "./diagnostics/diagnose";
 import type { BudgetLimits, BudgetState } from "./budget/budget-manager";
 import { BudgetManager } from "./budget/budget-manager";
 import { hasCoinbaseCredentials, validateConfig } from "./config/schema";
@@ -46,43 +50,46 @@ import { BoltzPayError } from "./errors/boltzpay-error";
 import { BudgetExceededError } from "./errors/budget-exceeded-error";
 import { ConfigurationError } from "./errors/configuration-error";
 import { NetworkError } from "./errors/network-error";
+import { PaymentUncertainError } from "./errors/payment-uncertain-error";
+import { NoWalletError } from "./errors/no-wallet-error";
+import { UnsupportedNetworkError } from "./errors/unsupported-network-error";
+import { UnsupportedSchemeError } from "./errors/unsupported-scheme-error";
 import type { DeliveryDiagnosis } from "./errors/protocol-error";
 import { isProtocolErrorCode, ProtocolError } from "./errors/protocol-error";
+import type { RateLimitStrategy } from "./retry/retry-config";
+import type { RetryOptions } from "./retry/retry-engine";
+import { withRetry } from "./retry/retry-engine";
 import { TypedEventEmitter } from "./events/event-emitter";
 import type { EventListener, EventName } from "./events/types";
+import { exportCSV, exportJSON } from "./history/export";
 import { PaymentHistory } from "./history/payment-history";
 import type { PaymentDetails, PaymentRecord } from "./history/types";
+import type { PaymentMetrics } from "./metrics/metrics";
+import { computeMetrics } from "./metrics/metrics";
 import type { Logger } from "./logger/logger";
 import { createLogger } from "./logger/logger";
 import { isTestnet } from "./network-utils";
-import { getDataDir } from "./persistence/storage";
+import { FileAdapter } from "./persistence/file-adapter";
+import { MemoryAdapter } from "./persistence/memory-adapter";
+import type { StorageAdapter } from "./persistence/storage-adapter";
 import { BoltzPayResponse } from "./response/boltzpay-response";
 import type { LightningStatus, WalletStatus } from "./wallet-status";
+import type { DryRunResult } from "./diagnostics/dry-run";
 
 export interface FetchOptions {
-  /**
-   * Maximum amount in dollars. Accepts string ("1.50") or number (1.50).
-   * Numbers are safe for any realistic amount; converted immediately via Money.fromDollars().
-   * Prefer string to avoid IEEE 754 float rounding (e.g. "0.10" not 0.1).
-   */
   maxAmount?: number | string;
-  /** Additional request headers. */
   headers?: Record<string, string>;
-  /** HTTP method. Default "GET". */
   method?: string;
-  /** Request body as raw bytes. */
   body?: Uint8Array;
-  /** Override chain selection for this request. Takes priority over config preferredChains. */
   chain?: ChainNamespace;
+  dryRun?: boolean;
 }
 
-/** Price quote returned by `BoltzPay.quote()` — the cost to access a paid endpoint. */
 export interface QuoteResult {
   amount: Money;
   protocol: string;
   network: string | undefined;
   allAccepts?: readonly AcceptOption[];
-  /** Input hints from the 402 response — tells agents what parameters the endpoint expects. */
   inputHints?: EndpointInputHints;
 }
 
@@ -91,6 +98,7 @@ interface PaymentFlowInput {
   readonly adapter: ProtocolAdapter;
   readonly quote: ProtocolQuote;
   readonly options?: FetchOptions;
+  readonly wallet?: ResolvedWallet;
 }
 
 interface FallbackInput {
@@ -98,6 +106,8 @@ interface FallbackInput {
   readonly probeResults: readonly ProbeResult[];
   readonly selectedQuote: ProtocolQuote;
   readonly options?: FetchOptions;
+  readonly fetchStart?: number;
+  readonly wallet?: ResolvedWallet;
 }
 
 interface SuccessResponseInput {
@@ -105,6 +115,7 @@ interface SuccessResponseInput {
   readonly adapter: ProtocolAdapter;
   readonly quote: ProtocolQuote;
   readonly result: ProtocolResult;
+  readonly durationMs?: number;
 }
 
 type BudgetExceededCode =
@@ -133,7 +144,24 @@ function isSuccessStatus(status: number): boolean {
   return status >= 200 && status < 300;
 }
 
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_BACKOFF_MS = 200;
+const DEFAULT_RATE_LIMIT_STRATEGY = "wait";
+const DEFAULT_MAX_RATE_LIMIT_WAIT_MS = 60_000;
+
 const PASSTHROUGH_TIMEOUT_MS = 30_000;
+
+const POST_SIGNATURE_NETWORK_ERROR_PATTERNS = [
+  "econnreset",
+  "econnrefused",
+  "etimedout",
+  "epipe",
+  "enotfound",
+  "fetch failed",
+  "network error",
+  "socket hang up",
+  "abort",
+];
 
 const SERVER_MESSAGE_MAX_LENGTH = 500;
 
@@ -233,10 +261,57 @@ function maskKey(key: string): string {
   return `…${key.slice(-KEY_HINT_SUFFIX_LENGTH)}`;
 }
 
-/**
- * Main SDK client. Wraps `fetch()` with automatic payment protocol detection,
- * wallet signing, budget enforcement, and payment history tracking.
- */
+function resolveStorage(config: ValidatedConfig): StorageAdapter {
+  const storage = config.storage;
+  if (storage) {
+    if (typeof storage === "string") {
+      if (storage === "file") return new FileAdapter();
+      if (storage === "memory") return new MemoryAdapter();
+    }
+    if (typeof storage === "object" && "get" in storage && "set" in storage) {
+      return storage as StorageAdapter;
+    }
+    if (typeof storage === "object" && "type" in storage) {
+      const cfg = storage as { type: string; dir?: string };
+      if (cfg.type === "file") return new FileAdapter({ dir: cfg.dir });
+    }
+  }
+  if (config.persistence?.enabled) {
+    return new FileAdapter({ dir: config.persistence.directory });
+  }
+  return new MemoryAdapter();
+}
+
+const DEFAULT_MAX_HISTORY_RECORDS = 1000;
+const LEGACY_DEFAULT_MAX_HISTORY_RECORDS = 500;
+
+function resolveMaxHistoryRecords(config: ValidatedConfig): number {
+  const storage = config.storage;
+  if (
+    storage &&
+    typeof storage === "object" &&
+    "type" in storage &&
+    "maxHistoryRecords" in storage
+  ) {
+    const cfg = storage as { maxHistoryRecords?: number };
+    return cfg.maxHistoryRecords ?? DEFAULT_MAX_HISTORY_RECORDS;
+  }
+  if (config.persistence?.enabled) {
+    return config.persistence.historyMaxRecords ?? LEGACY_DEFAULT_MAX_HISTORY_RECORDS;
+  }
+  return DEFAULT_MAX_HISTORY_RECORDS;
+}
+
+const LEGACY_DATA_DIR = ".boltzpay";
+
+interface ResolvedWallet {
+  readonly name: string;
+  readonly type: "coinbase" | "nwc";
+  readonly cdpManager?: CdpWalletManager;
+  readonly nwcManager?: NwcWalletManager;
+  readonly networks?: readonly string[];
+}
+
 export class BoltzPay {
   private readonly router: ProtocolRouter;
   private readonly budgetManager: BudgetManager;
@@ -244,60 +319,227 @@ export class BoltzPay {
   private readonly emitter: TypedEventEmitter;
   private readonly logger: Logger;
   private readonly config: ValidatedConfig;
-  private readonly walletManager: CdpWalletManager | undefined;
-  private readonly lightningWallet: NwcWalletManager | undefined;
+  private readonly wallets: readonly ResolvedWallet[];
+  private readonly storage: StorageAdapter;
+  private readonly initPromise: Promise<void>;
+  private errorCount = 0;
   private paymentLock: Promise<void> = Promise.resolve();
 
-  /**
-   * @throws ConfigurationError if the config is invalid or credentials are malformed.
-   */
+  private get primaryCdpManager(): CdpWalletManager | undefined {
+    return this.wallets.find(w => w.type === "coinbase")?.cdpManager;
+  }
+
+  private get primaryNwcManager(): NwcWalletManager | undefined {
+    return this.wallets.find(w => w.type === "nwc")?.nwcManager;
+  }
+
   constructor(config: BoltzPayConfig) {
     this.config = validateConfig(config);
-    this.logger = createLogger(this.config.logLevel);
+    this.logger = createLogger(this.config.logLevel, this.config.logFormat);
 
-    if (this.config.nwcConnectionString) {
-      this.lightningWallet = new NwcWalletManager(
-        this.config.nwcConnectionString,
-      );
-    }
-
-    if (hasCoinbaseCredentials(this.config)) {
-      const validatedConfig = this.config;
-      this.walletManager = new CdpWalletManager(async () => {
-        const cdpModule: unknown = await import("@coinbase/cdp-sdk");
-        if (
-          !cdpModule ||
-          typeof cdpModule !== "object" ||
-          !("CdpClient" in cdpModule)
-        ) {
-          throw new ConfigurationError(
-            "invalid_config",
-            "@coinbase/cdp-sdk module does not export CdpClient",
-          );
-        }
-        const { CdpClient } = cdpModule as {
-          CdpClient: new (opts: {
-            apiKeyId: string;
-            apiKeySecret: string;
-            walletSecret: string;
-          }) => CdpMultiChainClient;
-        };
-        return new CdpClient({
-          apiKeyId: validatedConfig.coinbaseApiKeyId,
-          apiKeySecret: validatedConfig.coinbaseApiKeySecret,
-          walletSecret: validatedConfig.coinbaseWalletSecret,
-        });
-      }, "boltzpay-default");
-    }
+    this.wallets = this.resolveWallets(this.config);
 
     this.router = new ProtocolRouter(this.createAdapters());
-    this.budgetManager = this.createBudgetManager();
     this.emitter = new TypedEventEmitter();
-    this.history = this.createPaymentHistory();
+    this.emitter.on("error", () => {
+      this.errorCount++;
+    });
+
+    this.storage = resolveStorage(this.config);
+
+    const budgetLimits = this.createBudgetLimits();
+    this.budgetManager = new BudgetManager(budgetLimits, this.storage);
+
+    const maxRecords = resolveMaxHistoryRecords(this.config);
+    this.history = new PaymentHistory({
+      storage: this.storage,
+      maxRecords,
+    });
+
+    this.initPromise = this.initialize();
 
     if (this.config.network === "base-sepolia") {
       this.logger.warn("Running on testnet (base-sepolia)");
     }
+  }
+
+  private resolveWallets(config: ValidatedConfig): ResolvedWallet[] {
+    if (config.wallets !== undefined) {
+      return config.wallets.map(w => this.createResolvedWallet(w));
+    }
+
+    const wallets: ResolvedWallet[] = [];
+
+    if (hasCoinbaseCredentials(config)) {
+      wallets.push({
+        name: "default",
+        type: "coinbase",
+        cdpManager: this.createCdpManager(config, "boltzpay-default"),
+        networks: undefined,
+      });
+    }
+
+    if (config.nwcConnectionString) {
+      wallets.push({
+        name: "default-nwc",
+        type: "nwc",
+        nwcManager: new NwcWalletManager(config.nwcConnectionString),
+        networks: undefined,
+      });
+    }
+
+    return wallets;
+  }
+
+  private createResolvedWallet(
+    walletConfig: NonNullable<ValidatedConfig["wallets"]>[number],
+  ): ResolvedWallet {
+    if (walletConfig.type === "coinbase") {
+      const wc = walletConfig;
+      return {
+        name: wc.name,
+        type: "coinbase",
+        cdpManager: this.createCdpManager(
+          {
+            coinbaseApiKeyId: wc.coinbaseApiKeyId,
+            coinbaseApiKeySecret: wc.coinbaseApiKeySecret,
+            coinbaseWalletSecret: wc.coinbaseWalletSecret,
+          },
+          `boltzpay-${wc.name}`,
+        ),
+        networks: wc.networks,
+      };
+    }
+    const wc = walletConfig;
+    return {
+      name: wc.name,
+      type: "nwc",
+      nwcManager: new NwcWalletManager(wc.nwcConnectionString),
+      networks: wc.networks,
+    };
+  }
+
+  private createCdpManager(
+    creds: {
+      coinbaseApiKeyId: string;
+      coinbaseApiKeySecret: string;
+      coinbaseWalletSecret: string;
+    },
+    label: string,
+  ): CdpWalletManager {
+    return new CdpWalletManager(async () => {
+      const cdpModule: unknown = await import("@coinbase/cdp-sdk");
+      if (
+        !cdpModule ||
+        typeof cdpModule !== "object" ||
+        !("CdpClient" in cdpModule)
+      ) {
+        throw new ConfigurationError(
+          "invalid_config",
+          "@coinbase/cdp-sdk module does not export CdpClient",
+        );
+      }
+      const { CdpClient } = cdpModule as {
+        CdpClient: new (opts: {
+          apiKeyId: string;
+          apiKeySecret: string;
+          walletSecret: string;
+        }) => CdpMultiChainClient;
+      };
+      return new CdpClient({
+        apiKeyId: creds.coinbaseApiKeyId,
+        apiKeySecret: creds.coinbaseApiKeySecret,
+        walletSecret: creds.coinbaseWalletSecret,
+      });
+    }, label);
+  }
+
+  private getPayableNamespaces(): readonly ChainNamespace[] {
+    const namespaces = new Set<ChainNamespace>();
+    for (const w of this.wallets) {
+      if (w.type === "nwc") continue;
+      if (!w.networks) {
+        namespaces.add("evm");
+        namespaces.add("svm");
+      } else {
+        for (const ns of w.networks) {
+          if (ns === "evm" || ns === "svm") {
+            namespaces.add(ns);
+          }
+        }
+      }
+    }
+    return [...namespaces];
+  }
+
+  private selectWalletForPayment(quote: ProtocolQuote, url: string): ResolvedWallet {
+    if (quote.protocol === "l402") {
+      const nwcWallet = this.wallets.find(w => w.type === "nwc");
+      if (!nwcWallet) {
+        throw new NoWalletError("lightning", this.getAvailableNetworksList());
+      }
+      this.emitter.emit("wallet:selected", {
+        walletName: nwcWallet.name,
+        network: "lightning",
+        reason: "only_match",
+      });
+      return nwcWallet;
+    }
+
+    if (!quote.network) {
+      const first = this.wallets.find(w => w.type === "coinbase");
+      if (!first) {
+        throw new NoWalletError("unknown", this.getAvailableNetworksList());
+      }
+      this.emitter.emit("wallet:selected", {
+        walletName: first.name,
+        network: "unknown",
+        reason: "only_match",
+      });
+      return first;
+    }
+
+    const parsed = this.tryParseNetwork(quote.network);
+    if (!parsed) {
+      const first = this.wallets.find(w => w.type === "coinbase");
+      if (!first) {
+        throw new NoWalletError(quote.network, this.getAvailableNetworksList());
+      }
+      this.emitter.emit("wallet:selected", {
+        walletName: first.name,
+        network: quote.network,
+        reason: "only_match",
+      });
+      return first;
+    }
+
+    if (parsed.namespace === "stellar") {
+      this.emitter.emit("protocol:unsupported-network", {
+        namespace: "stellar",
+        url,
+      });
+      throw new UnsupportedNetworkError("stellar");
+    }
+
+    const matching = this.wallets.filter(w =>
+      w.type === "coinbase" && (!w.networks || w.networks.includes(parsed.namespace)),
+    );
+
+    if (matching.length === 0) {
+      throw new NoWalletError(parsed.namespace, this.getAvailableNetworksList());
+    }
+
+    const selected = matching[0]!;
+    this.emitter.emit("wallet:selected", {
+      walletName: selected.name,
+      network: parsed.namespace,
+      reason: matching.length === 1 ? "only_match" : "first_match",
+    });
+    return selected;
+  }
+
+  private getAvailableNetworksList(): string[] {
+    return this.wallets.flatMap(w => w.networks ? [...w.networks] : ["all"]);
   }
 
   private createAdapters(): ProtocolAdapter[] {
@@ -309,9 +551,10 @@ export class BoltzPay {
       }
     };
 
+    const timeouts = this.config.timeouts;
     const adapters: ProtocolAdapter[] = [
-      new X402Adapter(this.walletManager, validateUrl),
-      new L402Adapter(this.lightningWallet, validateUrl),
+      new X402Adapter(this.primaryCdpManager, validateUrl, timeouts),
+      new L402Adapter(this.primaryNwcManager, validateUrl, timeouts),
     ];
     return adapters;
   }
@@ -332,49 +575,65 @@ export class BoltzPay {
     };
   }
 
-  private createBudgetManager(): BudgetManager {
-    const limits = this.createBudgetLimits();
-    const persistence = this.config.persistence;
-    if (!persistence?.enabled) {
-      return new BudgetManager(limits);
-    }
-    const dir = getDataDir(persistence.directory);
-    return new BudgetManager(limits, `${dir}/budget.json`);
+  private async initialize(): Promise<void> {
+    await this.budgetManager.loadFromStorage();
+    await this.history.loadFromStorage();
+    this.detectLegacyFiles();
   }
 
-  private createPaymentHistory(): PaymentHistory {
-    const persistence = this.config.persistence;
-    if (!persistence?.enabled) {
-      return new PaymentHistory();
-    }
-    const dir = getDataDir(persistence.directory);
-    const filePath = `${dir}/history.jsonl`;
-    return new PaymentHistory({
-      persistence: {
-        filePath,
-        maxRecords: persistence.historyMaxRecords ?? 500,
-      },
-    });
+  private detectLegacyFiles(): void {
+    try {
+      const legacyDir = join(homedir(), LEGACY_DATA_DIR);
+      const budgetFile = join(legacyDir, "budget.json");
+      const historyFile = join(legacyDir, "history.jsonl");
+      if (existsSync(budgetFile) || existsSync(historyFile)) {
+        this.logger.info(
+          "Legacy v0.1 data files detected. v0.2 uses a new storage format — starting fresh.",
+        );
+      }
+    } catch {}
   }
 
-  /**
-   * Fetch a URL, automatically detecting and paying any required protocol fee.
-   * Returns the API response with optional payment metadata.
-   *
-   * @example
-   * ```ts
-   * const response = await agent.fetch("https://api.example.com/data");
-   * const data = await response.json();
-   * ```
-   *
-   * @throws ProtocolError on detection or payment failure.
-   * @throws BudgetExceededError if the payment exceeds a configured budget limit.
-   * @throws ConfigurationError if payment is required but credentials are missing.
-   */
-  async fetch(url: string, options?: FetchOptions): Promise<BoltzPayResponse> {
+  private buildRetryOptions(phase: string): RetryOptions {
+    const retry = this.config.retry;
+    const rateLimit = this.config.rateLimit;
+    return {
+      maxRetries: retry?.maxRetries ?? DEFAULT_MAX_RETRIES,
+      backoffMs: retry?.backoffMs ?? DEFAULT_BACKOFF_MS,
+      rateLimitStrategy: (rateLimit?.strategy ?? DEFAULT_RATE_LIMIT_STRATEGY) as RateLimitStrategy,
+      maxRateLimitWaitMs: rateLimit?.maxWaitMs ?? DEFAULT_MAX_RATE_LIMIT_WAIT_MS,
+      logger: this.logger,
+      emitter: this.emitter,
+      phase,
+    };
+  }
+
+  async fetch(
+    url: string,
+    options: FetchOptions & { dryRun: true },
+  ): Promise<DryRunResult>;
+  async fetch(
+    url: string,
+    options?: FetchOptions,
+  ): Promise<BoltzPayResponse>;
+  async fetch(
+    url: string,
+    options?: FetchOptions,
+  ): Promise<BoltzPayResponse | DryRunResult> {
+    if (options?.dryRun) {
+      return this.executeDryRun(url, options);
+    }
+
+    await this.initPromise;
+    this.checkDomainPolicy(url);
     this.logger.debug(`Fetching ${url}`);
 
-    const probeResults = await this.probeOrPassthrough(url, options);
+    const fetchStart = Date.now();
+
+    const probeResults = await withRetry(
+      () => this.probeOrPassthrough(url, options),
+      this.buildRetryOptions("detect"),
+    );
     if (probeResults instanceof BoltzPayResponse) {
       return probeResults;
     }
@@ -385,12 +644,157 @@ export class BoltzPay {
     }
 
     const selectedQuote = this.selectPaymentChain(primary.quote, options);
+    this.guardScheme(selectedQuote, url);
+    const wallet = this.selectWalletForPayment(selectedQuote, url);
     return this.executeWithFallback({
       url,
       probeResults,
       selectedQuote,
       options,
+      fetchStart,
+      wallet,
     });
+  }
+
+  private async executeDryRun(
+    url: string,
+    options?: FetchOptions,
+  ): Promise<DryRunResult> {
+    await this.initPromise;
+
+    try {
+      this.checkDomainPolicy(url);
+    } catch (err) {
+      if (err instanceof ConfigurationError) {
+        return { wouldPay: false, reason: "domain_blocked" };
+      }
+      return { wouldPay: false, reason: "network_error" };
+    }
+
+    let probeResults: readonly ProbeResult[];
+    try {
+      probeResults = await this.router.probeAll(url, options?.headers);
+    } catch (err) {
+      if (err instanceof ProtocolDetectionFailedError) {
+        return { wouldPay: false, reason: "not_paid" };
+      }
+      return { wouldPay: false, reason: "network_error" };
+    }
+
+    const primary = probeResults[0];
+    if (!primary) {
+      return { wouldPay: false, reason: "detection_failed" };
+    }
+
+    let selectedQuote: ProtocolQuote;
+    try {
+      selectedQuote = this.selectPaymentChain(primary.quote, options);
+    } catch {
+      return {
+        wouldPay: false,
+        reason: "detection_failed",
+        quote: {
+          amount: primary.quote.amount,
+          protocol: primary.adapter.name,
+          network: primary.quote.network,
+          scheme: primary.quote.scheme,
+        },
+      };
+    }
+
+    const quoteInfo = {
+      amount: selectedQuote.amount,
+      protocol: primary.adapter.name,
+      network: selectedQuote.network,
+      scheme: selectedQuote.scheme,
+    };
+
+    try {
+      this.guardScheme(selectedQuote, url);
+    } catch (err) {
+      if (err instanceof UnsupportedSchemeError) {
+        return {
+          wouldPay: false,
+          reason: "unsupported_scheme",
+          quote: quoteInfo,
+        };
+      }
+      return {
+        wouldPay: false,
+        reason: "detection_failed",
+        quote: quoteInfo,
+      };
+    }
+
+    const amountInUsd = this.budgetManager.convertToUsd(selectedQuote.amount);
+    const budgetCheck = this.budgetManager.checkTransaction(amountInUsd);
+    const budgetState = this.budgetManager.getState();
+
+    if (budgetCheck.exceeded) {
+      return {
+        wouldPay: false,
+        reason: "budget_exceeded",
+        quote: quoteInfo,
+        budgetCheck: {
+          allowed: false,
+          dailyRemaining: budgetState.dailyRemaining,
+          monthlyRemaining: budgetState.monthlyRemaining,
+          wouldExceed: budgetCheck.period,
+        },
+      };
+    }
+
+    let wallet: ResolvedWallet;
+    try {
+      wallet = this.selectWalletForPayment(selectedQuote, url);
+    } catch (err) {
+      if (err instanceof UnsupportedNetworkError) {
+        return {
+          wouldPay: false,
+          reason: "unsupported_network",
+          quote: quoteInfo,
+          budgetCheck: {
+            allowed: true,
+            dailyRemaining: budgetState.dailyRemaining,
+            monthlyRemaining: budgetState.monthlyRemaining,
+            wouldExceed: null,
+          },
+        };
+      }
+      if (err instanceof NoWalletError) {
+        return {
+          wouldPay: false,
+          reason: "no_wallet_for_network",
+          quote: quoteInfo,
+          budgetCheck: {
+            allowed: true,
+            dailyRemaining: budgetState.dailyRemaining,
+            monthlyRemaining: budgetState.monthlyRemaining,
+            wouldExceed: null,
+          },
+        };
+      }
+      return {
+        wouldPay: false,
+        reason: "network_error",
+        quote: quoteInfo,
+      };
+    }
+
+    return {
+      wouldPay: true,
+      quote: quoteInfo,
+      budgetCheck: {
+        allowed: true,
+        dailyRemaining: budgetState.dailyRemaining,
+        monthlyRemaining: budgetState.monthlyRemaining,
+        wouldExceed: null,
+      },
+      wallet: {
+        name: wallet.name,
+        type: wallet.type,
+      },
+    };
   }
 
   private async probeOrPassthrough(
@@ -423,10 +827,29 @@ export class BoltzPay {
 
         return await BoltzPayResponse.fromFetch(response);
       }
+      if (err instanceof BoltzPayError) {
+        this.emitter.emit("error", err);
+        throw err;
+      }
       const protocolErr = this.wrapDetectionError(err);
       this.emitter.emit("error", protocolErr);
       throw protocolErr;
     }
+  }
+
+  private guardScheme(quote: ProtocolQuote, url: string): void {
+    if (quote.scheme === "exact") return;
+    this.emitter.emit("protocol:unsupported-scheme", {
+      scheme: quote.scheme,
+      maxAmount: quote.amount,
+      network: quote.network,
+      url,
+    });
+    throw new UnsupportedSchemeError({
+      scheme: quote.scheme,
+      maxAmount: quote.amount,
+      network: quote.network,
+    });
   }
 
   private selectPaymentChain(
@@ -472,7 +895,7 @@ export class BoltzPay {
     const accepts = quote.allAccepts ?? [];
     try {
       const capabilities: ChainCapabilities = {
-        supportedNamespaces: SUPPORTED_NAMESPACES,
+        supportedNamespaces: this.getPayableNamespaces(),
         preferredChains: options?.chain
           ? [options.chain]
           : (this.config.preferredChains ?? []),
@@ -492,6 +915,7 @@ export class BoltzPay {
         amount: Money.fromCents(bestAccept.amount),
         network: bestAccept.network,
         payTo: bestAccept.payTo,
+        scheme: bestAccept.scheme,
       };
     } catch (err) {
       if (err instanceof NoCompatibleChainError) {
@@ -504,15 +928,16 @@ export class BoltzPay {
   private async executeWithFallback(
     input: FallbackInput,
   ): Promise<BoltzPayResponse> {
-    const { url, probeResults, selectedQuote, options } = input;
+    const { url, probeResults, selectedQuote, options, fetchStart, wallet } = input;
     const errors: Error[] = [];
     for (let i = 0; i < probeResults.length; i++) {
       const probe = probeResults[i];
       if (!probe) continue;
       const quote = i === 0 ? selectedQuote : probe.quote;
       const result = await this.tryAdapter(
-        { url, adapter: probe.adapter, quote, options },
+        { url, adapter: probe.adapter, quote, options, wallet },
         errors,
+        fetchStart,
       );
       if (result) return result;
     }
@@ -534,11 +959,13 @@ export class BoltzPay {
   private async tryAdapter(
     input: PaymentFlowInput,
     errors: Error[],
+    fetchStart?: number,
   ): Promise<BoltzPayResponse | undefined> {
     try {
-      return await this.executePaymentFlow(input);
+      return await this.executePaymentFlow(input, fetchStart);
     } catch (err) {
       if (err instanceof BudgetExceededError) throw err;
+      if (err instanceof PaymentUncertainError) throw err;
       errors.push(err instanceof Error ? err : new Error(String(err)));
       this.logger.debug(`Adapter ${input.adapter.name} failed, trying next...`);
       return undefined;
@@ -546,7 +973,6 @@ export class BoltzPay {
   }
 
   private async acquirePaymentLock(): Promise<() => void> {
-    // Promise constructor runs synchronously — release is always assigned before use
     let release: () => void = () => {};
     const next = new Promise<void>((resolve) => {
       release = resolve;
@@ -559,11 +985,12 @@ export class BoltzPay {
 
   private async executePaymentFlow(
     input: PaymentFlowInput,
+    fetchStart?: number,
   ): Promise<BoltzPayResponse> {
     const release = await this.acquirePaymentLock();
     const { url, adapter, quote, options } = input;
     try {
-      this.checkMaxAmount(quote, options?.maxAmount);
+      this.checkMaxAmount(quote, this.getEffectiveMaxAmount(options));
       this.checkBudget(quote);
       const result = await this.executeProtocolPayment(input);
 
@@ -584,8 +1011,30 @@ export class BoltzPay {
       this.budgetManager.recordSpending(budgetAmount);
       this.emitBudgetWarningIfNeeded();
 
-      return this.buildSuccessResponse({ url, adapter, quote, result });
+      const durationMs = fetchStart ? Date.now() - fetchStart : undefined;
+      return this.buildSuccessResponse({ url, adapter, quote, result, durationMs });
     } catch (err) {
+      if (this.isPostSignatureNetworkError(err)) {
+        const uncertain = new PaymentUncertainError({
+          message: `Network error after payment signing — payment may have been sent. ${err instanceof Error ? err.message : ""}`,
+          url,
+          amount: quote.amount,
+          protocol: adapter.name,
+        });
+        this.logger.error("PAYMENT UNCERTAIN — manual verification required", {
+          url,
+          amount: quote.amount.toDisplayString(),
+          protocol: adapter.name,
+          critical: true,
+        });
+        this.emitter.emit("payment:uncertain", {
+          url,
+          amount: quote.amount,
+          protocol: adapter.name,
+          error: uncertain,
+        });
+        throw uncertain;
+      }
       if (err instanceof BoltzPayError) {
         throw err;
       }
@@ -593,6 +1042,43 @@ export class BoltzPay {
     } finally {
       release();
     }
+  }
+
+  private checkDomainPolicy(url: string): void {
+    const hostname = new URL(url).hostname;
+    const allowlist = this.config.allowlist;
+    const blocklist = this.config.blocklist;
+
+    if (allowlist && allowlist.length > 0) {
+      const allowed = allowlist.some(
+        (d) => hostname === d || hostname.endsWith(`.${d}`),
+      );
+      if (!allowed) {
+        throw new ConfigurationError(
+          "domain_blocked",
+          `Domain "${hostname}" is not in the allowlist`,
+        );
+      }
+      return;
+    }
+
+    if (blocklist && blocklist.length > 0) {
+      const blocked = blocklist.some(
+        (d) => hostname === d || hostname.endsWith(`.${d}`),
+      );
+      if (blocked) {
+        throw new ConfigurationError(
+          "domain_blocked",
+          `Domain "${hostname}" is in the blocklist`,
+        );
+      }
+    }
+  }
+
+  private getEffectiveMaxAmount(
+    options?: FetchOptions,
+  ): number | string | undefined {
+    return options?.maxAmount ?? this.config.maxAmountPerRequest;
   }
 
   private checkMaxAmount(
@@ -636,14 +1122,31 @@ export class BoltzPay {
   private async executeProtocolPayment(
     input: PaymentFlowInput,
   ): Promise<ProtocolResult> {
-    const { url, adapter, quote, options } = input;
-    return this.router.execute(adapter, {
+    const { url, adapter, quote, options, wallet } = input;
+
+    let executionAdapter = adapter;
+    if (wallet?.cdpManager && adapter.name === "x402" && wallet.cdpManager !== this.primaryCdpManager) {
+      const validateUrl = (u: string) => {
+        try { new URL(u); } catch { throw new ProtocolError("payment_failed", `Invalid URL: ${u}`); }
+      };
+      executionAdapter = new X402Adapter(wallet.cdpManager, validateUrl, this.config.timeouts);
+    }
+
+    return this.router.execute(executionAdapter, {
       url,
       method: options?.method ?? "GET",
       headers: options?.headers ?? {},
       body: options?.body,
       amount: quote.amount,
     });
+  }
+
+  private isPostSignatureNetworkError(err: unknown): boolean {
+    if (err instanceof BoltzPayError) return false;
+    if (!(err instanceof Error)) return false;
+
+    const msg = err.message.toLowerCase();
+    return POST_SIGNATURE_NETWORK_ERROR_PATTERNS.some((p) => msg.includes(p));
   }
 
   private emitBudgetWarningIfNeeded(): void {
@@ -659,7 +1162,7 @@ export class BoltzPay {
   }
 
   private buildSuccessResponse(input: SuccessResponseInput): BoltzPayResponse {
-    const { url, adapter, quote, result } = input;
+    const { url, adapter, quote, result, durationMs } = input;
     const protocol = adapter.name;
     const record: PaymentRecord = {
       id: crypto.randomUUID(),
@@ -669,6 +1172,7 @@ export class BoltzPay {
       timestamp: new Date(),
       txHash: result.externalTxHash,
       network: quote.network,
+      durationMs,
     };
     this.history.add(record);
     this.emitter.emit("payment", record);
@@ -741,20 +1245,23 @@ export class BoltzPay {
     );
   }
 
-  /**
-   * Probe an endpoint and return the payment price without executing a payment.
-   *
-   * @example
-   * ```ts
-   * const quote = await agent.quote("https://api.example.com/data");
-   * console.log(`Price: ${quote.amount.toDisplayString()}`);
-   * ```
-   *
-   * @throws ProtocolError if no payment protocol is detected.
-   */
+  async diagnose(url: string): Promise<DiagnoseResult> {
+    await this.initPromise;
+    return diagnoseEndpoint({
+      url,
+      router: this.router,
+      detectTimeoutMs: this.config.timeouts?.detect,
+    });
+  }
+
   async quote(url: string): Promise<QuoteResult> {
+    await this.initPromise;
+    this.checkDomainPolicy(url);
     try {
-      const { adapter, quote } = await this.router.probe(url);
+      const { adapter, quote } = await withRetry(
+        () => this.router.probe(url),
+        this.buildRetryOptions("quote"),
+      );
       return {
         amount: quote.amount,
         protocol: adapter.name,
@@ -774,23 +1281,28 @@ export class BoltzPay {
     }
   }
 
-  /** Return the current budget spending state (daily/monthly spent, limits, remaining). */
   getBudget(): BudgetState {
     return this.budgetManager.getState();
   }
 
-  /** Reset the daily spending counter to zero. Does not affect monthly spending. */
   resetDailyBudget(): void {
     this.budgetManager.resetDaily();
     this.logger.info("Daily budget reset");
   }
 
-  /** Return all payment records from this SDK instance (in-memory, resets on new instance). */
   getHistory(): readonly PaymentRecord[] {
     return this.history.getAll();
   }
 
-  /** Return the configured network, protocols, chains, and cached addresses. */
+  getMetrics(): PaymentMetrics {
+    return computeMetrics(this.history.getAll(), this.errorCount);
+  }
+
+  exportHistory(format: "csv" | "json"): string {
+    const records = this.history.getAll();
+    return format === "csv" ? exportCSV(records) : exportJSON(records);
+  }
+
   getCapabilities(): {
     network: string;
     protocols: string[];
@@ -799,32 +1311,33 @@ export class BoltzPay {
     chains: ChainNamespace[];
     addresses: { evm?: string; svm?: string };
   } {
+    const hasCoinbase = this.wallets.some(w => w.type === "coinbase");
+    const hasNwc = this.wallets.some(w => w.type === "nwc");
     const protocols: string[] = ["x402"];
-    if (this.lightningWallet) {
+    if (hasNwc) {
       protocols.push("l402");
     }
-    const chains: ChainNamespace[] = [...SUPPORTED_NAMESPACES];
-    const addresses = this.walletManager?.getAddresses() ?? {};
+    const chains: ChainNamespace[] = [...this.getPayableNamespaces()];
+    const addresses = this.primaryCdpManager?.getAddresses() ?? {};
     return {
       network: this.config.network,
       protocols,
-      canPay: !!this.walletManager,
-      canPayLightning: !!this.lightningWallet,
+      canPay: hasCoinbase,
+      canPayLightning: hasNwc,
       chains,
       addresses,
     };
   }
 
-  /** Query balance per chain from the wallet manager. Degrades gracefully. */
   async getBalances(): Promise<{
     evm?: { address: string; balance: Money | undefined };
     svm?: { address: string; balance: Money | undefined };
   }> {
-    if (!this.walletManager) {
+    if (!this.primaryCdpManager) {
       return {};
     }
     try {
-      const balances = await this.walletManager.getBalances(
+      const balances = await this.primaryCdpManager.getBalances(
         this.config.network,
       );
       const result: {
@@ -854,19 +1367,17 @@ export class BoltzPay {
 
       return result;
     } catch {
-      // Intentional: balance fetching is best-effort, return empty on any failure
       return {};
     }
   }
 
-  /** Comprehensive wallet health check — probes connectivity, fetches balances, reports credential status. */
   async getWalletStatus(): Promise<WalletStatus> {
     const capabilities = this.getCapabilities();
     const budget = this.getBudget();
     const credentials = this.buildCredentialsStatus();
     const lightning = await this.buildLightningStatus();
 
-    if (!this.walletManager) {
+    if (!this.primaryCdpManager) {
       return {
         network: capabilities.network,
         isTestnet: isTestnet(capabilities.network),
@@ -884,7 +1395,7 @@ export class BoltzPay {
     }
 
     const { connection, accounts } = await this.buildConnectionAndAccounts(
-      this.walletManager,
+      this.primaryCdpManager,
     );
 
     return {
@@ -903,7 +1414,7 @@ export class BoltzPay {
   private buildCredentialsStatus(): WalletStatus["credentials"] {
     return {
       coinbase: {
-        configured: !!this.walletManager,
+        configured: !!this.primaryCdpManager,
         keyHint: this.config.coinbaseApiKeyId
           ? maskKey(this.config.coinbaseApiKeyId)
           : undefined,
@@ -912,11 +1423,11 @@ export class BoltzPay {
   }
 
   private async buildLightningStatus(): Promise<LightningStatus | undefined> {
-    if (!this.lightningWallet) return undefined;
+    if (!this.primaryNwcManager) return undefined;
 
     try {
       const start = Date.now();
-      const { balanceSats } = await this.lightningWallet.getBalance();
+      const { balanceSats } = await this.primaryNwcManager.getBalance();
       const latencyMs = Date.now() - start;
       return {
         configured: true,
@@ -980,7 +1491,6 @@ export class BoltzPay {
     return { address: balance.address, balance: balance.balance };
   }
 
-  /** Probe all known paid API endpoints and return their live status and verified prices. */
   async discover(
     options?: DiscoverOptions,
   ): Promise<readonly DiscoveredEntry[]> {
@@ -1017,21 +1527,17 @@ export class BoltzPay {
     }
   }
 
-  /**
-   * Close underlying connections (NWC WebSocket, etc.) so the process can exit cleanly.
-   * Safe to call multiple times.
-   */
   close(): void {
-    this.lightningWallet?.close();
+    for (const w of this.wallets) {
+      w.nwcManager?.close();
+    }
   }
 
-  /** Subscribe to SDK events: `"payment"`, `"error"`, `"budget:warning"`, `"budget:exceeded"`. */
   on<E extends EventName>(event: E, listener: EventListener<E>): this {
     this.emitter.on(event, listener);
     return this;
   }
 
-  /** Unsubscribe from SDK events. */
   off<E extends EventName>(event: E, listener: EventListener<E>): this {
     this.emitter.off(event, listener);
     return this;

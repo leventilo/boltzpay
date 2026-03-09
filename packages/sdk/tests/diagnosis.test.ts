@@ -106,6 +106,7 @@ function makeProbeResult(amount = "0.01") {
         amount: Money.fromDollars(amount),
         network: "eip155:8453",
         payTo: "0xpayto",
+        scheme: "exact",
       },
     },
   ];

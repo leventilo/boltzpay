@@ -123,6 +123,7 @@ function makeQuoteWithAccepts(
     protocol: "x402",
     network: primary.network,
     payTo: primary.payTo,
+    scheme: "exact",
     allAccepts: accepts,
   };
 }
@@ -154,7 +155,7 @@ describe("multi-chain SDK composition", () => {
   });
 
   describe("getCapabilities()", () => {
-    it("returns chains: ['evm', 'svm']", () => {
+    it("returns payable chains from actual wallets (evm, svm for wildcard wallet)", () => {
       const client = new BoltzPay(validConfig);
       const caps = client.getCapabilities();
       expect(caps.chains).toEqual(["evm", "svm"]);
@@ -304,6 +305,7 @@ describe("multi-chain SDK composition", () => {
         protocol: "x402",
         network: "btc:mainnet",
         payTo: "bc1q...",
+        scheme: "exact",
         allAccepts: [unknownAccept],
       };
       const mockAdapter = { name: "x402" };
@@ -328,6 +330,7 @@ describe("multi-chain SDK composition", () => {
         protocol: "x402",
         network: "base-sepolia",
         payTo: "0xabc",
+        scheme: "exact",
       };
       const mockAdapter = { name: "x402" };
 
@@ -350,6 +353,7 @@ describe("multi-chain SDK composition", () => {
         protocol: "x402",
         network: "eip155:8453",
         payTo: "0xabc",
+        scheme: "exact",
       };
       const mockAdapter = { name: "x402" };
 
@@ -370,12 +374,14 @@ describe("multi-chain SDK composition", () => {
         protocol: "x402",
         network: "eip155:8453",
         payTo: "0xabc",
+        scheme: "exact",
       };
       const otherQuote: ProtocolQuote = {
         amount: Money.fromCents(100n),
         protocol: "other",
         network: undefined,
         payTo: undefined,
+        scheme: "exact",
       };
       const x402Adapter = { name: "x402" };
       const otherAdapter = { name: "other" };
@@ -409,6 +415,7 @@ describe("multi-chain SDK composition", () => {
         protocol: "x402",
         network: "eip155:8453",
         payTo: "0xabc",
+        scheme: "exact",
       };
       const mockAdapter = { name: "x402" };
 
@@ -437,6 +444,7 @@ describe("multi-chain SDK composition", () => {
         protocol: "x402",
         network: "eip155:8453",
         payTo: "0xabc",
+        scheme: "exact",
       };
       const mockAdapter = { name: "x402" };
 

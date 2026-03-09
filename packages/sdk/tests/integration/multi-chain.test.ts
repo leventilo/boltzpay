@@ -99,6 +99,7 @@ function makeQuoteWithAccepts(accepts: AcceptOption[]): ProtocolQuote {
     protocol: "x402",
     network: primary.network,
     payTo: primary.payTo,
+    scheme: "exact",
     allAccepts: accepts,
   };
 }
@@ -225,12 +226,14 @@ describe("multi-chain integration (SDK end-to-end)", () => {
         protocol: "x402",
         network: "eip155:8453",
         payTo: "0xabc",
+        scheme: "exact",
       };
       const otherQuote: ProtocolQuote = {
         amount: Money.fromCents(100n),
         protocol: "other",
         network: undefined,
         payTo: undefined,
+        scheme: "exact",
       };
       const x402Adapter = { name: "x402" };
       const otherAdapter = { name: "other" };
@@ -271,6 +274,7 @@ describe("multi-chain integration (SDK end-to-end)", () => {
         protocol: "x402",
         network: "btc:mainnet",
         payTo: "bc1q...",
+        scheme: "exact",
         allAccepts: [unknownAccept],
       };
       const mockAdapter = { name: "x402" };
@@ -378,6 +382,7 @@ describe("multi-chain integration (SDK end-to-end)", () => {
         protocol: "x402",
         network: "base-sepolia",
         payTo: "0xLegacyPay",
+        scheme: "exact",
         // No allAccepts — V1 endpoint
       };
       const mockAdapter = { name: "x402" };

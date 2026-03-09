@@ -80,6 +80,7 @@ function makeProbeResult(amountCents: bigint): {
       protocol: "x402",
       network: "eip155:84532",
       payTo: "0xabc",
+      scheme: "exact",
     },
   };
 }

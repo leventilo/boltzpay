@@ -48,6 +48,7 @@ vi.mock("@boltzpay/protocols", () => {
   }
   class MockNwcWalletManager {
     constructor() {}
+    close() {}
   }
   return {
     CdpWalletManager: MockCdpWalletManager,
@@ -63,6 +64,7 @@ vi.mock("@boltzpay/protocols", () => {
 // Import AFTER mocks
 import { BoltzPay } from "../../src/boltzpay";
 import { BudgetExceededError } from "../../src/errors/budget-exceeded-error";
+import { NoWalletError } from "../../src/errors/no-wallet-error";
 import { ProtocolError } from "../../src/errors/protocol-error";
 
 const x402OnlyConfig = {
@@ -87,6 +89,7 @@ function makeX402Quote(amountCents: bigint): ProtocolQuote {
     protocol: "x402",
     network: "eip155:8453",
     payTo: "0xPayAddr",
+    scheme: "exact",
   };
 }
 
@@ -96,6 +99,7 @@ function makeL402Quote(amountSats: bigint): ProtocolQuote {
     protocol: "l402",
     network: "lightning",
     payTo: undefined,
+    scheme: "exact",
   };
 }
 
@@ -735,21 +739,12 @@ describe("multi-protocol agnostic SDK (x402 + L402)", () => {
       mockProbeAll.mockResolvedValueOnce([
         { adapter: { name: "l402" }, quote: l402Quote },
       ]);
-      mockExecute.mockRejectedValueOnce(
-        new Error(
-          "L402 protocol detected but NWC wallet not configured",
-        ),
-      );
 
-      const errorListener = vi.fn();
-      const client = new BoltzPay(x402OnlyConfig); // No NWC
-      client.on("error", errorListener);
+      const client = new BoltzPay(x402OnlyConfig); // No NWC → NoWalletError
 
       await expect(
         client.fetch("https://l402-api.example.com/data"),
-      ).rejects.toThrow(ProtocolError);
-
-      expect(errorListener).toHaveBeenCalled();
+      ).rejects.toThrow(NoWalletError);
     });
 
     it("payment failure does not pollute history", async () => {
