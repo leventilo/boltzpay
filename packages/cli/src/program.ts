@@ -1,8 +1,9 @@
 import { Command } from "commander";
 
 import { registerBudgetCommand } from "./commands/budget.js";
-import { registerCheckCommand } from "./commands/check.js";
 import { registerDemoCommand } from "./commands/demo.js";
+import { registerDiagnoseCommand } from "./commands/diagnose.js";
+import { registerVerifyDirectoryCommand } from "./commands/verify-directory.js";
 import { registerDiscoverCommand } from "./commands/discover.js";
 import { registerFetchCommand } from "./commands/fetch.js";
 import { registerHistoryCommand } from "./commands/history.js";
@@ -25,5 +26,6 @@ registerBudgetCommand(program);
 registerHistoryCommand(program);
 registerDiscoverCommand(program);
 registerWalletCommand(program);
-registerCheckCommand(program);
+registerDiagnoseCommand(program);
+registerVerifyDirectoryCommand(program);
 registerDemoCommand(program);

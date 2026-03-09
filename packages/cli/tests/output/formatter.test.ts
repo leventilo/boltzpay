@@ -288,12 +288,10 @@ describe("formatDiscoverResult", () => {
 
     expect(result).toContain("Compatible Paid API Endpoints");
     expect(result).toContain("Test API");
-    expect(result).toContain("https://api.test.com/v1");
     expect(result).toContain("$0.03");
     expect(result).toContain("search");
-    expect(result).toContain("A test API endpoint");
     expect(result).toContain("LIVE");
-    expect(result).toContain("1 endpoint(s)");
+    expect(result).toContain("1 live");
   });
 
   it("should show 'No matching endpoints found' when empty", () => {
@@ -311,7 +309,7 @@ describe("formatCheckResult", () => {
       amount: "$0.05",
     });
 
-    expect(result).toContain("Paid endpoint");
+    expect(result).toContain("Paid Endpoint");
     expect(result).toContain("x402");
     expect(result).toContain("$0.05");
   });

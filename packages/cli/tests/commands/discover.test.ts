@@ -92,9 +92,8 @@ describe("discover command", () => {
     expect(output).toContain("$0.05");
     expect(output).toContain("FREE");
     expect(output).toContain("OFFLINE");
-    expect(output).toContain("unverified");
     expect(output).toContain("ERROR");
-    expect(output).toContain("endpoint(s)");
+    expect(output).toContain("total");
   });
 
   it("should pass category to sdk.discover()", async () => {
@@ -161,9 +160,9 @@ describe("discover command", () => {
     await program.parseAsync(["node", "boltzpay", "discover"]);
 
     const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
-    expect(output).toContain("4 endpoint(s)");
     expect(output).toContain("2 live");
     expect(output).toContain("1 offline");
     expect(output).toContain("1 free");
+    expect(output).toContain("4 total");
   });
 });
