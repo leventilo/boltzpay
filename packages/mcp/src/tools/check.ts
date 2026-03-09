@@ -5,6 +5,8 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { handleToolError } from "../errors.js";
 
+const DEFAULT_CURRENCY = "USD";
+
 export function registerCheck(server: McpServer, sdk: BoltzPay): void {
   server.registerTool(
     "boltzpay_check",
@@ -33,7 +35,7 @@ export function registerCheck(server: McpServer, sdk: BoltzPay): void {
           isPaid: true,
           protocol: quote.protocol,
           amount: quote.amount.toDisplayString(),
-          currency: "USD",
+          currency: DEFAULT_CURRENCY,
           ...(options ? { options } : {}),
         };
         return {
