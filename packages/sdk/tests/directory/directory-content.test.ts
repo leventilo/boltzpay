@@ -10,11 +10,14 @@ const VALID_PROTOCOLS = new Set(["x402", "l402"]);
 const KNOWN_CATEGORIES = new Set([
   "crypto-data",
   "ai-llm",
+  "ai-tools",
   "utilities",
   "media",
   "demo",
   "research",
   "dev-tools",
+  "finance",
+  "social",
 ]);
 
 describe("API_DIRECTORY content validation", () => {
