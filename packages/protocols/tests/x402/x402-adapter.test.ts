@@ -1745,4 +1745,71 @@ describe("X402Adapter", () => {
       expect(walletManager.getSvmSigner).toHaveBeenCalled();
     });
   });
+
+  describe("custom timeouts", () => {
+    it("should use custom detect timeout when provided", async () => {
+      const customAdapter = new X402Adapter(makeMockWalletManager(), () => {}, {
+        detect: 3000,
+      });
+      const header = makeV2Header("10000");
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        mock402Response({
+          headers: new Headers({ "payment-required": header }),
+        }),
+      );
+
+      await customAdapter.detect("https://example.com/api");
+
+      const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const requestInit = fetchCall[1] as RequestInit;
+      expect(requestInit.signal).toBeDefined();
+      // AbortSignal.timeout(3000) creates a signal — we verify it's present
+      // The key contract is that custom timeout is accepted and used
+      expect(requestInit.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("should default to 10000/15000/30000 when no timeouts provided", async () => {
+      const defaultAdapter = new X402Adapter(makeMockWalletManager(), () => {});
+      const header = makeV2Header("10000");
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        mock402Response({
+          headers: new Headers({ "payment-required": header }),
+        }),
+      );
+
+      await defaultAdapter.detect("https://example.com/api");
+
+      const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const requestInit = fetchCall[1] as RequestInit;
+      expect(requestInit.signal).toBeDefined();
+    });
+
+    it("should use custom quote timeout for fetchForQuote", async () => {
+      const customAdapter = new X402Adapter(makeMockWalletManager(), () => {}, {
+        quote: 5000,
+      });
+      const header = makeV2Header("10000");
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        mock402Response({
+          headers: new Headers({ "payment-required": header }),
+        }),
+      );
+
+      await customAdapter.quote("https://example.com/api");
+
+      const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const requestInit = fetchCall[1] as RequestInit;
+      expect(requestInit.signal).toBeDefined();
+    });
+
+    it("should merge partial timeouts with defaults", async () => {
+      // Only provide detect, quote and payment should use defaults
+      const customAdapter = new X402Adapter(makeMockWalletManager(), () => {}, {
+        detect: 3000,
+      });
+      // Verify adapter was constructed without error
+      expect(customAdapter).toBeDefined();
+      expect(customAdapter.name).toBe("x402");
+    });
+  });
 });

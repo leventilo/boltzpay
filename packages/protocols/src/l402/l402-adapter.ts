@@ -17,8 +17,19 @@ import {
   parseL402Challenge,
 } from "./l402-types";
 
-const DETECTION_TIMEOUT_MS = 10_000;
-const QUOTE_TIMEOUT_MS = 15_000;
+export interface AdapterTimeouts {
+  detect?: number;
+  quote?: number;
+  payment?: number;
+}
+
+const DEFAULT_DETECT_MS = 10_000;
+const DEFAULT_QUOTE_MS = 15_000;
+
+const HTTP_PAYMENT_REQUIRED = 402;
+const HTTP_SUCCESS_MIN = 200;
+const HTTP_SUCCESS_MAX = 300;
+const WWW_AUTHENTICATE_HEADER = "www-authenticate";
 
 const SATS_DISPLAY_PROTOCOL = "l402";
 const LIGHTNING_NETWORK = "lightning";
@@ -27,19 +38,21 @@ type Bolt11Decoder = (invoice: string) => {
   sections: ReadonlyArray<{ name: string; value: unknown }>;
 };
 
-/**
- * L402 (Lightning Labs) payment protocol adapter.
- *
- * Flow: GET url -> 402 + WWW-Authenticate: L402 -> pay BOLT11 invoice via NWC -> retry with proof.
- */
 export class L402Adapter implements ProtocolAdapter {
   readonly name = "l402";
   private cachedDecoder: Bolt11Decoder | undefined;
+  private readonly timeouts: { detect: number; quote: number };
 
   constructor(
     private readonly walletManager: NwcWalletManager | undefined,
     private readonly validateUrl: (url: string) => void,
-  ) {}
+    timeouts?: AdapterTimeouts,
+  ) {
+    this.timeouts = {
+      detect: timeouts?.detect ?? DEFAULT_DETECT_MS,
+      quote: timeouts?.quote ?? DEFAULT_QUOTE_MS,
+    };
+  }
 
   async detect(
     url: string,
@@ -51,16 +64,16 @@ export class L402Adapter implements ProtocolAdapter {
       response = await fetch(url, {
         method: "GET",
         redirect: "manual",
-        signal: AbortSignal.timeout(DETECTION_TIMEOUT_MS),
+        signal: AbortSignal.timeout(this.timeouts.detect),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new L402QuoteError(`Cannot reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
+    if (response.status !== HTTP_PAYMENT_REQUIRED) {
       return false;
     }
-    const wwwAuth = response.headers.get("www-authenticate");
+    const wwwAuth = response.headers.get(WWW_AUTHENTICATE_HEADER);
     if (!wwwAuth) return false;
     return isL402Challenge(wwwAuth);
   }
@@ -72,7 +85,7 @@ export class L402Adapter implements ProtocolAdapter {
     this.validateUrl(url);
 
     const response = await this.fetchForQuote(url);
-    const wwwAuth = response.headers.get("www-authenticate");
+    const wwwAuth = response.headers.get(WWW_AUTHENTICATE_HEADER);
     if (!wwwAuth) {
       throw new L402QuoteError("No WWW-Authenticate header in 402 response");
     }
@@ -85,12 +98,13 @@ export class L402Adapter implements ProtocolAdapter {
       protocol: SATS_DISPLAY_PROTOCOL,
       network: LIGHTNING_NETWORK,
       payTo: undefined,
+      scheme: "exact",
     };
   }
 
   async quoteFromResponse(response: Response): Promise<ProtocolQuote | null> {
-    if (response.status !== 402) return null;
-    const wwwAuth = response.headers.get("www-authenticate");
+    if (response.status !== HTTP_PAYMENT_REQUIRED) return null;
+    const wwwAuth = response.headers.get(WWW_AUTHENTICATE_HEADER);
     if (!wwwAuth || !isL402Challenge(wwwAuth)) return null;
     try {
       const challenge = this.parseChallenge(wwwAuth);
@@ -100,6 +114,7 @@ export class L402Adapter implements ProtocolAdapter {
         protocol: SATS_DISPLAY_PROTOCOL,
         network: LIGHTNING_NETWORK,
         payTo: undefined,
+        scheme: "exact",
       };
     } catch {
       return null;
@@ -122,11 +137,11 @@ export class L402Adapter implements ProtocolAdapter {
     try {
       const firstResponse = await this.sendRequest(request);
 
-      if (firstResponse.status !== 402) {
+      if (firstResponse.status !== HTTP_PAYMENT_REQUIRED) {
         return this.buildResult(firstResponse);
       }
 
-      const wwwAuth = firstResponse.headers.get("www-authenticate");
+      const wwwAuth = firstResponse.headers.get(WWW_AUTHENTICATE_HEADER);
       if (!wwwAuth) {
         throw new L402PaymentError(
           "No WWW-Authenticate header in 402 response",
@@ -171,7 +186,7 @@ export class L402Adapter implements ProtocolAdapter {
       headers: request.headers,
       body: request.body ? new Uint8Array(request.body) : undefined,
       redirect: "error",
-      signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(this.timeouts.quote),
     });
   }
 
@@ -194,13 +209,10 @@ export class L402Adapter implements ProtocolAdapter {
       },
       body: request.body ? new Uint8Array(request.body) : undefined,
       redirect: "error",
-      signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(this.timeouts.quote),
     });
   }
 
-  /**
-   * Retry for invoice-only L402 (MaxSats style): inject payment_hash into the JSON body.
-   */
   private async sendWithPaymentHash(
     request: {
       readonly url: string;
@@ -235,7 +247,7 @@ export class L402Adapter implements ProtocolAdapter {
       },
       body: bodyJson,
       redirect: "error",
-      signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(this.timeouts.quote),
     });
   }
 
@@ -245,13 +257,13 @@ export class L402Adapter implements ProtocolAdapter {
       response = await fetch(url, {
         method: "GET",
         redirect: "error",
-        signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+        signal: AbortSignal.timeout(this.timeouts.quote),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new L402QuoteError(`Failed to reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
+    if (response.status !== HTTP_PAYMENT_REQUIRED) {
       throw new L402QuoteError(`Expected 402 status, got ${response.status}`);
     }
     return response;
@@ -302,7 +314,7 @@ export class L402Adapter implements ProtocolAdapter {
       headers[key] = value;
     });
     return {
-      success: response.status >= 200 && response.status < 300,
+      success: response.status >= HTTP_SUCCESS_MIN && response.status < HTTP_SUCCESS_MAX,
       externalTxHash: undefined,
       responseBody: body,
       responseHeaders: headers,

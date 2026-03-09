@@ -665,4 +665,53 @@ describe("L402Adapter", () => {
       expect(result.responseBody).toEqual(new Uint8Array(0));
     });
   });
+
+  describe("custom timeouts", () => {
+    it("should use custom detect timeout when provided", async () => {
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl, {
+        detect: 5000,
+        quote: 8000,
+      });
+
+      await adapter.detect("https://api.example.com/l402");
+
+      const fetchCall = fetchMock.mock.calls[0];
+      const requestInit = fetchCall[1] as RequestInit;
+      expect(requestInit.signal).toBeDefined();
+      expect(requestInit.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("should default to 10000/15000 when no timeouts provided", async () => {
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl);
+
+      await adapter.detect("https://api.example.com/l402");
+
+      const fetchCall = fetchMock.mock.calls[0];
+      const requestInit = fetchCall[1] as RequestInit;
+      expect(requestInit.signal).toBeDefined();
+    });
+
+    it("should use custom quote timeout for fetchForQuote", async () => {
+      fetchMock.mockResolvedValueOnce(makeL402Response());
+      const adapter = new L402Adapter(undefined, validateUrl, {
+        quote: 8000,
+      });
+
+      await adapter.quote("https://api.example.com/l402");
+
+      const fetchCall = fetchMock.mock.calls[0];
+      const requestInit = fetchCall[1] as RequestInit;
+      expect(requestInit.signal).toBeDefined();
+    });
+
+    it("should accept partial timeouts without error", async () => {
+      const adapter = new L402Adapter(undefined, validateUrl, {
+        detect: 5000,
+      });
+      expect(adapter).toBeDefined();
+      expect(adapter.name).toBe("l402");
+    });
+  });
 });

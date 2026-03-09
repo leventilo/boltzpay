@@ -35,4 +35,10 @@ export type {
 } from "./router/protocol-router";
 export { ProtocolRouter } from "./router/protocol-router";
 export { centsToUsdcAtomic, usdcAtomicToCents } from "./x402/usdc-conversion";
+export type { AdapterTimeouts } from "./x402/x402-adapter";
 export { X402Adapter } from "./x402/x402-adapter";
+export type {
+  NegotiatedPayment,
+  PaymentTransport,
+} from "./x402/x402-parsing";
+export { negotiatePayment } from "./x402/x402-parsing";

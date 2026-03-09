@@ -22,17 +22,32 @@ import {
   resolvePrimaryQuote,
 } from "./x402-quote-builder";
 
-const DETECTION_TIMEOUT_MS = 10_000;
-const QUOTE_TIMEOUT_MS = 15_000;
-const DELIVERY_TIMEOUT_MS = 30_000;
+export interface AdapterTimeouts {
+  detect?: number;
+  quote?: number;
+  payment?: number;
+}
+
+const DEFAULT_DETECT_MS = 10_000;
+const DEFAULT_QUOTE_MS = 15_000;
+const DEFAULT_PAYMENT_MS = 30_000;
+const HTTP_PAYMENT_REQUIRED = 402;
 
 export class X402Adapter implements ProtocolAdapter {
   readonly name = "x402";
+  private readonly timeouts: Required<AdapterTimeouts>;
 
   constructor(
     private readonly walletManager: CdpWalletManager | undefined,
     private readonly validateUrl: (url: string) => void,
-  ) {}
+    timeouts?: AdapterTimeouts,
+  ) {
+    this.timeouts = {
+      detect: timeouts?.detect ?? DEFAULT_DETECT_MS,
+      quote: timeouts?.quote ?? DEFAULT_QUOTE_MS,
+      payment: timeouts?.payment ?? DEFAULT_PAYMENT_MS,
+    };
+  }
 
   async detect(
     url: string,
@@ -44,13 +59,13 @@ export class X402Adapter implements ProtocolAdapter {
       response = await fetch(url, {
         method: "GET",
         redirect: "manual",
-        signal: AbortSignal.timeout(DETECTION_TIMEOUT_MS),
+        signal: AbortSignal.timeout(this.timeouts.detect),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new X402QuoteError(`Cannot reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
+    if (response.status !== HTTP_PAYMENT_REQUIRED) {
       return false;
     }
     try {
@@ -78,13 +93,14 @@ export class X402Adapter implements ProtocolAdapter {
       protocol: "x402",
       network: primary.network,
       payTo: primary.payTo,
+      scheme: paymentRequired.accepts[0]?.scheme ?? "exact",
       allAccepts: allAccepts.length > 0 ? allAccepts : undefined,
       inputHints,
     };
   }
 
   async quoteFromResponse(response: Response): Promise<ProtocolQuote | null> {
-    if (response.status !== 402) return null;
+    if (response.status !== HTTP_PAYMENT_REQUIRED) return null;
     try {
       const paymentRequired = await extractPaymentInfo(response);
       if (!paymentRequired || paymentRequired.accepts.length === 0) return null;
@@ -96,6 +112,7 @@ export class X402Adapter implements ProtocolAdapter {
         protocol: "x402",
         network: primary.network,
         payTo: primary.payTo,
+        scheme: paymentRequired.accepts[0]?.scheme ?? "exact",
         allAccepts: allAccepts.length > 0 ? allAccepts : undefined,
         inputHints,
       };
@@ -114,13 +131,13 @@ export class X402Adapter implements ProtocolAdapter {
         method: "GET",
         headers,
         redirect: "error",
-        signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+        signal: AbortSignal.timeout(this.timeouts.quote),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       throw new X402QuoteError(`Failed to reach endpoint: ${msg}`);
     }
-    if (response.status !== 402) {
+    if (response.status !== HTTP_PAYMENT_REQUIRED) {
       throw new X402QuoteError(`Expected 402 status, got ${response.status}`);
     }
     return response;
@@ -170,14 +187,12 @@ export class X402Adapter implements ProtocolAdapter {
     try {
       const svmSigner = await this.walletManager.getSvmSigner();
       const { registerExactSvmScheme } = await import("@x402/svm/exact/client");
-      // CDP SVM signer -> x402 SVM signer type (structural match, branded differently)
       registerExactSvmScheme(client, {
         signer: svmSigner as Parameters<
           typeof registerExactSvmScheme
         >[1]["signer"],
       });
     } catch {
-      // Solana not available — EVM-only mode (acceptable)
     }
 
     const safeFetch: typeof fetch = (input, init) => {
@@ -186,7 +201,7 @@ export class X402Adapter implements ProtocolAdapter {
         return fetch(input, {
           ...init,
           redirect: "error",
-          signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+          signal: AbortSignal.timeout(this.timeouts.payment),
         });
       }
       const url = input.toString();
@@ -194,11 +209,10 @@ export class X402Adapter implements ProtocolAdapter {
       return fetch(url, {
         ...init,
         redirect: "error",
-        signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+        signal: AbortSignal.timeout(this.timeouts.payment),
       });
     };
 
-    // Safe: callers validate raw protocol data via isPaymentRequiredShape
     const signPayment = (paymentRequired: unknown): Promise<unknown> =>
       client.createPaymentPayload(
         paymentRequired as Parameters<typeof client.createPaymentPayload>[0],
@@ -225,7 +239,7 @@ export class X402Adapter implements ProtocolAdapter {
         body: request.body ? new Uint8Array(request.body) : undefined,
       });
 
-      if (firstResponse.status !== 402) {
+      if (firstResponse.status !== HTTP_PAYMENT_REQUIRED) {
         return buildProtocolResult(firstResponse);
       }
 
