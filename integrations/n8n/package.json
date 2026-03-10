@@ -1,10 +1,6 @@
 {
   "name": "@boltzpay/n8n-nodes-boltzpay",
-<<<<<<< HEAD
   "version": "0.2.0",
-=======
-  "version": "0.2.0",
->>>>>>> 5d771e1 (fix(build): restore versions to v0.2.0 baseline)
   "description": "n8n community node for BoltzPay — pay for API data in your workflows",
   "license": "MIT",
   "repository": {
