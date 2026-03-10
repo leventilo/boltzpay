@@ -19,7 +19,7 @@ const sdkCode = `<span class="text-accent-cyan">import</span> { BoltzPay } <span
 <span class="text-text-secondary">// 402? SDK pays automatically, retries, returns 200</span>
 console.log(res.status); <span class="text-text-secondary">// 200</span>`;
 
-const cliCode = `<span class="text-accent-warm/50">$</span> boltzpay check https://nickeljoke.vercel.app/api/joke
+const cliCode = `<span class="text-accent-warm/50">$</span> boltzpay quote https://nickeljoke.vercel.app/api/joke
   <span class="text-text-secondary">Protocol: x402 · Price: $0.01 USDC · Chain: Base</span>
 
 <span class="text-accent-warm/50">$</span> boltzpay fetch https://nickeljoke.vercel.app/api/joke
@@ -87,9 +87,9 @@ const cliCode = `<span class="text-accent-warm/50">$</span> boltzpay check https
               <div class="t-line text-text-primary" style="--delay: 0ms">
                 <span class="text-accent-warm/50">$</span> npx @boltzpay/mcp
               </div>
-              <div class="t-line text-text-secondary" style="--delay: 300ms"><span class="text-status-live">✓</span> fetch · check · quote · discover</div>
-              <div class="t-line text-text-secondary" style="--delay: 450ms"><span class="text-status-live">✓</span> budget · history · wallet · diagnose</div>
-              <div class="t-line mt-2.5 text-status-live/80" style="--delay: 800ms">8 tools ready. Claude can now pay for APIs.</div>
+              <div class="t-line text-text-secondary" style="--delay: 300ms"><span class="text-status-live">✓</span> fetch · quote · discover · diagnose</div>
+              <div class="t-line text-text-secondary" style="--delay: 450ms"><span class="text-status-live">✓</span> budget · history · wallet</div>
+              <div class="t-line mt-2.5 text-status-live/80" style="--delay: 800ms">7 tools ready. Claude can now pay for APIs.</div>
             </div>
 
             <div class="t-phase t-phase-convo absolute inset-0 p-4 md:p-5">

@@ -1,5 +1,5 @@
 import { resolve as dnsResolve } from "node:dns/promises";
-import type { AcceptOption } from "@boltzpay/core";
+import type { AcceptOption, EndpointInputHints } from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
 import type { NegotiatedPayment } from "@boltzpay/protocols";
 import { negotiatePayment, type ProtocolRouter } from "@boltzpay/protocols";
@@ -51,6 +51,7 @@ export interface DiagnoseResult {
   readonly postOnly: boolean;
   readonly chains?: readonly ChainInfo[];
   readonly rawAccepts?: readonly AcceptOption[];
+  readonly inputHints?: EndpointInputHints;
   readonly timing?: DiagnoseTiming;
 }
 
@@ -389,6 +390,7 @@ async function buildPaidResult(
     postOnly,
     chains: buildChains(quote.allAccepts),
     rawAccepts: quote.allAccepts,
+    ...(quote.inputHints ? { inputHints: quote.inputHints } : {}),
     timing: { detectMs, quoteMs },
   };
 }

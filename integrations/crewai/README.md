@@ -29,7 +29,7 @@ with MCPServerAdapter(server_params) as tools:
 
 ## Alternative: CLI Bridge Tools
 
-For users who prefer native Python tools, this package provides 8 `BaseTool` subclasses that call `@boltzpay/cli` via subprocess.
+For users who prefer native Python tools, this package provides 7 `BaseTool` subclasses that call `@boltzpay/cli` via subprocess.
 
 ### Install
 
@@ -49,19 +49,19 @@ pip install boltzpay-crewai
 from crewai import Agent, Task, Crew
 from boltzpay_crewai import (
     BoltzPayFetchTool,
-    BoltzPayCheckTool,
+    BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
 )
 
 agent = Agent(
     role="Data Researcher",
     goal="Find and access paid APIs using BoltzPay",
-    tools=[BoltzPayFetchTool(), BoltzPayCheckTool(), BoltzPayDiscoverTool()],
+    tools=[BoltzPayFetchTool(), BoltzPayDiagnoseTool(), BoltzPayDiscoverTool()],
 )
 
 task = Task(
-    description="Discover paid APIs and check pricing for invy.bot",
-    expected_output="API pricing report",
+    description="Discover paid APIs and diagnose endpoint for invy.bot",
+    expected_output="API diagnostic report",
     agent=agent,
 )
 
@@ -74,7 +74,6 @@ result = crew.kickoff()
 | Tool | Name | Description | Credentials |
 |------|------|-------------|-------------|
 | `BoltzPayFetchTool` | `boltzpay_fetch` | Fetch data from a paid API. Detects x402/L402, pays with USDC or Lightning. | Required |
-| `BoltzPayCheckTool` | `boltzpay_check` | Check if URL requires payment. Returns protocol and pricing. | Not needed |
 | `BoltzPayQuoteTool` | `boltzpay_quote` | Get detailed price quote with chain options. | Not needed |
 | `BoltzPayDiscoverTool` | `boltzpay_discover` | Browse directory of compatible paid APIs. | Not needed |
 | `BoltzPayDiagnoseTool` | `boltzpay_diagnose` | Full endpoint diagnostic: protocol, pricing, health, latency. | Not needed |
@@ -84,16 +83,16 @@ result = crew.kickoff()
 
 ## No Credentials Needed
 
-Seven tools work without any Coinbase credentials:
+Six tools work without any Coinbase credentials:
 
 ```python
-from boltzpay_crewai import BoltzPayCheckTool, BoltzPayDiscoverTool
+from boltzpay_crewai import BoltzPayDiagnoseTool, BoltzPayDiscoverTool
 
-# Discover APIs and check prices — no keys required
+# Discover APIs and diagnose endpoints — no keys required
 agent = Agent(
     role="API Scout",
     goal="Evaluate paid APIs without purchasing",
-    tools=[BoltzPayCheckTool(), BoltzPayDiscoverTool()],
+    tools=[BoltzPayDiagnoseTool(), BoltzPayDiscoverTool()],
 )
 ```
 

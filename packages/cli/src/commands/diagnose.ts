@@ -10,7 +10,6 @@ import { isValidUrl } from "../validation.js";
 export function registerDiagnoseCommand(program: Command): void {
   program
     .command("diagnose")
-    .alias("check")
     .description("Diagnose a paid endpoint — protocol, format, scheme, health")
     .argument("<url>", "URL to diagnose")
     .action(

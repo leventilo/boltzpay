@@ -113,7 +113,7 @@ section("1. CLI Basics", 6);
 
 test("--help lists all 7 commands", () => {
   const out = run(`${cli} --help`);
-  const cmds = ["fetch", "check", "quote", "discover", "wallet", "budget", "history"];
+  const cmds = ["fetch", "quote", "discover", "diagnose", "wallet", "budget", "history"];
   for (const cmd of cmds) assert(out.includes(cmd), `missing ${cmd}`);
   detail(`${cmds.map(c => `${GREEN}✓${RESET}${DIM} ${c}`).join("  ")}`);
 });
@@ -151,9 +151,9 @@ test("fetch --chain evm accepts valid chain", () => {
 test("--debug produces verbose output", () => {
   try {
     // --debug may write to stderr; capture both
-    const out = run(`${cli} check https://httpbin.org/get --debug --json`);
+    const out = run(`${cli} quote https://httpbin.org/get --debug --json`);
     const p = JSON.parse(out.trim());
-    assert(p.data.isPaid === false, "should be free");
+    assert(p.data.free === true || p.data.message?.includes("free"), "should be free");
     detail(`debug flag accepted, result intact → ${GREEN}✓${RESET}`);
   } catch (e) {
     // If --debug writes extra to stdout breaking JSON, that's still debug working
@@ -200,67 +200,64 @@ test("discover -c nonexistent → empty", () => {
 
 endSection();
 
-// ─── 3. CHECK ────────────────────────────────────────────
-section("3. Check (4 x402 formats + free + unreachable)", 7);
+// ─── 3. DETECT (4 x402 formats + free + unreachable via quote) ───
+section("3. Detect (4 x402 formats + free + unreachable)", 7);
 
-test("check V2 endpoint (invy.bot)", () => {
-  const out = run(`${cli} check https://invy.bot/api --json`);
+test("quote detects V2 endpoint (invy.bot)", () => {
+  const out = run(`${cli} quote https://invy.bot/api --json`);
   const p = JSON.parse(out.trim());
-  assert(p.data.isPaid === true, "should be paid");
   assert(p.data.protocol === "x402", `wrong protocol: ${p.data.protocol}`);
   assert(p.data.amount === "$0.05", `wrong amount: ${p.data.amount}`);
   assert(p.data.network === "eip155:8453", `wrong network`);
-  detail(`isPaid ${GREEN}✓${RESET}${DIM}  x402 ${GREEN}✓${RESET}${DIM}  $0.05 ${GREEN}✓${RESET}${DIM}  CAIP-2 eip155:8453 ${GREEN}✓${RESET}`);
+  detail(`x402 ${GREEN}✓${RESET}${DIM}  $0.05 ${GREEN}✓${RESET}${DIM}  CAIP-2 eip155:8453 ${GREEN}✓${RESET}`);
 });
 
-test("check V2 multi-chain options (invy.bot)", () => {
-  const out = run(`${cli} check https://invy.bot/api --json`);
+test("quote V2 multi-chain alternatives (invy.bot)", () => {
+  const out = run(`${cli} quote https://invy.bot/api --json`);
   const p = JSON.parse(out.trim());
-  if (p.data.options) {
-    assert(Array.isArray(p.data.options), "options should be array");
-    const first = p.data.options[0];
-    assert(first.chain && first.network && first.amount, "incomplete option");
-    const chains = p.data.options.map(o => `${o.chain} ${o.amount}`).join(", ");
-    detail(`${p.data.options.length} chain(s): ${chains}`);
+  if (p.data.alternatives) {
+    assert(Array.isArray(p.data.alternatives), "alternatives should be array");
+    const first = p.data.alternatives[0];
+    assert(first.chain && first.network && first.amount, "incomplete alternative");
+    const alts = p.data.alternatives.map(a => `${a.chain} ${a.amount}`).join(", ");
+    detail(`${p.data.alternatives.length} alternative(s): ${alts}`);
   }
 });
 
-test("check V1 body (nickeljoke)", () => {
-  const out = run(`${cli} check https://nickeljoke.vercel.app/api/joke --json`);
+test("quote detects V1 body (nickeljoke)", () => {
+  const out = run(`${cli} quote https://nickeljoke.vercel.app/api/joke --json`);
   const p = JSON.parse(out.trim());
-  assert(p.data.isPaid === true && p.data.protocol === "x402", "V1 body detection failed");
-  detail(`V1 body format → isPaid ${GREEN}✓${RESET}${DIM}  x402 ${GREEN}✓${RESET}`);
+  assert(p.data.protocol === "x402", "V1 body detection failed");
+  detail(`V1 body format → x402 ${GREEN}✓${RESET}`);
 });
 
-test("check V1 hybrid in V2 header (emc2ai)", () => {
-  const out = run(`${cli} check https://emc2ai.io/x402/bitquery/top-tokens --json`);
+test("quote detects V1 hybrid in V2 header (emc2ai)", () => {
+  const out = run(`${cli} quote https://emc2ai.io/x402/bitquery/top-tokens --json`);
   const p = JSON.parse(out.trim());
-  assert(p.data.isPaid === true, "should be paid");
   assert(p.data.amount === "$0.55", `wrong amount: ${p.data.amount}`);
-  detail(`V1-in-V2 hybrid → isPaid ${GREEN}✓${RESET}${DIM}  $0.55 ${GREEN}✓${RESET}`);
+  detail(`V1-in-V2 hybrid → $0.55 ${GREEN}✓${RESET}`);
 });
 
-test("check www-authenticate (402payment-test)", () => {
-  const out = run(`${cli} check https://402payment-test.com/api/x402 --json`);
+test("quote detects www-authenticate (402payment-test)", () => {
+  const out = run(`${cli} quote https://402payment-test.com/api/x402 --json`);
   const p = JSON.parse(out.trim());
-  assert(p.data.isPaid === true, "should be paid");
   assert(p.data.amount === "$0.01", `wrong amount: ${p.data.amount}`);
   assert(p.data.network === "eip155:8453", `wrong network`);
-  detail(`www-auth → isPaid ${GREEN}✓${RESET}${DIM}  $0.01 ${GREEN}✓${RESET}${DIM}  eip155:8453 ${GREEN}✓${RESET}`);
+  detail(`www-auth → $0.01 ${GREEN}✓${RESET}${DIM}  eip155:8453 ${GREEN}✓${RESET}`);
 });
 
-test("check free endpoint (httpbin)", () => {
-  const out = run(`${cli} check https://httpbin.org/get --json`);
+test("quote free endpoint (httpbin)", () => {
+  const out = run(`${cli} quote https://httpbin.org/get --json`);
   const p = JSON.parse(out.trim());
-  assert(p.data.isPaid === false, "should be free");
-  detail(`isPaid: false ${GREEN}✓${RESET}`);
+  assert(p.data.free === true || p.data.message?.includes("free"), "should be free");
+  detail(`free: true ${GREEN}✓${RESET}`);
 });
 
-test("check unreachable URL → not paid", () => {
-  const out = run(`${cli} check https://this-does-not-exist-404.example.com --json`);
+test("quote unreachable URL → graceful", () => {
+  const out = run(`${cli} quote https://this-does-not-exist-404.example.com --json`);
   const p = JSON.parse(out.trim());
-  assert(p.data.isPaid === false, "unreachable should be free");
-  detail(`unreachable → graceful isPaid: false ${GREEN}✓${RESET}`);
+  assert(p.data.free === true || p.data.message?.includes("free") || p.success === false, "unreachable should be graceful");
+  detail(`unreachable → graceful response ${GREEN}✓${RESET}`);
 });
 
 endSection();
@@ -421,7 +418,7 @@ test("history --json", () => {
 endSection();
 
 // ─── 8. MCP SERVER ───────────────────────────────────────
-section("8. MCP Server (JSON-RPC — all 8 tools + params)", 10);
+section("8. MCP Server (JSON-RPC — all 7 tools + params)", 9);
 
 const MCP_TOOL_TESTS = [
   {
@@ -446,18 +443,6 @@ const MCP_TOOL_TESTS = [
       assert(data.length >= 1, "should have crypto-data entries");
       assert(data.every(e => e.category === "crypto-data"), "wrong category in results");
       return `${data.length} crypto-data entries, all filtered ${GREEN}✓${RESET}`;
-    },
-  },
-  {
-    name: "boltzpay_check",
-    args: { url: "https://invy.bot/api" },
-    validate: (content) => {
-      const text = content[0]?.text || "";
-      const data = JSON.parse(text);
-      assert(data.isPaid === true, "should be paid");
-      assert(data.protocol === "x402", `wrong protocol`);
-      assert(data.amount === "$0.05", `wrong amount`);
-      return `paid ${GREEN}✓${RESET}${DIM}  ${data.amount} ${GREEN}✓${RESET}${DIM}  ${data.options?.length || 0} options`;
     },
   },
   {
@@ -605,11 +590,11 @@ setTimeout(() => {
 
 const mcpResults = runMcpBatch(MCP_TOOL_TESTS);
 
-test("MCP tools/list returns 8 tools", () => {
+test("MCP tools/list returns 7 tools", () => {
   const toolsList = mcpResults[2];
   assert(toolsList, "no tools/list response");
   const tools = toolsList.result?.tools || [];
-  assert(tools.length === 8, `expected 8, got ${tools.length}`);
+  assert(tools.length === 7, `expected 7, got ${tools.length}`);
   const toolNames = tools.map(t => t.name).sort();
   detail(`${toolNames.join(", ")}`);
 });
@@ -777,7 +762,7 @@ test("Mock ACP server → SDK detect + quote", () => {
   }
 });
 
-test("Mock ACP server → CLI check detects ACP", () => {
+test("Mock ACP server → CLI quote detects ACP", () => {
   const projectRoot = process.cwd();
   // Use exec (async) instead of execSync so the mock server event loop stays alive
   const script = `
@@ -788,7 +773,7 @@ test("Mock ACP server → CLI check detects ACP", () => {
     server.listen(0, () => {
       const port = server.address().port;
       exec(
-        'STRIPE_SECRET_KEY=sk_test_smoke BOLTZPAY_LOG_LEVEL=silent node packages/cli/dist/index.js check http://localhost:' + port + '/resource --json',
+        'STRIPE_SECRET_KEY=sk_test_smoke BOLTZPAY_LOG_LEVEL=silent node packages/cli/dist/index.js quote http://localhost:' + port + '/resource --json',
         { encoding: 'utf8', timeout: 30000, cwd: ${JSON.stringify(projectRoot)} },
         (err, stdout, stderr) => {
           process.stdout.write(stdout || stderr || JSON.stringify({ error: (err && err.message) || 'unknown' }));
@@ -805,10 +790,9 @@ test("Mock ACP server → CLI check detects ACP", () => {
     const trimmed = raw.trim();
     assert(trimmed.startsWith("{"), `no JSON in output: ${trimmed.slice(0, 120)}`);
     const p = JSON.parse(trimmed);
-    assert(p.data?.isPaid === true, `should be paid, got: ${JSON.stringify(p.data || p).slice(0, 100)}`);
-    assert(p.data.protocol === "acp", `wrong protocol: ${p.data.protocol}`);
+    assert(p.data?.protocol === "acp", `wrong protocol: ${p.data?.protocol || JSON.stringify(p.data || p).slice(0, 100)}`);
     assert(p.data.amount === "$0.42", `wrong amount: ${p.data.amount}`);
-    detail(`isPaid ${GREEN}✓${RESET}${DIM}  protocol: acp ${GREEN}✓${RESET}${DIM}  $0.42 ${GREEN}✓${RESET}`);
+    detail(`protocol: acp ${GREEN}✓${RESET}${DIM}  $0.42 ${GREEN}✓${RESET}`);
   } finally {
     try { unlinkSync(tmpFile); } catch {}
   }
@@ -981,11 +965,11 @@ if (bazaarItems.length > 0) {
     const price = item.accepts?.[0]?.maxAmountRequired || item.accepts?.[0]?.amount || "?";
 
     try {
-      const raw = run(`${cli} check "${url}" --json`, { timeout: 12000 });
+      const raw = run(`${cli} quote "${url}" --json`, { timeout: 12000 });
       const p = JSON.parse(raw.trim());
-      if (p.data?.isPaid) {
-        const chains = p.data.options ? p.data.options.map(o => o.chain).join("+") : "single";
-        if (p.data.options && p.data.options.length > 1) multiChain++;
+      if (p.data?.protocol) {
+        const chains = p.data.alternatives ? p.data.alternatives.map(a => a.chain).join("+") : "single";
+        if (p.data.alternatives && p.data.alternatives.length > 1) multiChain++;
         console.log(`    ${GREEN}✓${RESET} ${pad(host, 42)} V${v} → ${p.data.amount} [${chains}]`);
         detected++;
         passed++;
@@ -1053,8 +1037,8 @@ console.log(`  ${BOLD}Coverage Markers${RESET}`);
 console.log(`  ${"─".repeat(55)}`);
 
 const markers = [
-  ["CLI", "8/8 commands + --chain + --debug"],
-  ["MCP", "8/8 tools + category filter + chain override"],
+  ["CLI", "7/7 commands + --chain + --debug"],
+  ["MCP", "7/7 tools + category filter + chain override"],
   ["x402", "4/4 formats (V2, V1, hybrid, www-auth)"],
   ["ACP", "config toggle + mock server detect + quote + CLI"],
   ["Chains", "EVM validated, SVM config ready"],

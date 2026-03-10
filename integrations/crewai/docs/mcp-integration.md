@@ -1,12 +1,12 @@
 # Using BoltzPay with CrewAI via MCP
 
-CrewAI natively supports the Model Context Protocol (MCP). This means your CrewAI agents can use **all 8 BoltzPay tools instantly** — no Python package installation required. Just point CrewAI at the BoltzPay MCP server.
+CrewAI natively supports the Model Context Protocol (MCP). This means your CrewAI agents can use **all 7 BoltzPay tools instantly** — no Python package installation required. Just point CrewAI at the BoltzPay MCP server.
 
 ## Why MCP?
 
 - **Zero Python dependencies** — no `pip install` needed for BoltzPay tools
 - **Always up-to-date** — `npx` fetches the latest `@boltzpay/mcp` automatically
-- **All 8 tools available** — fetch, check, quote, discover, diagnose, budget, history, wallet
+- **All 7 tools available** — fetch, quote, discover, diagnose, budget, history, wallet
 - **Same tools as Claude Desktop** — if you use BoltzPay in Claude, you already know these tools
 
 ## Prerequisites
@@ -45,7 +45,7 @@ with MCPServerAdapter(server_params) as tools:
     print(result)
 ```
 
-This example works **without Coinbase credentials** — `discover` and `check` are free tools.
+This example works **without Coinbase credentials** — `discover` and `diagnose` are free tools.
 
 ## Full Example: Research Agent with Payments
 
@@ -84,8 +84,8 @@ with MCPServerAdapter(server_params) as tools:
     research_task = Task(
         description=(
             "1. Discover available paid APIs using boltzpay_discover\n"
-            "2. Check the price of https://invy.bot/api using boltzpay_check\n"
-            "3. If the price is reasonable, fetch data using boltzpay_fetch\n"
+            "2. Diagnose https://invy.bot/api using boltzpay_diagnose\n"
+            "3. If the endpoint is live, fetch data using boltzpay_fetch\n"
             "4. Check remaining budget using boltzpay_budget"
         ),
         expected_output="Research report with API data and spending summary.",
@@ -104,12 +104,11 @@ with MCPServerAdapter(server_params) as tools:
 
 ## Available Tools
 
-All 8 BoltzPay tools are automatically exposed through the MCP server:
+All 7 BoltzPay tools are automatically exposed through the MCP server:
 
 | Tool | Description | Requires Credentials |
 |------|-------------|---------------------|
 | `boltzpay_fetch` | Fetch data from a paid API. Detects x402/L402, pays with USDC or Lightning. | Yes |
-| `boltzpay_check` | Check if a URL requires payment. Returns protocol and pricing. | No |
 | `boltzpay_quote` | Get a detailed price quote with chain options. | No |
 | `boltzpay_discover` | Browse the directory of compatible paid APIs. | No |
 | `boltzpay_diagnose` | Full endpoint diagnostic: protocol, pricing, health, latency. | No |
@@ -143,10 +142,10 @@ By default, BoltzPay selects the best chain automatically. To force a specific c
 
 ### Without Credentials
 
-Seven of the eight tools work without any Coinbase credentials:
+Six of the seven tools work without any Coinbase credentials:
 
 ```python
-# No credentials needed — just discover and check
+# No credentials needed — just discover and diagnose
 server_params = StdioServerParameters(
     command="npx",
     args=["-y", "@boltzpay/mcp"],
@@ -160,7 +159,7 @@ with MCPServerAdapter(server_params) as tools:
         backstory="You scout APIs and report on pricing.",
         tools=tools,
     )
-    # Agent can use: check, quote, discover, diagnose, budget, history, wallet
+    # Agent can use: quote, discover, diagnose, budget, history, wallet
     # Agent cannot use: fetch (requires credentials + budget > 0)
 ```
 
@@ -236,12 +235,12 @@ pip install boltzpay-crewai
 ```
 
 ```python
-from boltzpay_crewai import BoltzPayFetchTool, BoltzPayCheckTool, BoltzPayDiscoverTool
+from boltzpay_crewai import BoltzPayFetchTool, BoltzPayDiagnoseTool, BoltzPayDiscoverTool
 
 agent = Agent(
     role="Researcher",
     goal="Access paid APIs",
-    tools=[BoltzPayFetchTool(), BoltzPayCheckTool(), BoltzPayDiscoverTool()],
+    tools=[BoltzPayFetchTool(), BoltzPayDiagnoseTool(), BoltzPayDiscoverTool()],
 )
 ```
 

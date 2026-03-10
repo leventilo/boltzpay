@@ -10,7 +10,6 @@ from pydantic import ValidationError
 
 from langchain_boltzpay import (
     BoltzPayBudgetTool,
-    BoltzPayCheckTool,
     BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
@@ -23,7 +22,6 @@ from langchain_boltzpay.tools import DiagnoseInput, FetchInput
 
 ALL_TOOLS = [
     BoltzPayFetchTool,
-    BoltzPayCheckTool,
     BoltzPayQuoteTool,
     BoltzPayDiscoverTool,
     BoltzPayBudgetTool,
@@ -123,19 +121,6 @@ class TestToolExecution:
         args = mock_cli.call_args
         assert "--category" in args[0][1]
         assert "ai" in args[0][1]
-
-    def test_check_run_returns_json(self):
-        mock_response = {
-            "success": True,
-            "data": {"isPaid": True, "protocol": "x402", "amount": "$0.01"},
-        }
-
-        with patch("langchain_boltzpay.tools.run_cli", return_value=mock_response):
-            tool = BoltzPayCheckTool()
-            result = tool._run(url="https://invy.bot/api")
-
-        parsed = json.loads(result)
-        assert parsed["data"]["isPaid"] is True
 
     def test_budget_run_returns_json(self):
         mock_response = {

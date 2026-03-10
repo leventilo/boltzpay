@@ -3,7 +3,7 @@ title: Claude Desktop (MCP)
 description: Give Claude the ability to discover and pay for APIs.
 ---
 
-The BoltzPay MCP server gives Claude 8 tools for discovering, quoting, diagnosing, and paying for API data, all through natural language. It communicates via the [Model Context Protocol](https://modelcontextprotocol.io/), an open standard for AI tool use.
+The BoltzPay MCP server gives Claude 7 tools for discovering, quoting, diagnosing, and paying for API data, all through natural language. It communicates via the [Model Context Protocol](https://modelcontextprotocol.io/), an open standard for AI tool use.
 
 ## Quick Start
 
@@ -39,7 +39,7 @@ The BoltzPay MCP server gives Claude 8 tools for discovering, quoting, diagnosin
     }
     ```
 
-    This gives Claude read-only tools: `check`, `quote`, `discover`, `diagnose`, `budget`, `history`, and `wallet`. No credentials required.
+    This gives Claude read-only tools: `quote`, `discover`, `diagnose`, `budget`, `history`, and `wallet`. No credentials required.
   </Step>
   <Step title="Restart Claude Desktop">
     Quit and reopen the app. Open Settings > MCP Servers to confirm BoltzPay is listed, or type `/mcp` in a conversation to check.
@@ -87,7 +87,6 @@ Not every tool needs keys. Only `boltzpay_fetch` requires credentials to make pa
 |------|:---:|:---:|
 | `boltzpay_fetch` | Required (x402) | For L402 only |
 | `boltzpay_quote` | — | — |
-| `boltzpay_check` | — | — |
 | `boltzpay_discover` | — | — |
 | `boltzpay_budget` | — | — |
 | `boltzpay_history` | — | — |
@@ -138,7 +137,7 @@ The `payment` field is only present when a payment was made. Free endpoints omit
 {
   "error": "PROTOCOL_ERROR",
   "message": "Payment was not accepted by the server (HTTP 402)",
-  "hint": "Check the URL and try boltzpay_check first"
+  "hint": "Check the URL and try boltzpay_quote first"
 }
 ```
 
@@ -165,34 +164,6 @@ Check an endpoint's cost without paying. Returns protocol, price, currency, and 
 ```
 
 Free endpoints return a plain text response: `This endpoint does not require payment (free)`.
-
----
-
-### boltzpay_check
-
-Detect if a URL requires payment. Returns `isPaid` status with protocol and pricing details.
-
-| Parameter | Type | Required | Description |
-|-----------|------|:---:|-------------|
-| `url` | `string` | Yes | URL to check |
-
-```json title="Paid"
-{
-  "isPaid": true,
-  "protocol": "x402",
-  "amount": "$0.05",
-  "currency": "USD",
-  "options": [
-    { "chain": "Base", "network": "eip155:8453", "amount": "$0.05" }
-  ]
-}
-```
-
-```json title="Free"
-{
-  "isPaid": false
-}
-```
 
 ---
 
@@ -347,7 +318,7 @@ All tools return structured errors with `isError: true`. The format is consisten
 | `BUDGET_EXCEEDED` | Exceeds a configured budget limit | Use `boltzpay_budget` to check limits |
 | `INSUFFICIENT_FUNDS` | Not enough USDC in wallet | Top up your USDC balance |
 | `MISSING_CREDENTIALS` | Coinbase credentials not set | Set the three `COINBASE_*` env vars |
-| `PROTOCOL_ERROR` | Payment protocol failure | Try `boltzpay_check` first to verify |
+| `PROTOCOL_ERROR` | Payment protocol failure | Try `boltzpay_quote` first to verify |
 | `NETWORK_ERROR` | Endpoint unreachable or timeout | Verify the endpoint is reachable |
 | `INTERNAL_ERROR` | Unexpected server error | Check logs (`BOLTZPAY_LOG_LEVEL=debug`) |
 
@@ -382,7 +353,7 @@ Node.js is not in Claude Desktop's PATH.
 
 ### "MISSING_CREDENTIALS" error
 
-The `boltzpay_fetch` tool requires Coinbase keys to make payments. Read-only tools (`check`, `quote`, `discover`, `diagnose`) work without credentials. To enable payments, add the three `COINBASE_*` env vars to your config.
+The `boltzpay_fetch` tool requires Coinbase keys to make payments. Read-only tools (`quote`, `discover`, `diagnose`) work without credentials. To enable payments, add the three `COINBASE_*` env vars to your config.
 
 ### "BUDGET_EXCEEDED" error
 

@@ -135,44 +135,6 @@ Prints `This endpoint is free (no payment required)` for free endpoints.
 
 ---
 
-### `check`
-
-Detect whether a URL requires payment. No credentials needed.
-
-```bash
-boltzpay check <url>
-```
-
-**Human output:**
-
-```
-$ boltzpay check https://invy.bot/api
-Paid endpoint (x402, $0.05)
-  Options:
-    1. Base (eip155:8453) — $0.05  [recommended]
-    2. Solana (solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp) — $0.05
-```
-
-Prints `Free endpoint (no payment required)` for free endpoints.
-
-**JSON output** (`data` field):
-
-```json
-{
-  "isPaid": true,
-  "protocol": "x402",
-  "amount": "$0.05",
-  "currency": "USD",
-  "network": "eip155:8453",
-  "options": [
-    { "chain": "Base", "network": "eip155:8453", "amount": "$0.05", "recommended": true },
-    { "chain": "Solana", "network": "solana:5eykt4...", "amount": "$0.05", "recommended": false }
-  ]
-}
-```
-
----
-
 ### `discover`
 
 Browse compatible paid API endpoints. Each entry is probed in real-time for live status.
@@ -463,10 +425,10 @@ def boltzpay_fetch(url: str) -> dict:
     return json.loads(result.stdout)
 
 
-def boltzpay_check(url: str) -> dict:
-    """Check if an endpoint requires payment (no keys needed)."""
+def boltzpay_quote(url: str) -> dict:
+    """Get a price quote for an endpoint (no keys needed)."""
     result = subprocess.run(
-        ["npx", "@boltzpay/cli", "check", url, "--json"],
+        ["npx", "@boltzpay/cli", "quote", url, "--json"],
         capture_output=True,
         text=True,
         check=True,
@@ -474,9 +436,9 @@ def boltzpay_check(url: str) -> dict:
     return json.loads(result.stdout)
 
 
-# Example: check then fetch
-check = boltzpay_check("https://invy.bot/api")
-print(f"Requires payment: {check['data']['isPaid']}")
+# Example: quote then fetch
+quote = boltzpay_quote("https://invy.bot/api")
+print(f"Price: {quote['data']['amount']}")
 
 data = boltzpay_fetch("https://invy.bot/api")
 print(f"Response: {data['data']}")
@@ -525,5 +487,5 @@ The CLI reads configuration from environment variables. A `.env` file in your wo
 | `BOLTZPAY_PER_TRANSACTION` | No | Per-transaction limit in USD |
 
 <Info>
-  Read-only commands (`check`, `quote`, `discover`, `diagnose`, `budget`, `history`, `wallet`) work without Coinbase credentials. Only `fetch` requires them. See [Configuration](/getting-started/configuration) for constructor options, `.env` examples, and budget details.
+  Read-only commands (`quote`, `discover`, `diagnose`, `budget`, `history`, `wallet`) work without Coinbase credentials. Only `fetch` requires them. See [Configuration](/getting-started/configuration) for constructor options, `.env` examples, and budget details.
 </Info>

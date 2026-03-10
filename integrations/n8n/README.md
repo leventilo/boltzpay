@@ -21,9 +21,9 @@ npm install @boltzpay/n8n-nodes-boltzpay
 
 ## Features
 
-- **8 operations** — Fetch, Check, Quote, Discover, Diagnose, Budget, History, Wallet
+- **7 operations** — Fetch, Quote, Discover, Diagnose, Budget, History, Wallet
 - **Credential management** — Native n8n credential type for Coinbase CDP keys
-- **Explore without keys** — Check, Quote, Discover, Diagnose, Budget, History, and Wallet work without credentials
+- **Explore without keys** — Quote, Discover, Diagnose, Budget, History, and Wallet work without credentials
 - **Multi-protocol** — x402 (USDC on Base/Solana) and L402 (Lightning)
 
 ## Credentials
@@ -46,7 +46,6 @@ Get your keys from the [Coinbase Developer Platform](https://portal.cdp.coinbase
 | Operation     | Description                                          | Requires Credentials |
 | ------------- | ---------------------------------------------------- | :------------------: |
 | **Fetch**     | Fetch and pay for API data                           | Yes                  |
-| **Check**     | Check if URL requires payment                        | No                   |
 | **Quote**     | Get price quote for URL                              | No                   |
 | **Discover**  | Browse compatible API directory                      | No                   |
 | **Diagnose**  | Diagnose endpoint protocol, health, and latency      | No                   |
@@ -62,10 +61,6 @@ Fetches data from a paid API endpoint. Handles payment negotiation automatically
 - **URL** — The API endpoint URL
 - **HTTP Method** — GET, POST, or PUT (default: GET)
 - **Chain** — Auto, EVM (Base), or SVM (Solana) (default: Auto)
-
-### Check
-
-Checks whether a URL requires payment. Useful for conditional workflow logic.
 
 ### Quote
 
@@ -98,10 +93,10 @@ Check wallet connectivity, credentials, balances, and budget. Tests the CDP conn
 
 ## Usage Examples
 
-### Check Before You Pay
+### Diagnose Before You Pay
 
 1. **Manual Trigger** — Start the workflow
-2. **BoltzPay (Check)** — Check `https://invy.bot/api`
+2. **BoltzPay (Diagnose)** — Diagnose `https://invy.bot/api`
 3. **IF** — Branch on `isPaid === true`
 4. **BoltzPay (Fetch)** — Fetch and pay for the data (true branch)
 5. **HTTP Request** — Use standard HTTP for free endpoints (false branch)

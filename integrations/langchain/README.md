@@ -23,11 +23,11 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_boltzpay import (
     BoltzPayFetchTool,
-    BoltzPayCheckTool,
+    BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
 )
 
-tools = [BoltzPayDiscoverTool(), BoltzPayCheckTool(), BoltzPayFetchTool()]
+tools = [BoltzPayDiscoverTool(), BoltzPayDiagnoseTool(), BoltzPayFetchTool()]
 llm = ChatOpenAI(model="gpt-4o-mini")
 
 prompt = ChatPromptTemplate.from_messages([
@@ -39,7 +39,7 @@ prompt = ChatPromptTemplate.from_messages([
 agent = create_tool_calling_agent(llm, tools, prompt)
 executor = AgentExecutor(agent=agent, tools=tools)
 
-result = executor.invoke({"input": "Check the price of invy.bot/api"})
+result = executor.invoke({"input": "Diagnose the endpoint invy.bot/api"})
 ```
 
 ## Tool Reference
@@ -47,7 +47,6 @@ result = executor.invoke({"input": "Check the price of invy.bot/api"})
 | Tool | Name | Description | Credentials? |
 |------|------|-------------|:------------:|
 | `BoltzPayFetchTool` | `boltzpay_fetch` | Fetch data from a paid API, auto-pay with USDC | Yes |
-| `BoltzPayCheckTool` | `boltzpay_check` | Check if a URL requires payment | No |
 | `BoltzPayQuoteTool` | `boltzpay_quote` | Get price quote without paying | No |
 | `BoltzPayDiscoverTool` | `boltzpay_discover` | Browse available paid APIs | No |
 | `BoltzPayBudgetTool` | `boltzpay_budget` | Show remaining spending budget | No |
@@ -60,15 +59,15 @@ result = executor.invoke({"input": "Check the price of invy.bot/api"})
 Most tools work without any credentials -- perfect for exploration:
 
 ```python
-from langchain_boltzpay import BoltzPayDiscoverTool, BoltzPayCheckTool
+from langchain_boltzpay import BoltzPayDiscoverTool, BoltzPayDiagnoseTool
 
 # Discover available APIs
 discover = BoltzPayDiscoverTool()
 print(discover._run())
 
-# Check price of an endpoint
-check = BoltzPayCheckTool()
-print(check._run(url="https://invy.bot/api"))
+# Diagnose an endpoint (protocol, health, latency)
+diagnose = BoltzPayDiagnoseTool()
+print(diagnose._run(url="https://invy.bot/api"))
 ```
 
 ## With Credentials
@@ -124,7 +123,7 @@ If you're using **CrewAI** or another MCP-compatible framework, you can use the 
 npx @boltzpay/mcp
 ```
 
-This exposes the same 8 tools via the Model Context Protocol.
+This exposes the same 7 tools via the Model Context Protocol.
 
 ## Links
 

@@ -5,7 +5,7 @@
 - Multi-protocol: x402 (USDC on Base + Solana) and L402 (Bitcoin Lightning)
 - Multi-chain: EVM and SVM, with automatic chain selection
 - Your own keys: Coinbase CDP for x402, Nostr Wallet Connect for L402
-- Zero-config explore mode: quote, check, discover, diagnose work without credentials
+- Zero-config explore mode: quote, discover, diagnose work without credentials
 
 ## Install
 
@@ -16,8 +16,8 @@ npm install @boltzpay/sdk
 ## Packages
 
 - [@boltzpay/sdk](https://www.npmjs.com/package/@boltzpay/sdk): Core SDK — `agent.fetch(url)` with automatic payment
-- [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp): MCP server — 8 tools for Claude Desktop, Cursor, Windsurf
-- [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk): Vercel AI SDK — 8 tools for any AI agent
+- [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp): MCP server — 7 tools for Claude Desktop, Cursor, Windsurf
+- [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk): Vercel AI SDK — 7 tools for any AI agent
 - [@boltzpay/cli](https://www.npmjs.com/package/@boltzpay/cli): CLI — terminal usage and Python bridge (LangChain, CrewAI)
 
 ## Key Methods

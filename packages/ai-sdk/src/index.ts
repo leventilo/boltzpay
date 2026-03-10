@@ -1,6 +1,5 @@
 import { BoltzPay } from "@boltzpay/sdk";
 import { createBudgetTool } from "./tools/budget";
-import { createCheckTool } from "./tools/check";
 import { createDiagnoseTool } from "./tools/diagnose";
 import { createDiscoverTool } from "./tools/discover";
 import { createFetchTool } from "./tools/fetch";
@@ -16,7 +15,6 @@ export function boltzpayTools(config?: BoltzPayToolsConfig) {
 
   return {
     boltzpay_fetch: createFetchTool(sdk),
-    boltzpay_check: createCheckTool(sdk),
     boltzpay_diagnose: createDiagnoseTool(sdk),
     boltzpay_quote: createQuoteTool(sdk),
     boltzpay_discover: createDiscoverTool(sdk),

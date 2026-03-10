@@ -1,10 +1,9 @@
-import { BoltzPay, type DiscoveredEntry, ProtocolError } from "@boltzpay/sdk";
+import { BoltzPay, type DiscoveredEntry } from "@boltzpay/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { boltzpayTools } from "../src/index";
 
 const TOOL_KEYS = [
   "boltzpay_fetch",
-  "boltzpay_check",
   "boltzpay_diagnose",
   "boltzpay_quote",
   "boltzpay_discover",
@@ -14,12 +13,12 @@ const TOOL_KEYS = [
 ] as const;
 
 describe("boltzpayTools factory", () => {
-  it("returns an object with all 8 tool keys", () => {
+  it("returns an object with all 7 tool keys", () => {
     const tools = boltzpayTools();
     for (const key of TOOL_KEYS) {
       expect(tools).toHaveProperty(key);
     }
-    expect(Object.keys(tools)).toHaveLength(8);
+    expect(Object.keys(tools)).toHaveLength(7);
   });
 
   it("creates default SDK instance with no args (read-only mode)", () => {
@@ -177,22 +176,6 @@ describe("boltzpay_budget", () => {
     );
     expect(result).toHaveProperty("error");
     expect(result).toHaveProperty("guidance");
-  });
-});
-
-describe("boltzpay_check", () => {
-  it("returns isPaid false for a non-402 URL", async () => {
-    const sdk = new BoltzPay({});
-    // Mock quote to throw (simulating non-402 endpoint)
-    vi.spyOn(sdk, "quote").mockRejectedValueOnce(
-      new ProtocolError("protocol_detection_failed", "No protocol"),
-    );
-    const tools = boltzpayTools(sdk);
-    const result = await tools.boltzpay_check.execute(
-      { url: "https://example.com" },
-      { toolCallId: "test-7", messages: [], abortSignal: undefined as never },
-    );
-    expect(result.isPaid).toBe(false);
   });
 });
 

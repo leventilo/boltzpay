@@ -18,8 +18,8 @@ Browse paid APIs and check prices from your terminal — zero configuration:
 
 ```bash
 npx @boltzpay/cli discover        # list 48 verified paid API endpoints with live prices
-npx @boltzpay/cli check https://invy.bot/api   # detect protocol, show price and chains
-npx @boltzpay/cli quote https://invy.bot/api   # detailed quote with alternatives
+npx @boltzpay/cli quote https://invy.bot/api   # detect protocol, show price and chains
+npx @boltzpay/cli diagnose https://invy.bot/api   # deep health check in 2s
 ```
 
 ## Install
@@ -83,7 +83,7 @@ const response = await agent.fetch(url);
 ## Why BoltzPay
 
 - **Budget engine** — Daily, monthly, and per-transaction spending limits. Payment events and full spending history. No other x402 client gives you this level of control over what your agent spends.
-- **MCP-ready** — Give Claude a payment wallet in 30 seconds with `npx @boltzpay/mcp`. 8 tools, zero code.
+- **MCP-ready** — Give Claude a payment wallet in 30 seconds with `npx @boltzpay/mcp`. 7 tools, zero code.
 - **Protocol-agnostic** — x402, L402, and whatever comes next. Your code doesn't change when the ecosystem does.
 
 ## v0.2 Highlights
@@ -139,7 +139,7 @@ Add Coinbase credentials and a daily spending limit:
 }
 ```
 
-**8 MCP tools available:** `fetch` (pay and retrieve), `quote` (check cost), `check` (detect payment requirement), `budget` (show remaining budget), `history` (list recent payments), `discover` (browse compatible APIs), `wallet` (show addresses and balances), `diagnose` (deep endpoint diagnostics in 2s).
+**7 MCP tools available:** `fetch` (pay and retrieve), `quote` (check cost and detect payment requirement), `budget` (show remaining budget), `history` (list recent payments), `discover` (browse compatible APIs), `wallet` (show addresses and balances), `diagnose` (deep endpoint diagnostics in 2s).
 
 ## Budget & Safety
 
@@ -201,10 +201,10 @@ const agent = new BoltzPay({
 npx @boltzpay/cli <command>
 ```
 
-**Check if an endpoint requires payment:**
+**Get a price quote:**
 
 ```bash
-boltzpay check https://invy.bot/api
+boltzpay quote https://invy.bot/api
 # Protocol: x402 | Price: $0.05 | Chain: Base
 ```
 
@@ -247,7 +247,7 @@ Local x402 server for testing payments on Base Sepolia testnet — all public te
 cd examples/test-server && npm install && npm start
 
 # Terminal 2 — pay with BoltzPay
-boltzpay check http://localhost:4021/api/joke
+boltzpay quote http://localhost:4021/api/joke
 boltzpay fetch http://localhost:4021/api/joke
 ```
 
@@ -277,7 +277,7 @@ Or via CLI: `boltzpay discover`
 | [@boltzpay/protocols](https://www.npmjs.com/package/@boltzpay/protocols) | Protocol adapters (x402, L402) and wallet management |
 | [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp) | MCP server for Claude Desktop |
 | [@boltzpay/cli](https://www.npmjs.com/package/@boltzpay/cli) | Command-line interface and Python bridge |
-| [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk) | Vercel AI SDK tools (8 tools) |
+| [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk) | Vercel AI SDK tools (7 tools) |
 
 ## Framework Integrations
 
@@ -302,7 +302,7 @@ const { text } = await generateText({
 });
 ```
 
-8 tools: fetch, quote, check, discover, budget, history, wallet, diagnose. [Full docs](https://docs.boltzpay.ai)
+7 tools: fetch, quote, discover, budget, history, wallet, diagnose. [Full docs](https://docs.boltzpay.ai)
 
 ### LangChain (Python)
 
@@ -354,7 +354,7 @@ Install via **Settings > Community Nodes** in n8n:
 @boltzpay/n8n-nodes-boltzpay
 ```
 
-8 operations: Fetch, Check, Quote, Discover, Diagnose, Budget, History, Wallet. Configure Coinbase CDP credentials in n8n's credential manager. [Full docs](https://docs.boltzpay.ai)
+7 operations: Fetch, Quote, Discover, Diagnose, Budget, History, Wallet. Configure Coinbase CDP credentials in n8n's credential manager. [Full docs](https://docs.boltzpay.ai)
 
 ### OpenClaw
 
@@ -367,7 +367,7 @@ BoltzPay is available as an [OpenClaw](https://github.com/openclaw/openclaw) ski
 ## Troubleshooting
 
 **Detection fails behind corporate/coworking WiFi**
-Some network proxies intercept HTTP 402 responses or strip payment headers, which prevents x402 detection. If `check` or `quote` returns unexpected results, try on a direct connection. Use `--debug` to inspect raw headers.
+Some network proxies intercept HTTP 402 responses or strip payment headers, which prevents x402 detection. If `quote` returns unexpected results, try on a direct connection. Use `--debug` to inspect raw headers.
 
 ## Contributing
 

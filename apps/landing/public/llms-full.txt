@@ -48,7 +48,7 @@ const agent = new BoltzPay({
 });
 ```
 
-All config options are optional. Without Coinbase keys, the SDK runs in read-only mode (quote, check, discover work; fetch with payment does not).
+All config options are optional. Without Coinbase keys, the SDK runs in read-only mode (quote, discover work; fetch with payment does not).
 
 ### Methods
 
@@ -144,13 +144,12 @@ Bitcoin Lightning payment protocol by Lightning Labs. Server responds with HTTP 
 
 ## MCP Tools
 
-The `@boltzpay/mcp` package provides 8 tools for Claude Desktop and other MCP clients:
+The `@boltzpay/mcp` package provides 7 tools for Claude Desktop and other MCP clients:
 
 | Tool | Description | Requires Keys |
 |------|-------------|---------------|
 | `boltzpay_fetch` | Fetch data from a paid API endpoint, auto-detect and pay | Yes |
 | `boltzpay_quote` | Check price of an endpoint without paying | No |
-| `boltzpay_check` | Detect if a URL requires payment | No |
 | `boltzpay_discover` | Browse directory of compatible paid APIs | No |
 | `boltzpay_budget` | View current spending budget status | No |
 | `boltzpay_history` | List payments made during session | No |
@@ -175,17 +174,16 @@ The `@boltzpay/mcp` package provides 8 tools for Claude Desktop and other MCP cl
 }
 ```
 
-Omit the `env` block to run in explore-only mode (quote, check, discover, diagnose work without keys).
+Omit the `env` block to run in explore-only mode (quote, discover, diagnose work without keys).
 
 ## CLI Commands
 
-The `@boltzpay/cli` package provides 10 commands:
+The `@boltzpay/cli` package provides 9 commands:
 
 | Command | Description | Requires Keys |
 |---------|-------------|---------------|
 | `boltzpay fetch <url>` | Fetch a paid API endpoint | Yes |
 | `boltzpay quote <url>` | Check endpoint price | No |
-| `boltzpay check <url>` | Detect if URL requires payment | No |
 | `boltzpay discover [-c, --category]` | Browse API directory | No |
 | `boltzpay diagnose <url>` | Full endpoint diagnostic (DNS, protocol, pricing, health) | No |
 | `boltzpay verify-directory` | Health-check all directory endpoints | No |

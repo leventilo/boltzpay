@@ -31,7 +31,7 @@ All options are optional. An empty `{}` creates a read-only instance (explore mo
 
 ### Coinbase CDP (x402 protocol)
 
-The three Coinbase fields must all be provided together. If any are missing, the SDK runs in explore mode: `quote()`, `check()`, `discover()`, `getBudget()`, and `getHistory()` work normally, but `fetch()` will fail on paid endpoints.
+The three Coinbase fields must all be provided together. If any are missing, the SDK runs in explore mode: `quote()`, `discover()`, `diagnose()`, `getBudget()`, and `getHistory()` work normally, but `fetch()` will fail on paid endpoints.
 
 ```typescript
 const agent = new BoltzPay({

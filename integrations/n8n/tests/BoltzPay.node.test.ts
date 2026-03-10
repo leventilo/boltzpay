@@ -69,7 +69,7 @@ describe("BoltzPay n8n node", () => {
       expect(first?.required).toBe(false);
     });
 
-    it("defines 8 operations in properties", () => {
+    it("defines 7 operations in properties", () => {
       const node = new BoltzPay();
       const operationProp = node.description.properties.find(
         (p) => p.name === "operation",
@@ -82,7 +82,6 @@ describe("BoltzPay n8n node", () => {
       const values = options.map((o) => o.value);
       expect(values).toEqual([
         "fetch",
-        "check",
         "quote",
         "discover",
         "diagnose",
@@ -174,49 +173,6 @@ describe("BoltzPay n8n node", () => {
         category: "non-existent-category",
       });
       expect(results).toEqual([]);
-    });
-  });
-
-  describe("executeOperation — check", () => {
-    it("returns isPaid: false when quote throws", async () => {
-      const sdk = createMockSdk({
-        quote: vi.fn().mockRejectedValue(new Error("No protocol detected")),
-      });
-      const results = await executeOperation(sdk, {
-        operation: "check",
-        url: "https://example.com/free-api",
-      });
-      expect(results).toEqual([{ isPaid: false }]);
-    });
-
-    it("returns isPaid: true with quote data when quote succeeds", async () => {
-      const sdk = createMockSdk({
-        quote: vi.fn().mockResolvedValue({
-          protocol: "x402",
-          amount: Money.fromDollars("0.05"),
-          network: "eip155:8453",
-          allAccepts: undefined,
-        }),
-      });
-      const results = await executeOperation(sdk, {
-        operation: "check",
-        url: "https://invy.bot/api",
-      });
-      expect(results).toEqual([
-        {
-          isPaid: true,
-          protocol: "x402",
-          amount: "$0.05",
-          network: "eip155:8453",
-        },
-      ]);
-    });
-
-    it("throws when URL is missing", async () => {
-      const sdk = createMockSdk();
-      await expect(
-        executeOperation(sdk, { operation: "check" }),
-      ).rejects.toThrow("URL is required for check operation");
     });
   });
 
@@ -735,20 +691,14 @@ describe("BoltzPay n8n node", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       await executeOperation(sdk, {
-        operation: "check",
+        operation: "quote",
         url: "https://example.com",
       });
       expect(mockQuote).toHaveBeenCalledTimes(1);
 
-      await executeOperation(sdk, {
-        operation: "quote",
-        url: "https://example.com",
-      });
-      expect(mockQuote).toHaveBeenCalledTimes(2);
-
       await executeOperation(sdk, { operation: "discover" });
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockQuote).toHaveBeenCalledTimes(2);
+      expect(mockQuote).toHaveBeenCalledTimes(1);
 
       await executeOperation(sdk, {
         operation: "diagnose",

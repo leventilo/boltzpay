@@ -228,21 +228,6 @@ describe("diagnose command", () => {
     expect(output).toContain("POST-only");
   });
 
-  it("should work with check alias (same output as diagnose)", async () => {
-    mockDiagnose.mockResolvedValue(makeResult());
-    const program = createProgram();
-    await program.parseAsync([
-      "node",
-      "boltzpay",
-      "check",
-      "https://api.example.com/data",
-    ]);
-
-    expect(mockDiagnose).toHaveBeenCalledWith("https://api.example.com/data");
-    const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
-    expect(output).toContain("Endpoint Diagnostic");
-  });
-
   it("should always call sdk.close() in finally block", async () => {
     mockDiagnose.mockResolvedValue(makeResult());
     const program = createProgram();

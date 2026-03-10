@@ -22,9 +22,9 @@ describe("MCP Server - Tool Registration", () => {
     await cleanup();
   });
 
-  it("should register exactly 8 tools", async () => {
+  it("should register exactly 7 tools", async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(8);
+    expect(tools).toHaveLength(7);
   });
 
   it("should prefix all tools with boltzpay_", async () => {
@@ -39,7 +39,6 @@ describe("MCP Server - Tool Registration", () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
       "boltzpay_budget",
-      "boltzpay_check",
       "boltzpay_diagnose",
       "boltzpay_discover",
       "boltzpay_fetch",

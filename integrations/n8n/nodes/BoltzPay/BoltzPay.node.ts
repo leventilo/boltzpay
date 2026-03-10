@@ -89,24 +89,6 @@ export async function executeOperation(
       ];
     }
 
-    case "check": {
-      const url = params.url;
-      if (!url) throw new Error("URL is required for check operation");
-      try {
-        const quote = await sdk.quote(url);
-        return [
-          {
-            isPaid: true,
-            protocol: quote.protocol,
-            amount: quote.amount.toDisplayString(),
-            network: quote.network ?? null,
-          },
-        ];
-      } catch {
-        return [{ isPaid: false }];
-      }
-    }
-
     case "quote": {
       const url = params.url;
       if (!url) throw new Error("URL is required for quote operation");
@@ -300,7 +282,6 @@ function extractParams(ctx: IExecuteFunctions, i: number): OperationParams {
 
   if (
     operation === "fetch" ||
-    operation === "check" ||
     operation === "quote" ||
     operation === "diagnose"
   ) {
@@ -354,12 +335,6 @@ export class BoltzPay implements INodeType {
             action: "Fetch and pay for API data",
           },
           {
-            name: "Check",
-            value: "check",
-            description: "Check if URL requires payment",
-            action: "Check if URL requires payment",
-          },
-          {
             name: "Quote",
             value: "quote",
             description: "Get price quote for URL",
@@ -408,7 +383,7 @@ export class BoltzPay implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            operation: ["fetch", "check", "quote", "diagnose"],
+            operation: ["fetch", "quote", "diagnose"],
           },
         },
         description: "The API URL to interact with",

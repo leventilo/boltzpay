@@ -30,7 +30,7 @@ Install the SDK in your TypeScript or JavaScript project:
   </Tab>
 </Tabs>
 
-The SDK works in **explore mode** with zero configuration: you can quote prices, check endpoints, and discover APIs without any credentials.
+The SDK works in **explore mode** with zero configuration: you can quote prices, diagnose endpoints, and discover APIs without any credentials.
 
 To enable payments, install the Coinbase CDP SDK peer dependency:
 
@@ -77,14 +77,14 @@ Add it to your Claude Desktop config (`~/Library/Application Support/Claude/clau
 }
 ```
 
-This gives Claude 8 tools: `fetch`, `quote`, `check`, `diagnose`, `budget`, `history`, `discover`, and `wallet`.
+This gives Claude 7 tools: `fetch`, `quote`, `diagnose`, `budget`, `history`, `discover`, and `wallet`.
 
 ## CLI
 
 No install needed. Run directly with `npx`:
 
 ```bash
-npx @boltzpay/cli check https://invy.bot/api
+npx @boltzpay/cli quote https://invy.bot/api
 ```
 
 Or install globally:
@@ -105,7 +105,7 @@ Or install globally:
 Then use the `boltzpay` command directly:
 
 ```bash
-boltzpay check https://invy.bot/api
+boltzpay quote https://invy.bot/api
 boltzpay discover
 boltzpay fetch https://invy.bot/api --json
 ```

@@ -13,7 +13,6 @@ import pytest
 
 from boltzpay_crewai import (
     BoltzPayBudgetTool,
-    BoltzPayCheckTool,
     BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
@@ -34,7 +33,6 @@ from boltzpay_crewai.errors import (
 
 ALL_TOOLS = [
     BoltzPayFetchTool,
-    BoltzPayCheckTool,
     BoltzPayQuoteTool,
     BoltzPayDiscoverTool,
     BoltzPayDiagnoseTool,
@@ -45,7 +43,6 @@ ALL_TOOLS = [
 
 TOOL_NAMES = [
     "boltzpay_fetch",
-    "boltzpay_check",
     "boltzpay_quote",
     "boltzpay_discover",
     "boltzpay_diagnose",
@@ -80,13 +77,6 @@ def test_fetch_tool_has_args_schema():
     assert "chain" in fields
 
 
-def test_check_tool_has_args_schema():
-    """CheckTool must declare an args_schema with url."""
-    tool = BoltzPayCheckTool()
-    fields = tool.args_schema.model_fields
-    assert "url" in fields
-
-
 def test_diagnose_tool_has_args_schema():
     tool = BoltzPayDiagnoseTool()
     fields = tool.args_schema.model_fields
@@ -114,13 +104,6 @@ MOCK_FETCH_RESPONSE = {
         "txHash": "0x" + "a" * 64,
     },
     "metadata": {"url": "https://example.com/api", "status": 200, "duration": 1234},
-}
-
-MOCK_CHECK_RESPONSE = {
-    "success": True,
-    "data": {"isPaid": True, "protocol": "x402-v2", "amount": "$0.01"},
-    "payment": None,
-    "metadata": {"url": "https://example.com/api", "status": 402, "duration": 500},
 }
 
 MOCK_DISCOVER_RESPONSE = {
@@ -173,16 +156,6 @@ def test_fetch_tool_with_chain(mock_run_cli):
     mock_run_cli.assert_called_once_with(
         "fetch", ["https://example.com/api", "--method", "GET", "--chain", "svm"]
     )
-
-
-@patch("boltzpay_crewai.tools.run_cli")
-def test_check_tool_run(mock_run_cli):
-    """CheckTool._run() returns JSON string from bridge."""
-    mock_run_cli.return_value = MOCK_CHECK_RESPONSE
-    tool = BoltzPayCheckTool()
-    result = tool._run(url="https://example.com/api")
-    parsed = json.loads(result)
-    assert parsed["data"]["isPaid"] is True
 
 
 @patch("boltzpay_crewai.tools.run_cli")

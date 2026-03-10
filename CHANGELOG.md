@@ -25,8 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stellar chain namespace support in core
 - `verify-directory` CLI command for batch endpoint health checks
 - `diagnose` command added to CLI, MCP, AI-SDK, n8n, LangChain, CrewAI
-- n8n integration expanded from 4 to 8 operations (+diagnose, budget, history, wallet)
+- n8n integration expanded from 4 to 7 operations (+diagnose, budget, history, wallet)
 - Directory curated to 48 verified endpoints (42 x402 + 6 L402)
+
+### Removed
+
+- `check` tool/command removed across all integrations — use `diagnose` or `quote` instead
 
 ## [0.1.2] - 2026-02-28
 
@@ -54,9 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Budget management with daily and per-transaction limits
 - Payment events system (payment, budget:warning, budget:exceeded, error)
 - Payment history tracking
-- Zero-config explore mode (check, quote, discover without credentials)
-- MCP server (`@boltzpay/mcp`) with 8 tools for Claude Desktop
-- CLI (`@boltzpay/cli`) with 8 commands and JSON output mode
+- Zero-config explore mode (quote, discover without credentials)
+- MCP server (`@boltzpay/mcp`) with 7 tools for Claude Desktop
+- CLI (`@boltzpay/cli`) with 7 commands and JSON output mode
 - API directory with 48 verified endpoints
 - ESM + CJS dual build for library packages (core, protocols, sdk); ESM-only for executables (mcp, cli)
 - GitHub Actions CI pipeline

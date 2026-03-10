@@ -1,6 +1,6 @@
 ---
 title: LangChain
-description: 8 LangChain tools for discovering and paying for APIs from Python.
+description: 7 LangChain tools for discovering and paying for APIs from Python.
 ---
 
 ## Install
@@ -19,11 +19,11 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_boltzpay import (
     BoltzPayFetchTool,
-    BoltzPayCheckTool,
+    BoltzPayQuoteTool,
     BoltzPayDiscoverTool,
 )
 
-tools = [BoltzPayDiscoverTool(), BoltzPayCheckTool(), BoltzPayFetchTool()]
+tools = [BoltzPayDiscoverTool(), BoltzPayQuoteTool(), BoltzPayFetchTool()]
 llm = ChatOpenAI(model="gpt-4o-mini")
 
 prompt = ChatPromptTemplate.from_messages([
@@ -61,7 +61,6 @@ print(result)  # Paid API response with payment receipt
 | Tool | Name | Description | Credentials |
 |------|------|-------------|:-----------:|
 | `BoltzPayFetchTool` | `boltzpay_fetch` | Fetch data from a paid API, auto-pay with USDC | Yes |
-| `BoltzPayCheckTool` | `boltzpay_check` | Check if a URL requires payment | No |
 | `BoltzPayQuoteTool` | `boltzpay_quote` | Get price quote without paying | No |
 | `BoltzPayDiscoverTool` | `boltzpay_discover` | Browse available paid APIs | No |
 | `BoltzPayBudgetTool` | `boltzpay_budget` | Show remaining spending budget | No |

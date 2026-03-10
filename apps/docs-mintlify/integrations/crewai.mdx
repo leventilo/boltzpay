@@ -24,10 +24,10 @@ with MCPServerAdapter(server_params) as tools:
     Crew(agents=[agent], tasks=[task]).kickoff()
 ```
 
-This gives your agent all 8 BoltzPay tools automatically.
+This gives your agent all 7 BoltzPay tools automatically.
 
 <Tip>
-  Add Coinbase credentials to the `env` dict to enable payments. Without them, the agent can discover, check, and quote for free.
+  Add Coinbase credentials to the `env` dict to enable payments. Without them, the agent can discover and quote for free.
 </Tip>
 
 ## Alternative: CLI Bridge Tools
@@ -44,18 +44,18 @@ Requires **Node.js 20+** (the tools call `npx @boltzpay/cli` under the hood).
 from crewai import Agent, Task, Crew
 from boltzpay_crewai import (
     BoltzPayFetchTool,
-    BoltzPayCheckTool,
+    BoltzPayQuoteTool,
     BoltzPayDiscoverTool,
 )
 
 agent = Agent(
     role="Data Researcher",
     goal="Find and access paid APIs using BoltzPay",
-    tools=[BoltzPayFetchTool(), BoltzPayCheckTool(), BoltzPayDiscoverTool()],
+    tools=[BoltzPayFetchTool(), BoltzPayQuoteTool(), BoltzPayDiscoverTool()],
 )
 
 task = Task(
-    description="Discover paid APIs and check pricing for invy.bot",
+    description="Discover paid APIs and get pricing for invy.bot",
     expected_output="API pricing report",
     agent=agent,
 )
@@ -69,7 +69,6 @@ result = crew.kickoff()
 | Tool | Name | Description | Credentials |
 |------|------|-------------|:-----------:|
 | `BoltzPayFetchTool` | `boltzpay_fetch` | Fetch data from a paid API, auto-pay with USDC | Yes |
-| `BoltzPayCheckTool` | `boltzpay_check` | Check if a URL requires payment | No |
 | `BoltzPayQuoteTool` | `boltzpay_quote` | Get price quote without paying | No |
 | `BoltzPayDiscoverTool` | `boltzpay_discover` | Browse available paid APIs | No |
 | `BoltzPayBudgetTool` | `boltzpay_budget` | Show remaining spending budget | No |

@@ -64,11 +64,11 @@ The composition root. This is what users import. It wires together core domain l
 
 ### @boltzpay/cli (purple)
 
-A terminal interface that wraps the SDK. Commands: `check`, `quote`, `fetch`, `discover`, `budget`, `history`, `wallet`, `demo`. Also serves as a bridge for Python agents (LangChain, CrewAI) via subprocess calls.
+A terminal interface that wraps the SDK. Commands: `quote`, `fetch`, `discover`, `diagnose`, `budget`, `history`, `wallet`, `demo`. Also serves as a bridge for Python agents (LangChain, CrewAI) via subprocess calls.
 
 ### @boltzpay/mcp (purple)
 
-An MCP server exposing 8 tools for Claude Desktop and other MCP-compatible clients. Install with `npx @boltzpay/mcp` and point Claude Desktop at it.
+An MCP server exposing 7 tools for Claude Desktop and other MCP-compatible clients. Install with `npx @boltzpay/mcp` and point Claude Desktop at it.
 
 ## External Systems (gray)
 
@@ -80,7 +80,7 @@ An MCP server exposing 8 tools for Claude Desktop and other MCP-compatible clien
 
 - **Inward dependencies** -- CLI and MCP depend on SDK. SDK depends on Protocols and Core. Core depends on nothing. No circular dependencies.
 - **Protocol-agnostic core** -- `Money`, `Budget`, and `BudgetTracker` know nothing about x402 or L402. Adding a new protocol means adding a new adapter in `packages/protocols`, not touching core.
-- **Lazy credentials** -- The SDK accepts wallet credentials optionally. Read-only operations (`quote`, `check`, `discover`) work without any keys. Payment operations validate credentials at call time.
+- **Lazy credentials** -- The SDK accepts wallet credentials optionally. Read-only operations (`quote`, `discover`, `diagnose`) work without any keys. Payment operations validate credentials at call time.
 
 ## Next Steps
 

@@ -54,7 +54,7 @@ export function handleToolError(error: unknown): CallToolResult {
     return toResult({
       error: "PROTOCOL_ERROR",
       message: error.message,
-      hint: "Check the URL is correct and try boltzpay_check first to verify it accepts payments",
+      hint: "Check the URL is correct and try boltzpay_diagnose first to verify it accepts payments",
     });
   }
 

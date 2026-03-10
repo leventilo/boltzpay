@@ -71,7 +71,7 @@ describe("MCP Server E2E - stdio", () => {
   });
 
   it(
-    "should accept initialize and list 8 tools via JSON-RPC",
+    "should accept initialize and list 7 tools via JSON-RPC",
     { timeout: 15000 },
     async () => {
       proc = spawn("node", [DIST_PATH], {
@@ -137,12 +137,11 @@ describe("MCP Server E2E - stdio", () => {
       const listResult = listResponse.result as {
         tools: Array<{ name: string; description: string }>;
       };
-      expect(listResult.tools).toHaveLength(8);
+      expect(listResult.tools).toHaveLength(7);
 
       const toolNames = listResult.tools.map((t) => t.name).sort();
       expect(toolNames).toEqual([
         "boltzpay_budget",
-        "boltzpay_check",
         "boltzpay_diagnose",
         "boltzpay_discover",
         "boltzpay_fetch",

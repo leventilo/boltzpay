@@ -27,12 +27,6 @@ class FetchInput(BaseModel):
     )
 
 
-class CheckInput(BaseModel):
-    """Input schema for the BoltzPay check tool."""
-
-    url: str = Field(description="URL to check for payment requirements")
-
-
 class QuoteInput(BaseModel):
     """Input schema for the BoltzPay quote tool."""
 
@@ -83,20 +77,6 @@ class BoltzPayFetchTool(BaseTool):
         if chain:
             args.extend(["--chain", chain])
         return _safe_run("fetch", args)
-
-
-class BoltzPayCheckTool(BaseTool):
-    """Check if a URL requires payment. No credentials needed."""
-
-    name: str = "boltzpay_check"
-    description: str = (
-        "Check if a URL requires payment and what protocol it uses (x402 or ACP). "
-        "Returns pricing and chain options. No credentials needed."
-    )
-    args_schema: Type[BaseModel] = CheckInput
-
-    def _run(self, url: str) -> str:
-        return _safe_run("check", [url])
 
 
 class BoltzPayQuoteTool(BaseTool):

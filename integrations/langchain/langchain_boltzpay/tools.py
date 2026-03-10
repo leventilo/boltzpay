@@ -1,4 +1,4 @@
-"""LangChain BaseTool subclasses for all 8 BoltzPay CLI commands."""
+"""LangChain BaseTool subclasses for all 7 BoltzPay CLI commands."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from .bridge import async_run_cli, run_cli
 
 
-
 class FetchInput(BaseModel):
     """Input for BoltzPayFetchTool."""
 
@@ -20,12 +19,6 @@ class FetchInput(BaseModel):
     chain: Optional[str] = Field(
         default=None, description="Override chain selection (evm or svm)"
     )
-
-
-class CheckInput(BaseModel):
-    """Input for BoltzPayCheckTool."""
-
-    url: str = Field(description="URL to check for payment requirements")
 
 
 class QuoteInput(BaseModel):
@@ -46,7 +39,6 @@ class DiagnoseInput(BaseModel):
     """Input for BoltzPayDiagnoseTool."""
 
     url: str = Field(description="The URL of the API endpoint to diagnose")
-
 
 
 class BoltzPayFetchTool(BaseTool):
@@ -73,26 +65,6 @@ class BoltzPayFetchTool(BaseTool):
         if chain:
             cli_args.extend(["--chain", chain])
         result = await async_run_cli("fetch", cli_args)
-        return json.dumps(result, indent=2)
-
-
-class BoltzPayCheckTool(BaseTool):
-    """Check if a URL is a paid API endpoint and which protocol it uses."""
-
-    name: str = "boltzpay_check"
-    description: str = (
-        "Check if a URL requires payment (x402 or ACP). Returns protocol type, "
-        "price, and available chains. No credentials needed."
-    )
-    args_schema: Type[BaseModel] = CheckInput
-    handle_tool_error: bool = True
-
-    def _run(self, url: str, **kwargs: Any) -> str:
-        result = run_cli("check", [url])
-        return json.dumps(result, indent=2)
-
-    async def _arun(self, url: str, **kwargs: Any) -> str:
-        result = await async_run_cli("check", [url])
         return json.dumps(result, indent=2)
 
 

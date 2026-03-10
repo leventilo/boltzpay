@@ -30,7 +30,7 @@ Some operations require Coinbase CDP keys to sign payment transactions.
 Get your keys from [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/).
 
 <Info>
-  `Check`, `Quote`, `Discover`, `Diagnose`, `Budget`, `History`, and `Wallet` work without credentials. Only `Fetch` requires them.
+  `Quote`, `Discover`, `Diagnose`, `Budget`, `History`, and `Wallet` work without credentials. Only `Fetch` requires them.
 </Info>
 
 ## Operations
@@ -38,8 +38,7 @@ Get your keys from [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/).
 | Operation | Description | Credentials |
 |-----------|-------------|:-----------:|
 | **Fetch** | Fetch and pay for API data. Handles x402/L402 automatically. | Yes |
-| **Check** | Check if a URL requires payment. Returns protocol and price. | No |
-| **Quote** | Get price quote with multi-chain options. | No |
+| **Quote** | Get price quote with multi-chain options. Returns protocol, price, and payment status. | No |
 | **Discover** | Browse compatible paid APIs. Filter by category. | No |
 | **Diagnose** | Full endpoint diagnostic: protocol, health, latency, pricing. | No |
 | **Budget** | View current spending budget status. | No |
@@ -64,13 +63,9 @@ Parameters: URL, HTTP Method (GET/POST/PUT), Chain (Auto/EVM/SVM).
 }
 ```
 
-### Check
-
-Returns `isPaid`, protocol, price, and network. Useful for conditional workflow logic (IF node).
-
 ### Quote
 
-Returns protocol, price, and multi-chain alternatives without executing payment.
+Returns protocol, price, payment status, and multi-chain alternatives without executing payment. Useful for conditional workflow logic (IF node).
 
 ### Discover
 
@@ -94,13 +89,13 @@ Check wallet connectivity, addresses, balances, active protocols, and budget sta
 
 ## Workflow Examples
 
-### Check Before You Pay
+### Quote Before You Pay
 
 1. **Manual Trigger**
-2. **BoltzPay (Check)** on `https://invy.bot/api`
-3. **IF** branch on `isPaid === true`
-4. **BoltzPay (Fetch)** on the true branch
-5. **HTTP Request** on the false branch
+2. **BoltzPay (Quote)** on `https://invy.bot/api`
+3. **IF** branch on whether the endpoint requires payment
+4. **BoltzPay (Fetch)** on the paid branch
+5. **HTTP Request** on the free branch
 
 ### API Discovery
 

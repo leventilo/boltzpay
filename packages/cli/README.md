@@ -21,7 +21,7 @@ npx @boltzpay/cli fetch https://invy.bot/api
 ```bash
 # Explore APIs (no keys needed)
 boltzpay discover
-boltzpay check https://invy.bot/api
+boltzpay diagnose https://invy.bot/api
 boltzpay quote https://invy.bot/api
 
 # Fetch and pay (requires Coinbase CDP keys)
@@ -34,7 +34,7 @@ boltzpay fetch https://invy.bot/api
 
 ## Features
 
-- **8 commands** — fetch, quote, check, discover, budget, history, wallet, demo
+- **9 commands** — fetch, quote, diagnose, discover, budget, history, wallet, demo, verify-directory
 - **JSON output** — `--json` flag for scripting and automation
 - **Python bridge** — LangChain and CrewAI integrations use `npx @boltzpay/cli` under the hood
 - **Interactive demo** — `boltzpay demo` walks through wallet, discovery, quote, and fetch
@@ -46,12 +46,13 @@ boltzpay fetch https://invy.bot/api
 |---------|-------------|:-------------:|
 | `boltzpay fetch <url>` | Fetch a paid API endpoint | Yes |
 | `boltzpay quote <url>` | Get price quote | No |
-| `boltzpay check <url>` | Check if URL requires payment | No |
+| `boltzpay diagnose <url>` | Diagnose endpoint — protocol, format, scheme, health | No |
 | `boltzpay discover` | Browse API directory | No |
 | `boltzpay budget` | Show budget status | No |
 | `boltzpay history` | Show payment history | No |
 | `boltzpay wallet` | Show wallet info and balances | No |
 | `boltzpay demo` | Interactive demo walkthrough | No |
+| `boltzpay verify-directory` | Verify all directory endpoints | No |
 
 ## Global Flags
 

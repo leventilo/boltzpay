@@ -10,7 +10,6 @@ Two integration paths:
 from .errors import BoltzPayBridgeError, BoltzPayNodeNotFoundError, BoltzPayTimeoutError
 from .tools import (
     BoltzPayBudgetTool,
-    BoltzPayCheckTool,
     BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
@@ -22,7 +21,6 @@ from .tools import (
 __all__ = [
     # Tools
     "BoltzPayFetchTool",
-    "BoltzPayCheckTool",
     "BoltzPayQuoteTool",
     "BoltzPayDiscoverTool",
     "BoltzPayDiagnoseTool",

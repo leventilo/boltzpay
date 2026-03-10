@@ -86,7 +86,7 @@ function getSuggestion(error: unknown): string | undefined {
   }
   if (error instanceof ProtocolError) {
     if (error.code === "protocol_detection_failed") {
-      return "This endpoint may be free. Try `boltzpay check <url>` to verify.";
+      return "This endpoint may be free. Try `boltzpay diagnose <url>` to verify.";
     }
     if (error.code === "l402_payment_failed") {
       return "Lightning payment failed. Check your NWC wallet connection and balance.";

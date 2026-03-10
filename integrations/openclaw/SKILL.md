@@ -21,7 +21,6 @@ npx @boltzpay/cli fetch https://invy.bot/api
 | Command | Description | Credentials Needed |
 |---------|-------------|--------------------|
 | `npx @boltzpay/cli fetch <url>` | Fetch and pay for API data | Yes |
-| `npx @boltzpay/cli check <url>` | Check if URL requires payment | No |
 | `npx @boltzpay/cli quote <url>` | Get a price quote | No |
 | `npx @boltzpay/cli discover` | Browse compatible APIs | No |
 | `npx @boltzpay/cli budget` | Check spending budget | No |
@@ -50,10 +49,10 @@ npx @boltzpay/cli discover
 
 Browse the directory of paid APIs compatible with BoltzPay. No credentials needed.
 
-### 2. Check price before paying
+### 2. Get a price quote
 
 ```
-npx @boltzpay/cli check https://invy.bot/api
+npx @boltzpay/cli quote https://invy.bot/api
 ```
 
 See the payment protocol, amount, and chain options without spending anything.
@@ -68,9 +67,8 @@ Automatically detects the payment protocol, pays with USDC, and returns the API 
 
 ## No Credentials?
 
-Seven of the eight commands work without any Coinbase credentials:
+Six of the seven commands work without any Coinbase credentials:
 
-- `check` — see if a URL requires payment
 - `quote` — get detailed pricing
 - `discover` — browse the API directory
 - `budget` — check spending limits
