@@ -1,18 +1,18 @@
 import {
-  safeBase64Decode,
-  isPaymentRequiredShape,
-  parseV1Body,
-  parseWwwAuthenticate,
   decodePaymentRequired,
   decodePaymentResponse,
-  X402_VERSION_1,
-  X402_VERSION_2,
+  isPaymentRequiredShape,
+  type NegotiatedPayment,
   type PaymentRequiredAccept,
   type PaymentRequiredMetadata,
+  type PaymentRequiredRecord,
   type PaymentRequiredResponse,
   type PaymentTransport,
-  type PaymentRequiredRecord,
-  type NegotiatedPayment,
+  parseV1Body,
+  parseWwwAuthenticate,
+  safeBase64Decode,
+  X402_VERSION_1,
+  X402_VERSION_2,
 } from "./x402-parsing-helpers";
 
 const HTTP_PAYMENT_REQUIRED = 402;
@@ -29,7 +29,9 @@ interface PaymentSource {
   readonly version: number;
 }
 
-async function resolvePaymentSource(response: Response): Promise<PaymentSource | null> {
+async function resolvePaymentSource(
+  response: Response,
+): Promise<PaymentSource | null> {
   if (response.status !== HTTP_PAYMENT_REQUIRED) return null;
 
   const paymentHeader = response.headers.get(PAYMENT_REQUIRED_HEADER);
@@ -42,12 +44,14 @@ async function resolvePaymentSource(response: Response): Promise<PaymentSource |
         return {
           data: parsed,
           transport: "header",
-          responseHeader: version === X402_VERSION_1 ? V1_PAYMENT_HEADER_KEY : PAYMENT_SIGNATURE_HEADER_KEY,
+          responseHeader:
+            version === X402_VERSION_1
+              ? V1_PAYMENT_HEADER_KEY
+              : PAYMENT_SIGNATURE_HEADER_KEY,
           version,
         };
       }
-    } catch {
-    }
+    } catch {}
   }
 
   const wwwAuth = response.headers.get(WWW_AUTHENTICATE_HEADER);
@@ -70,17 +74,21 @@ async function resolvePaymentSource(response: Response): Promise<PaymentSource |
       return {
         data: body,
         transport: "body",
-        responseHeader: version === X402_VERSION_1 ? V1_PAYMENT_HEADER_KEY : PAYMENT_SIGNATURE_HEADER_KEY,
+        responseHeader:
+          version === X402_VERSION_1
+            ? V1_PAYMENT_HEADER_KEY
+            : PAYMENT_SIGNATURE_HEADER_KEY,
         version,
       };
     }
-  } catch {
-  }
+  } catch {}
 
   return null;
 }
 
-function toPaymentRequiredResponse(source: PaymentSource): PaymentRequiredResponse | null {
+function toPaymentRequiredResponse(
+  source: PaymentSource,
+): PaymentRequiredResponse | null {
   const { data, transport } = source;
 
   if (transport === "header") {
@@ -90,8 +98,7 @@ function toPaymentRequiredResponse(source: PaymentSource): PaymentRequiredRespon
       const json = JSON.stringify(record);
       const encoded = btoa(json);
       return decodePaymentRequired(encoded);
-    } catch {
-    }
+    } catch {}
 
     const v1Result = parseV1Body(record);
     if (v1Result) return v1Result;
@@ -105,13 +112,17 @@ function toPaymentRequiredResponse(source: PaymentSource): PaymentRequiredRespon
   return parseV1Body(data as Record<string, unknown>);
 }
 
-async function extractPaymentInfo(response: Response): Promise<PaymentRequiredResponse | null> {
+async function extractPaymentInfo(
+  response: Response,
+): Promise<PaymentRequiredResponse | null> {
   const source = await resolvePaymentSource(response);
   if (!source) return null;
   return toPaymentRequiredResponse(source);
 }
 
-async function negotiatePayment(response: Response): Promise<NegotiatedPayment | undefined> {
+async function negotiatePayment(
+  response: Response,
+): Promise<NegotiatedPayment | undefined> {
   const source = await resolvePaymentSource(response);
   if (!source) return undefined;
   return {

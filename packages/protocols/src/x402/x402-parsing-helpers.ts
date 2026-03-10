@@ -104,7 +104,9 @@ function isPaymentRequiredShape(data: unknown): data is PaymentRequiredRecord {
   return typeof obj.x402Version === "number" && Array.isArray(obj.accepts);
 }
 
-function extractResource(parsed: Record<string, unknown>): PaymentRequiredResource | undefined {
+function extractResource(
+  parsed: Record<string, unknown>,
+): PaymentRequiredResource | undefined {
   const r = asRecord(parsed.resource);
   if (!r || typeof r.url !== "string") return undefined;
   return {
@@ -118,7 +120,9 @@ function parseBazaarInput(raw: Record<string, unknown>): BazaarInputInfo {
   return {
     type: typeof raw.type === "string" ? raw.type : undefined,
     method: typeof raw.method === "string" ? raw.method : undefined,
-    queryParams: asRecord(raw.queryParams) as Record<string, string> | undefined,
+    queryParams: asRecord(raw.queryParams) as
+      | Record<string, string>
+      | undefined,
     bodyType: typeof raw.bodyType === "string" ? raw.bodyType : undefined,
     bodyFields: asRecord(raw.bodyFields),
   };
@@ -137,12 +141,17 @@ function extractBazaarInfo(
   return {
     input: inputRaw ? parseBazaarInput(inputRaw) : undefined,
     output: outputRaw
-      ? { type: typeof outputRaw.type === "string" ? outputRaw.type : undefined, example: outputRaw.example }
+      ? {
+          type: typeof outputRaw.type === "string" ? outputRaw.type : undefined,
+          example: outputRaw.example,
+        }
       : undefined,
   };
 }
 
-function extractV1BazaarInput(parsed: Record<string, unknown>): BazaarInputInfo | undefined {
+function extractV1BazaarInput(
+  parsed: Record<string, unknown>,
+): BazaarInputInfo | undefined {
   if (!Array.isArray(parsed.accepts)) return undefined;
   for (const accept of parsed.accepts) {
     const a = asRecord(accept);
@@ -155,7 +164,9 @@ function extractV1BazaarInput(parsed: Record<string, unknown>): BazaarInputInfo 
   return undefined;
 }
 
-function extractMetadata(parsed: Record<string, unknown>): PaymentRequiredMetadata | undefined {
+function extractMetadata(
+  parsed: Record<string, unknown>,
+): PaymentRequiredMetadata | undefined {
   const resource = extractResource(parsed);
   const bazaar = extractBazaarInfo(parsed);
   const bazaarInput = bazaar?.input ?? extractV1BazaarInput(parsed);
@@ -168,9 +179,11 @@ function normalizeV1Accept(raw: unknown): PaymentRequiredAccept | null {
   if (typeof raw !== "object" || raw === null) return null;
   const obj = raw as Record<string, unknown>;
   const amount =
-    typeof obj.maxAmountRequired === "string" ? obj.maxAmountRequired
-    : typeof obj.amount === "string" ? obj.amount
-    : null;
+    typeof obj.maxAmountRequired === "string"
+      ? obj.maxAmountRequired
+      : typeof obj.amount === "string"
+        ? obj.amount
+        : null;
   const network = typeof obj.network === "string" ? obj.network : null;
   const payTo = typeof obj.payTo === "string" ? obj.payTo : null;
   const asset = typeof obj.asset === "string" ? obj.asset : "";
@@ -182,7 +195,10 @@ function normalizeV1Accept(raw: unknown): PaymentRequiredAccept | null {
 function parseV1Body(body: unknown): PaymentRequiredResponse | null {
   if (typeof body !== "object" || body === null) return null;
   const obj = body as Record<string, unknown>;
-  const version = typeof obj.x402Version === "number" ? obj.x402Version : INVALID_VERSION_SENTINEL;
+  const version =
+    typeof obj.x402Version === "number"
+      ? obj.x402Version
+      : INVALID_VERSION_SENTINEL;
   if (version < MINIMUM_VALID_VERSION) return null;
   if (!Array.isArray(obj.accepts) || obj.accepts.length === 0) return null;
   const accepts: PaymentRequiredAccept[] = [];
@@ -192,7 +208,9 @@ function parseV1Body(body: unknown): PaymentRequiredResponse | null {
   }
   if (accepts.length === 0) return null;
   const metadata = extractMetadata(obj);
-  return metadata ? { x402Version: version, accepts, metadata } : { x402Version: version, accepts };
+  return metadata
+    ? { x402Version: version, accepts, metadata }
+    : { x402Version: version, accepts };
 }
 
 function usdcDisplayToAtomic(displayAmount: string): string | null {
@@ -201,7 +219,9 @@ function usdcDisplayToAtomic(displayAmount: string): string | null {
   const parts = displayAmount.split(".");
   if (parts.length > MAX_DECIMAL_PARTS) return null;
   const whole = parts[0] ?? "0";
-  const frac = (parts[1] ?? "").padEnd(USDC_DECIMALS, "0").slice(0, USDC_DECIMALS);
+  const frac = (parts[1] ?? "")
+    .padEnd(USDC_DECIMALS, "0")
+    .slice(0, USDC_DECIMALS);
   try {
     const atomic = BigInt(whole) * BigInt(10 ** USDC_DECIMALS) + BigInt(frac);
     if (atomic < 0n) return null;
@@ -211,7 +231,9 @@ function usdcDisplayToAtomic(displayAmount: string): string | null {
   }
 }
 
-function parseWwwAuthenticate(headerValue: string): PaymentRequiredResponse | null {
+function parseWwwAuthenticate(
+  headerValue: string,
+): PaymentRequiredResponse | null {
   const x402Index = headerValue.indexOf(X402_SCHEME_PREFIX);
   if (x402Index === -1) return null;
   const content = headerValue.slice(x402Index + X402_SCHEME_PREFIX.length);
@@ -231,7 +253,15 @@ function parseWwwAuthenticate(headerValue: string): PaymentRequiredResponse | nu
   const token = params.token ?? "";
   return {
     x402Version: X402_VERSION_2,
-    accepts: [{ scheme: "exact", network, amount: atomicAmount, asset: token, payTo: address }],
+    accepts: [
+      {
+        scheme: "exact",
+        network,
+        amount: atomicAmount,
+        asset: token,
+        payTo: address,
+      },
+    ],
   };
 }
 
@@ -239,8 +269,10 @@ function decodePaymentRequired(headerValue: string): PaymentRequiredResponse {
   const json = safeBase64Decode(headerValue);
   const parsed: unknown = JSON.parse(json);
   if (
-    typeof parsed !== "object" || parsed === null ||
-    !("accepts" in parsed) || !Array.isArray((parsed as { accepts: unknown }).accepts)
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("accepts" in parsed) ||
+    !Array.isArray((parsed as { accepts: unknown }).accepts)
   ) {
     throw new X402QuoteError("Invalid PAYMENT-REQUIRED header structure");
   }
@@ -248,7 +280,9 @@ function decodePaymentRequired(headerValue: string): PaymentRequiredResponse {
   const { accepts } = obj as { accepts: unknown[] };
   for (const accept of accepts) {
     if (!validateV2Accept(accept)) {
-      throw new X402QuoteError("Invalid accept entry: missing network, amount, or payTo");
+      throw new X402QuoteError(
+        "Invalid accept entry: missing network, amount, or payTo",
+      );
     }
   }
   const metadata = extractMetadata(obj);
@@ -265,21 +299,41 @@ function decodePaymentResponse(headerValue: string): PaymentSettleResponse {
   const obj = parsed as Record<string, unknown>;
   return {
     success: typeof obj.success === "boolean" ? obj.success : false,
-    transaction: typeof obj.transaction === "string" ? obj.transaction : undefined,
+    transaction:
+      typeof obj.transaction === "string" ? obj.transaction : undefined,
     network: typeof obj.network === "string" ? obj.network : undefined,
   };
 }
 
 export {
-  USDC_DECIMALS, DEFAULT_EIP155_NETWORK, MAX_DISPLAY_AMOUNT_LENGTH,
-  X402_VERSION_1, X402_VERSION_2,
-  validateV2Accept, safeBase64Decode, asRecord, isPaymentRequiredShape,
-  extractResource, parseBazaarInput, extractBazaarInfo, extractV1BazaarInput, extractMetadata,
-  normalizeV1Accept, parseV1Body,
-  usdcDisplayToAtomic, parseWwwAuthenticate,
-  decodePaymentRequired, decodePaymentResponse,
-  type PaymentRequiredAccept, type PaymentRequiredResource,
-  type BazaarInputInfo, type BazaarOutputInfo, type PaymentRequiredMetadata,
-  type PaymentRequiredResponse, type PaymentSettleResponse,
-  type PaymentTransport, type PaymentRequiredRecord, type NegotiatedPayment,
+  USDC_DECIMALS,
+  DEFAULT_EIP155_NETWORK,
+  MAX_DISPLAY_AMOUNT_LENGTH,
+  X402_VERSION_1,
+  X402_VERSION_2,
+  validateV2Accept,
+  safeBase64Decode,
+  asRecord,
+  isPaymentRequiredShape,
+  extractResource,
+  parseBazaarInput,
+  extractBazaarInfo,
+  extractV1BazaarInput,
+  extractMetadata,
+  normalizeV1Accept,
+  parseV1Body,
+  usdcDisplayToAtomic,
+  parseWwwAuthenticate,
+  decodePaymentRequired,
+  decodePaymentResponse,
+  type PaymentRequiredAccept,
+  type PaymentRequiredResource,
+  type BazaarInputInfo,
+  type BazaarOutputInfo,
+  type PaymentRequiredMetadata,
+  type PaymentRequiredResponse,
+  type PaymentSettleResponse,
+  type PaymentTransport,
+  type PaymentRequiredRecord,
+  type NegotiatedPayment,
 };

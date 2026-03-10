@@ -305,6 +305,61 @@ Endpoints are selected based on wallet capabilities: L402 if NWC is configured, 
 
 ---
 
+### `diagnose`
+
+Full diagnostic of a paid API endpoint: DNS resolution, protocol detection, format version, pricing, health, and latency. No credentials needed.
+
+```bash
+boltzpay diagnose <url>
+```
+
+**Human output:**
+
+```
+$ boltzpay diagnose https://invy.bot/api
+
+Endpoint Diagnosis
+  URL:            https://invy.bot/api
+  Classification: paid
+  Protocol:       x402
+  Format:         V2 header
+  Scheme:         exact
+  Health:         healthy
+  Amount:         $0.05
+  Network:        eip155:8453
+  Latency:        234ms
+```
+
+**JSON output** (`data` field):
+
+```json
+{
+  "url": "https://invy.bot/api",
+  "isPaid": true,
+  "classification": "paid",
+  "protocol": "x402",
+  "formatVersion": "V2 header",
+  "scheme": "exact",
+  "health": "healthy",
+  "amount": "$0.05",
+  "network": "eip155:8453",
+  "latencyMs": 234,
+  "timing": { "detectMs": 120, "quoteMs": 114 }
+}
+```
+
+---
+
+### `verify-directory`
+
+Health-check every endpoint in the built-in directory. Reports live/dead status for each entry.
+
+```bash
+boltzpay verify-directory
+```
+
+---
+
 ### `wallet`
 
 Show wallet addresses, balances, network, active protocols, and budget status.
@@ -470,5 +525,5 @@ The CLI reads configuration from environment variables. A `.env` file in your wo
 | `BOLTZPAY_PER_TRANSACTION` | No | Per-transaction limit in USD |
 
 <Info>
-  Read-only commands (`check`, `quote`, `discover`, `budget`, `history`, `wallet`) work without Coinbase credentials. Only `fetch` requires them. See [Configuration](/getting-started/configuration) for constructor options, `.env` examples, and budget details.
+  Read-only commands (`check`, `quote`, `discover`, `diagnose`, `budget`, `history`, `wallet`) work without Coinbase credentials. Only `fetch` requires them. See [Configuration](/getting-started/configuration) for constructor options, `.env` examples, and budget details.
 </Info>

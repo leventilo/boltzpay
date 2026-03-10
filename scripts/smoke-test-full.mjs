@@ -421,7 +421,7 @@ test("history --json", () => {
 endSection();
 
 // ─── 8. MCP SERVER ───────────────────────────────────────
-section("8. MCP Server (JSON-RPC — all 7 tools + params)", 10);
+section("8. MCP Server (JSON-RPC — all 8 tools + params)", 10);
 
 const MCP_TOOL_TESTS = [
   {
@@ -605,11 +605,11 @@ setTimeout(() => {
 
 const mcpResults = runMcpBatch(MCP_TOOL_TESTS);
 
-test("MCP tools/list returns 7 tools", () => {
+test("MCP tools/list returns 8 tools", () => {
   const toolsList = mcpResults[2];
   assert(toolsList, "no tools/list response");
   const tools = toolsList.result?.tools || [];
-  assert(tools.length === 7, `expected 7, got ${tools.length}`);
+  assert(tools.length === 8, `expected 8, got ${tools.length}`);
   const toolNames = tools.map(t => t.name).sort();
   detail(`${toolNames.join(", ")}`);
 });
@@ -1053,8 +1053,8 @@ console.log(`  ${BOLD}Coverage Markers${RESET}`);
 console.log(`  ${"─".repeat(55)}`);
 
 const markers = [
-  ["CLI", "7/7 commands + --chain + --debug"],
-  ["MCP", "7/7 tools + category filter + chain override"],
+  ["CLI", "8/8 commands + --chain + --debug"],
+  ["MCP", "8/8 tools + category filter + chain override"],
   ["x402", "4/4 formats (V2, V1, hybrid, www-auth)"],
   ["ACP", "config toggle + mock server detect + quote + CLI"],
   ["Chains", "EVM validated, SVM config ready"],

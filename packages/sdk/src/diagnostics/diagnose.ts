@@ -1,7 +1,7 @@
 import { resolve as dnsResolve } from "node:dns/promises";
 import type { AcceptOption } from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
-import type { NegotiatedPayment, ProbeResult } from "@boltzpay/protocols";
+import type { NegotiatedPayment } from "@boltzpay/protocols";
 import { negotiatePayment, type ProtocolRouter } from "@boltzpay/protocols";
 
 export type EndpointHealth = "healthy" | "degraded" | "dead";
@@ -347,10 +347,12 @@ async function buildPaidResult(
   const detectMs = Date.now() - detectStart;
 
   const quoteStart = Date.now();
-  let probeResult: ProbeResult | undefined;
-  try {
-    probeResult = await router.probe(url);
-  } catch {
+  const probeResults = await router.probeFromResponse(response.clone());
+  const quoteMs = Date.now() - quoteStart;
+
+  const primaryProbe = probeResults[0];
+
+  if (!primaryProbe) {
     const latencyMs = Date.now() - totalStart;
     return {
       url,
@@ -365,12 +367,11 @@ async function buildPaidResult(
       health: classifyHealth(latencyMs, undefined, undefined),
       latencyMs,
       postOnly,
-      timing: { detectMs, quoteMs: Date.now() - quoteStart },
+      timing: { detectMs, quoteMs },
     };
   }
-  const quoteMs = Date.now() - quoteStart;
 
-  const { adapter, quote } = probeResult;
+  const { adapter, quote } = primaryProbe;
   const latencyMs = Date.now() - totalStart;
 
   return {

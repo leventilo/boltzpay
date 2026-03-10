@@ -30,7 +30,7 @@ Some operations require Coinbase CDP keys to sign payment transactions.
 Get your keys from [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/).
 
 <Info>
-  `Check`, `Quote`, and `Discover` work without credentials. Only `Fetch` requires them.
+  `Check`, `Quote`, `Discover`, `Diagnose`, `Budget`, `History`, and `Wallet` work without credentials. Only `Fetch` requires them.
 </Info>
 
 ## Operations
@@ -41,6 +41,10 @@ Get your keys from [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com/).
 | **Check** | Check if a URL requires payment. Returns protocol and price. | No |
 | **Quote** | Get price quote with multi-chain options. | No |
 | **Discover** | Browse compatible paid APIs. Filter by category. | No |
+| **Diagnose** | Full endpoint diagnostic: protocol, health, latency, pricing. | No |
+| **Budget** | View current spending budget status. | No |
+| **History** | List recent payments made during session. | No |
+| **Wallet** | Check wallet connectivity, credentials, and balances. | No |
 
 ### Fetch
 
@@ -71,6 +75,22 @@ Returns protocol, price, and multi-chain alternatives without executing payment.
 ### Discover
 
 Lists API directory entries with name, URL, protocol, category, and pricing. Supports category filter: `crypto-data`, `finance`, `research`, `utilities`, `dev-tools`, `ai-tools`, `social`, `demo`, `media`.
+
+### Diagnose
+
+Full diagnostic of an API endpoint: DNS resolution, protocol detection (x402/L402), format version, pricing, health status, and latency. Returns a complete report in one call.
+
+### Budget
+
+View current spending budget status — daily/monthly spent, remaining, and per-transaction limits.
+
+### History
+
+List recent payments made during the current session with protocol, amount, chain, and URL.
+
+### Wallet
+
+Check wallet connectivity, addresses, balances, active protocols, and budget status.
 
 ## Workflow Examples
 

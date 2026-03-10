@@ -192,8 +192,7 @@ export class X402Adapter implements ProtocolAdapter {
           typeof registerExactSvmScheme
         >[1]["signer"],
       });
-    } catch {
-    }
+    } catch {}
 
     const safeFetch: typeof fetch = (input, init) => {
       if (input instanceof Request) {

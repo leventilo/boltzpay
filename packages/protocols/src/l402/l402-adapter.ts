@@ -314,7 +314,9 @@ export class L402Adapter implements ProtocolAdapter {
       headers[key] = value;
     });
     return {
-      success: response.status >= HTTP_SUCCESS_MIN && response.status < HTTP_SUCCESS_MAX,
+      success:
+        response.status >= HTTP_SUCCESS_MIN &&
+        response.status < HTTP_SUCCESS_MAX,
       externalTxHash: undefined,
       responseBody: body,
       responseHeaders: headers,

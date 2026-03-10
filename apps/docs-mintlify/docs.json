@@ -127,7 +127,7 @@
   },
   "topbar": {
     "announcement": {
-      "content": "BoltzPay v0.1 is live — [Star us on GitHub](https://github.com/leventilo/boltzpay)",
+      "content": "BoltzPay v0.2 is live — [Star us on GitHub](https://github.com/leventilo/boltzpay)",
       "dismissible": true,
       "background": "decorative"
     }

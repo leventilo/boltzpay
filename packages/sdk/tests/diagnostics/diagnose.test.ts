@@ -1,5 +1,5 @@
-import { Money, ProtocolDetectionFailedError } from "@boltzpay/core";
 import type { ProtocolQuote } from "@boltzpay/core";
+import { Money } from "@boltzpay/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock node:dns/promises — default resolves successfully
@@ -9,19 +9,17 @@ vi.mock("node:dns/promises", () => ({
 
 // Mock @coinbase/cdp-sdk to prevent real imports
 vi.mock("@coinbase/cdp-sdk", () => ({
-  CdpClient: class MockCdpClient {
-    constructor() {}
-  },
+  CdpClient: class MockCdpClient {},
 }));
 
 // Mock @boltzpay/protocols to provide controllable adapter behavior
 const mockProbe = vi.fn();
 const mockProbeAll = vi.fn();
+const mockProbeFromResponse = vi.fn();
 const mockExecute = vi.fn();
 
 vi.mock("@boltzpay/protocols", () => {
   class MockCdpWalletManager {
-    constructor() {}
     getAddresses() {
       return {};
     }
@@ -33,12 +31,10 @@ vi.mock("@boltzpay/protocols", () => {
     probe = mockProbe;
     probeAll = mockProbeAll;
     execute = mockExecute;
-    probeFromResponse = vi.fn().mockResolvedValue([]);
-    constructor() {}
+    probeFromResponse = mockProbeFromResponse;
   }
   class MockX402Adapter {
     name = "x402";
-    constructor() {}
   }
   class MockAdapterError extends Error {
     code: string;
@@ -50,10 +46,8 @@ vi.mock("@boltzpay/protocols", () => {
   }
   class MockL402Adapter {
     name = "l402";
-    constructor() {}
   }
   class MockNwcWalletManager {
-    constructor() {}
     close() {}
   }
   class MockX402PaymentError extends MockAdapterError {
@@ -87,11 +81,11 @@ vi.mock("@boltzpay/protocols", () => {
   };
 });
 
+import * as dns from "node:dns/promises";
+import { negotiatePayment } from "@boltzpay/protocols";
 // Import AFTER mocks
 import { BoltzPay } from "../../src/boltzpay";
-import type { DiagnoseResult, EndpointClassification, EndpointHealth } from "../../src/diagnostics/diagnose";
-import { negotiatePayment } from "@boltzpay/protocols";
-import * as dns from "node:dns/promises";
+import type { DiagnoseResult } from "../../src/diagnostics/diagnose";
 
 const mockedNegotiatePayment = vi.mocked(negotiatePayment);
 const mockedDnsResolve = vi.mocked(dns.resolve);
@@ -131,10 +125,14 @@ describe("diagnose — endpoint diagnostic report", () => {
     vi.stubGlobal("fetch", fetchSpy);
     mockProbe.mockReset();
     mockProbeAll.mockReset();
+    mockProbeFromResponse.mockReset();
+    mockProbeFromResponse.mockResolvedValue([]);
     mockExecute.mockReset();
     mockedNegotiatePayment.mockReset();
     mockedDnsResolve.mockReset();
-    mockedDnsResolve.mockResolvedValue(["127.0.0.1"] as any);
+    mockedDnsResolve.mockResolvedValue(["127.0.0.1"] as Awaited<
+      ReturnType<typeof dns.resolve>
+    >);
   });
 
   afterEach(() => {
@@ -144,7 +142,9 @@ describe("diagnose — endpoint diagnostic report", () => {
   it("returns DiagnoseResult with all required fields for a healthy endpoint", async () => {
     const quote = makeQuote();
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -152,7 +152,9 @@ describe("diagnose — endpoint diagnostic report", () => {
       responseHeader: "X-PAYMENT",
     });
 
-    const result: DiagnoseResult = await agent.diagnose("https://api.example.com/data");
+    const result: DiagnoseResult = await agent.diagnose(
+      "https://api.example.com/data",
+    );
 
     expect(result.url).toBe("https://api.example.com/data");
     expect(result.isPaid).toBe(true);
@@ -170,7 +172,9 @@ describe("diagnose — endpoint diagnostic report", () => {
   it("V1 body 402 response -> formatVersion = 'V1 body'", async () => {
     const quote = makeQuote();
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -184,8 +188,12 @@ describe("diagnose — endpoint diagnostic report", () => {
 
   it("V2 header 402 response -> formatVersion = 'V2 header'", async () => {
     const quote = makeQuote();
-    fetchSpy.mockResolvedValue(make402Response({ "payment-required": "base64data" }));
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    fetchSpy.mockResolvedValue(
+      make402Response({ "payment-required": "base64data" }),
+    );
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "header",
       version: 2,
@@ -199,8 +207,12 @@ describe("diagnose — endpoint diagnostic report", () => {
 
   it("www-authenticate 402 response -> formatVersion = 'www-authenticate'", async () => {
     const quote = makeQuote();
-    fetchSpy.mockResolvedValue(make402Response({ "www-authenticate": 'X402 ...' }));
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    fetchSpy.mockResolvedValue(
+      make402Response({ "www-authenticate": "X402 ..." }),
+    );
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "www-authenticate",
       version: 2,
@@ -218,7 +230,9 @@ describe("diagnose — endpoint diagnostic report", () => {
     fetchSpy
       .mockResolvedValueOnce(new Response("ok", { status: 200 }))
       .mockResolvedValueOnce(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -234,7 +248,9 @@ describe("diagnose — endpoint diagnostic report", () => {
   it("endpoint with scheme 'upto' -> health = 'degraded'", async () => {
     const quote = makeQuote({ scheme: "upto" });
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "header",
       version: 2,
@@ -250,7 +266,9 @@ describe("diagnose — endpoint diagnostic report", () => {
   it("endpoint on stellar network -> health = 'degraded'", async () => {
     const quote = makeQuote({ network: "stellar:pubnet", scheme: "exact" });
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "header",
       version: 2,
@@ -264,7 +282,6 @@ describe("diagnose — endpoint diagnostic report", () => {
 
   it("endpoint that times out -> health = 'dead'", async () => {
     fetchSpy.mockRejectedValue(new Error("fetch failed: timeout"));
-    mockProbe.mockRejectedValue(new Error("timeout"));
 
     const result = await agent.diagnose("https://api.example.com/data");
     expect(result.health).toBe("dead");
@@ -273,7 +290,6 @@ describe("diagnose — endpoint diagnostic report", () => {
 
   it("endpoint with network error -> health = 'dead'", async () => {
     fetchSpy.mockRejectedValue(new Error("ECONNREFUSED"));
-    mockProbe.mockRejectedValue(new Error("ECONNREFUSED"));
 
     const result = await agent.diagnose("https://api.example.com/data");
     expect(result.health).toBe("dead");
@@ -284,7 +300,9 @@ describe("diagnose — endpoint diagnostic report", () => {
       payTo: "0xabcdef1234567890abcdef1234567890abcdef12",
     });
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -299,7 +317,9 @@ describe("diagnose — endpoint diagnostic report", () => {
   it("short facilitator address is not truncated", async () => {
     const quote = makeQuote({ payTo: "short" });
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -331,7 +351,9 @@ describe("diagnose — endpoint diagnostic report", () => {
       ],
     });
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -341,14 +363,16 @@ describe("diagnose — endpoint diagnostic report", () => {
 
     const result = await agent.diagnose("https://api.example.com/data");
     expect(result.chains).toHaveLength(2);
-    expect(result.chains![0]!.namespace).toBe("evm");
-    expect(result.chains![1]!.namespace).toBe("svm");
+    expect(result.chains?.[0]?.namespace).toBe("evm");
+    expect(result.chains?.[1]?.namespace).toBe("svm");
   });
 
   it("diagnose includes timing breakdown", async () => {
     const quote = makeQuote();
     fetchSpy.mockResolvedValue(make402Response());
-    mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+    mockProbeFromResponse.mockResolvedValue([
+      { adapter: { name: "x402" }, quote },
+    ]);
     mockedNegotiatePayment.mockResolvedValue({
       transport: "body",
       version: 1,
@@ -358,13 +382,12 @@ describe("diagnose — endpoint diagnostic report", () => {
 
     const result = await agent.diagnose("https://api.example.com/data");
     expect(result.timing).toBeDefined();
-    expect(result.timing!.detectMs).toBeGreaterThanOrEqual(0);
-    expect(result.timing!.quoteMs).toBeGreaterThanOrEqual(0);
+    expect(result.timing?.detectMs).toBeGreaterThanOrEqual(0);
+    expect(result.timing?.quoteMs).toBeGreaterThanOrEqual(0);
   });
 
   it("non-402 free endpoint -> isPaid: false, health: healthy", async () => {
     fetchSpy.mockResolvedValue(new Response("ok", { status: 200 }));
-    mockProbe.mockRejectedValue(new ProtocolDetectionFailedError("https://free.example.com"));
 
     const result = await agent.diagnose("https://free.example.com");
     expect(result.isPaid).toBe(false);
@@ -401,7 +424,9 @@ describe("diagnose — endpoint diagnostic report", () => {
     });
 
     it("GET returns 503 -> classification = 'dead', deathReason = 'http_5xx', httpStatus = 503", async () => {
-      fetchSpy.mockResolvedValue(new Response("Service Unavailable", { status: 503 }));
+      fetchSpy.mockResolvedValue(
+        new Response("Service Unavailable", { status: 503 }),
+      );
 
       const result = await agent.diagnose("https://api.example.com/data");
       expect(result.classification).toBe("dead");
@@ -412,7 +437,9 @@ describe("diagnose — endpoint diagnostic report", () => {
     it("GET returns 402 -> classification = 'paid'", async () => {
       const quote = makeQuote();
       fetchSpy.mockResolvedValue(make402Response());
-      mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
       mockedNegotiatePayment.mockResolvedValue({
         transport: "body",
         version: 1,
@@ -430,7 +457,9 @@ describe("diagnose — endpoint diagnostic report", () => {
       fetchSpy
         .mockResolvedValueOnce(new Response("ok", { status: 200 }))
         .mockResolvedValueOnce(make402Response());
-      mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
       mockedNegotiatePayment.mockResolvedValue({
         transport: "body",
         version: 1,
@@ -447,7 +476,9 @@ describe("diagnose — endpoint diagnostic report", () => {
     it("GET returns 200, POST returns 405 -> classification = 'free_confirmed'", async () => {
       fetchSpy
         .mockResolvedValueOnce(new Response("ok", { status: 200 }))
-        .mockResolvedValueOnce(new Response("Method Not Allowed", { status: 405 }));
+        .mockResolvedValueOnce(
+          new Response("Method Not Allowed", { status: 405 }),
+        );
 
       const result = await agent.diagnose("https://api.example.com/data");
       expect(result.classification).toBe("free_confirmed");
@@ -489,7 +520,9 @@ describe("diagnose — endpoint diagnostic report", () => {
     it("backward compat: isPaid still true for paid, false for others; health still consistent", async () => {
       const quote = makeQuote();
       fetchSpy.mockResolvedValue(make402Response());
-      mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
       mockedNegotiatePayment.mockResolvedValue({
         transport: "body",
         version: 1,
@@ -505,11 +538,15 @@ describe("diagnose — endpoint diagnostic report", () => {
 
     it("GET returns 200 with x-payment header -> classification = 'paid'", async () => {
       const quote = makeQuote();
-      fetchSpy.mockResolvedValue(new Response("ok", {
-        status: 200,
-        headers: { "x-payment": "some-value" },
-      }));
-      mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+      fetchSpy.mockResolvedValue(
+        new Response("ok", {
+          status: 200,
+          headers: { "x-payment": "some-value" },
+        }),
+      );
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
       mockedNegotiatePayment.mockResolvedValue({
         transport: "header",
         version: 2,
@@ -524,11 +561,15 @@ describe("diagnose — endpoint diagnostic report", () => {
 
     it("GET returns 200 with www-authenticate containing X402 -> classification = 'paid'", async () => {
       const quote = makeQuote();
-      fetchSpy.mockResolvedValue(new Response("ok", {
-        status: 200,
-        headers: { "www-authenticate": "X402 realm=\"test\"" },
-      }));
-      mockProbe.mockResolvedValue({ adapter: { name: "x402" }, quote });
+      fetchSpy.mockResolvedValue(
+        new Response("ok", {
+          status: 200,
+          headers: { "www-authenticate": 'X402 realm="test"' },
+        }),
+      );
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
       mockedNegotiatePayment.mockResolvedValue({
         transport: "www-authenticate",
         version: 2,
@@ -550,7 +591,9 @@ describe("diagnose — endpoint diagnostic report", () => {
     });
 
     it("GET fetch throws TLS error -> classification = 'dead', deathReason = 'tls_error'", async () => {
-      fetchSpy.mockRejectedValue(new Error("unable to verify the first certificate (TLS)"));
+      fetchSpy.mockRejectedValue(
+        new Error("unable to verify the first certificate (TLS)"),
+      );
 
       const result = await agent.diagnose("https://api.example.com/data");
       expect(result.classification).toBe("dead");
