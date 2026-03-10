@@ -230,18 +230,21 @@ BoltzPay ships a built-in directory of 25 verified paid API endpoints:
 | Grapevine — IPFS Gateway | gateway.grapevine.fyi/x402/cid/... | $0.01 | utilities |
 | PubMed Trends | pubmed.sekgen.xyz/api/v1/trends | $0.01 | research |
 | Hugen Scout — Intelligence Report | scout.hugen.tokyo/scout/report | $0.01 | research |
-| Creative-Tim — Shadcn Blocks | x402.creative-tim.com/shadcn-blocks/user-payment | $0.01 | dev-tools |
 | Nickel Joke (Testnet) | nickeljoke.vercel.app/api/joke | $0.005 (testnet) | demo |
 | Hello World | hello-world-x402.vercel.app/hello | $0.01 | demo |
 | BoostPass Ping | boostpass.qrbase.xyz/api/x402/ping | $0.01 | demo |
 | SkillfulAI — Demo Premium | api-dev.agents.skillfulai.io/api/x402/demo/mainnet/premium | $0.01 | demo |
 
-#### L402 (Bitcoin Lightning) — 2 endpoints
+#### L402 (Bitcoin Lightning) — 6 endpoints
 
 | Name | URL | Price | Category |
 |------|-----|-------|----------|
-| Satring — Analytics | satring.com/api/v1/analytics | 100 sats | crypto-data |
-| Satring — Service Reputation | satring.com/api/v1/services/lightning-faucet-fortune/reputation | 100 sats | crypto-data |
+| SatsAPI — Bitcoin Price | satsapi.dev/v1/price | 3 sats | crypto-data |
+| SatsAPI — Trading Signal | satsapi.dev/v1/signal | 150 sats | crypto-data |
+| l402.services — GeoIP | l402.services/geoip/8.8.8.8 | 1 sat | utilities |
+| l402.services — Lightning Search | l402.services/ln/search?q=acinq | 10 sats | crypto-data |
+| l402.services — Prediction Markets | l402.services/predictions/markets | 10 sats | crypto-data |
+| Hyperdope — Video Streaming | hyperdope.com/api/l402/videos/test/master.m3u8 | 10 sats | media |
 
 ## Examples
 
@@ -308,6 +311,6 @@ const agent = new BoltzPay({
   coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
   nwcConnectionString: process.env.NWC_CONNECTION_STRING!,
 });
-const response = await agent.fetch("https://satring.com/api/v1/analytics");
-console.log(response.payment?.amount.toDisplayString()); // "100 sats"
+const response = await agent.fetch("https://satsapi.dev/v1/price");
+console.log(response.payment?.amount.toDisplayString()); // "3 sats"
 ```

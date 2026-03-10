@@ -402,15 +402,6 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     pricing: "$0.01",
   },
   {
-    name: "Creative-Tim — Shadcn Blocks",
-    url: "https://x402.creative-tim.com/shadcn-blocks/user-payment",
-    protocol: "x402",
-    category: "dev-tools",
-    description:
-      "View Shadcn UI component source code after payment (pass ?block_name=testimonials-02)",
-    pricing: "$0.01",
-  },
-  {
     name: "x402-tools — Concerts",
     url: "https://x402-tools.vercel.app/api/concerts",
     protocol: "x402",
@@ -499,23 +490,6 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     category: "media",
     description: "HLS video streaming gated by Lightning L402 payment",
     pricing: "10 sats",
-  },
-  {
-    name: "Satring — Analytics",
-    url: "https://satring.com/api/v1/analytics",
-    protocol: "l402",
-    category: "crypto-data",
-    description:
-      "Bitcoin and Lightning network analytics (90 services, categories, pricing)",
-    pricing: "100 sats",
-  },
-  {
-    name: "Satring — Service Reputation",
-    url: "https://satring.com/api/v1/services/lightning-faucet-fortune/reputation",
-    protocol: "l402",
-    category: "crypto-data",
-    description: "Detailed reputation report for L402 services (replace slug in URL)",
-    pricing: "100 sats",
   },
 ] as const;
 

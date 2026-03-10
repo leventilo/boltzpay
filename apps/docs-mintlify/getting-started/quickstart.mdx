@@ -90,9 +90,9 @@ const agent = new BoltzPay({
 });
 
 // Same fetch() call — protocol is transparent
-const response = await agent.fetch("https://satring.com/api/v1/analytics"); // L402, pays in sats
+const response = await agent.fetch("https://satsapi.dev/v1/price"); // L402, pays in sats
 const data = await response.json();
-console.log("Paid:", response.payment?.amount.toDisplayString()); // "100 sats"
+console.log("Paid:", response.payment?.amount.toDisplayString()); // "3 sats"
 ```
 
 <Tip>

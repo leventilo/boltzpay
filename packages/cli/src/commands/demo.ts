@@ -13,7 +13,7 @@ import {
 const TESTNET_ENDPOINT = "https://nickeljoke.vercel.app/api/joke";
 const MAINNET_X402_ENDPOINT =
   "https://x402-tools.vercel.app/api/polymarket/trending";
-const MAINNET_L402_ENDPOINT = "https://satring.com/api/v1/analytics";
+const MAINNET_L402_ENDPOINT = "https://satsapi.dev/v1/price";
 
 interface DemoOptions {
   readonly yes?: boolean;
@@ -35,7 +35,7 @@ function selectEndpoint(
     return { url: TESTNET_ENDPOINT, label: "Nickel Joke (testnet)" };
   }
   if (capabilities.canPayLightning) {
-    return { url: MAINNET_L402_ENDPOINT, label: "Satring Analytics (L402)" };
+    return { url: MAINNET_L402_ENDPOINT, label: "SatsAPI Bitcoin Price (L402)" };
   }
   if (capabilities.canPay) {
     return { url: MAINNET_X402_ENDPOINT, label: "Polymarket Trending (x402)" };

@@ -3,7 +3,7 @@ title: API Directory
 description: Built-in directory of verified paid API endpoints.
 ---
 
-The BoltzPay SDK ships with a built-in directory of 25 verified paid API endpoints across two payment protocols (x402 and L402). All endpoints were confirmed live as of February 2026.
+The BoltzPay SDK ships with a built-in directory of 48 verified paid API endpoints across two payment protocols (x402 and L402). All endpoints were confirmed live as of March 2026.
 
 <Note>
 The directory is static and bundled with the SDK. Entries may become outdated as endpoints go online or offline. Use the `discover` command or `sdk.discover()` method to probe endpoints in real-time and get live pricing.
@@ -46,12 +46,6 @@ The directory is static and bundled with the SDK. Entries may become outdated as
 | PubMed Trends | `https://pubmed.sekgen.xyz/api/v1/trends` | $0.01 | Academic publication trends from PubMed |
 | Hugen Scout — Intelligence Report | `https://scout.hugen.tokyo/scout/report` | $0.01 | Multi-source intelligence report from HN, GitHub, npm, PyPI |
 
-#### Dev Tools
-
-| Name | URL | Price | Description |
-|------|-----|-------|-------------|
-| Creative-Tim — Shadcn Blocks | `https://x402.creative-tim.com/shadcn-blocks/user-payment` | $0.01 | View Shadcn UI component source code after payment |
-
 #### Demo
 
 | Name | URL | Price | Description |
@@ -67,22 +61,30 @@ The directory is static and bundled with the SDK. Entries may become outdated as
 
 | Name | URL | Price | Description |
 |------|-----|-------|-------------|
-| Satring — Analytics | `https://satring.com/api/v1/analytics` | 100 sats | Bitcoin and Lightning network analytics (90 services, categories, pricing) |
-| Satring — Service Reputation | `https://satring.com/api/v1/services/lightning-faucet-fortune/reputation` | 100 sats | Detailed reputation report for L402 services (replace slug in URL) |
+| SatsAPI — Bitcoin Price | `https://satsapi.dev/v1/price` | 3 sats | Real-time Bitcoin price via Lightning L402 |
+| SatsAPI — Trading Signal | `https://satsapi.dev/v1/signal` | 150 sats | AI-powered Bitcoin trading signals via Lightning |
+| l402.services — GeoIP | `https://l402.services/geoip/8.8.8.8` | 1 sat | IP geolocation — country, city, ISP, coordinates |
+| l402.services — Lightning Search | `https://l402.services/ln/search?q=acinq` | 10 sats | Search Lightning Network nodes by alias |
+| l402.services — Prediction Markets | `https://l402.services/predictions/markets` | 10 sats | Polymarket prediction markets data via Lightning |
+| Hyperdope — Video Streaming | `https://hyperdope.com/api/l402/videos/test/master.m3u8` | 10 sats | HLS video streaming gated by Lightning L402 payment |
 
 ---
 
 ## Categories
 
-The directory organizes endpoints into 5 categories:
+The directory organizes endpoints into 8 categories:
 
 | Category | Description | x402 | L402 | Total |
 |----------|-------------|------|------|-------|
-| `crypto-data` | Blockchain data, token analytics, DeFi, whale tracking | 10 | 2 | 12 |
-| `utilities` | Holidays, RNG, IPFS, events | 4 | 0 | 4 |
+| `crypto-data` | Blockchain data, token analytics, DeFi, whale tracking | 18 | 4 | 22 |
+| `utilities` | Holidays, RNG, IPFS, events | 5 | 1 | 6 |
+| `research` | Academic and intelligence reports | 5 | 0 | 5 |
+| `finance` | Stocks, forex, sports arbitrage | 4 | 0 | 4 |
 | `demo` | Test and demo endpoints (often on testnet) | 4 | 0 | 4 |
-| `research` | Academic and intelligence reports | 2 | 0 | 2 |
-| `dev-tools` | UI components and developer resources | 1 | 0 | 1 |
+| `ai-tools` | Video generation, URL extraction | 2 | 0 | 2 |
+| `dev-tools` | Browser sessions, API search | 2 | 0 | 2 |
+| `social` | Twitter, Farcaster | 2 | 0 | 2 |
+| `media` | Video streaming | 0 | 1 | 1 |
 
 ---
 
@@ -134,10 +136,10 @@ Filter the directory by category. Returns the full directory if no category is p
 import { filterDirectory } from '@boltzpay/sdk';
 
 const cryptoApis = filterDirectory('crypto-data');
-// Returns 12 entries in the crypto-data category
+// Returns 22 entries in the crypto-data category
 
 const all = filterDirectory();
-// Returns all 25 entries
+// Returns all 48 entries
 ```
 
 ---

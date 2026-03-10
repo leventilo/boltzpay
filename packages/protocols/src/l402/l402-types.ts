@@ -1,4 +1,4 @@
-/** Standard L402 challenge: macaroon + invoice (Lightning Faucet, Satring, etc.) */
+/** Standard L402 challenge: macaroon + invoice. */
 export interface L402StandardChallenge {
   readonly kind: "standard";
   readonly macaroon: string;
