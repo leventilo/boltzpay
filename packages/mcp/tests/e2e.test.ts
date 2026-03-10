@@ -155,8 +155,8 @@ describe("MCP Server E2E - stdio", () => {
         id: 3,
         method: "tools/call",
         params: {
-          name: "boltzpay_discover",
-          arguments: { category: "demo" },
+          name: "boltzpay_wallet",
+          arguments: {},
         },
       });
 
@@ -166,9 +166,9 @@ describe("MCP Server E2E - stdio", () => {
         content: Array<{ type: string; text: string }>;
       };
       expect(callResult.content).toHaveLength(1);
-      const apis = JSON.parse(callResult.content[0].text);
-      expect(apis.length).toBeGreaterThanOrEqual(1);
-      expect(apis[0].category).toBe("demo");
+      const wallet = JSON.parse(callResult.content[0].text);
+      expect(wallet.canPay).toBe(true);
+      expect(wallet.protocols).toContain("x402");
     },
   );
 });
