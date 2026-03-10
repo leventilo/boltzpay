@@ -354,7 +354,7 @@ Install via **Settings > Community Nodes** in n8n:
 @boltzpay/n8n-nodes-boltzpay
 ```
 
-4 operations: Fetch, Check, Quote, Discover. Configure Coinbase CDP credentials in n8n's credential manager. [Full docs](https://docs.boltzpay.ai)
+8 operations: Fetch, Check, Quote, Discover, Diagnose, Budget, History, Wallet. Configure Coinbase CDP credentials in n8n's credential manager. [Full docs](https://docs.boltzpay.ai)
 
 ### OpenClaw
 

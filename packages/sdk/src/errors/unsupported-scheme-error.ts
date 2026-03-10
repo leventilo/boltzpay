@@ -11,7 +11,7 @@ export class UnsupportedSchemeError extends BoltzPayError {
   constructor(opts: { scheme: string; maxAmount?: Money; network?: string }) {
     super(
       `Payment scheme "${opts.scheme}" is not yet supported. ` +
-        `Track progress: https://github.com/leventilo/boltzpay/issues/TBD`,
+        `Track progress: https://github.com/leventilo/boltzpay/issues`,
     );
     this.scheme = opts.scheme;
     this.maxAmount = opts.maxAmount;

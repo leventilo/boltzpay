@@ -16,29 +16,28 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
-
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 22
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
 
@@ -99,13 +98,13 @@ jobs:
           (cd integrations/crewai && python -m build)
 
       - name: Publish langchain-boltzpay to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
         with:
           packages-dir: integrations/langchain/dist/
           skip-existing: true
 
       - name: Publish boltzpay-crewai to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
         with:
           packages-dir: integrations/crewai/dist/
           password: ${{ secrets.PYPI_TOKEN }}
@@ -118,7 +117,9 @@ jobs:
           VERSION="v${{ steps.bump.outputs.new_version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add packages/*/package.json integrations/*/package.json \
+                 integrations/*/pyproject.toml packages/config/package.json \
+                 apps/landing/src/components/Header.astro
           git commit -m "chore(release): ${VERSION}"
           git tag "${VERSION}"
           git push origin main --tags

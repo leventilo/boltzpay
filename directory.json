@@ -97,7 +97,7 @@
   },
   {
     "name": "x402scan — Top Merchants",
-    "url": "https://x402scan-j55w7ornb-merit-systems.vercel.app/api/data/merchants",
+    "url": "https://x402scan.vercel.app/api/data/merchants",
     "protocol": "x402",
     "category": "crypto-data",
     "description": "Top x402 merchants by transaction volume (pass ?page=0&page_size=5&sort_by=volume)",

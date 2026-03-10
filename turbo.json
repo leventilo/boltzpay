@@ -6,7 +6,8 @@
     "COINBASE_API_KEY_ID",
     "COINBASE_API_KEY_SECRET",
     "COINBASE_WALLET_SECRET",
-    "BOLTZPAY_NETWORK"
+    "BOLTZPAY_NETWORK",
+    "NWC_CONNECTION_STRING"
   ],
   "tasks": {
     "build": {
