@@ -255,7 +255,7 @@ importers:
         version: 1.44.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@hono/node-server':
         specifier: ^1.19.9
-        version: 1.19.11(hono@4.12.5)
+        version: 1.19.11(hono@4.12.6)
       '@types/node':
         specifier: ^22.15.0
         version: 22.19.15
@@ -267,10 +267,10 @@ importers:
         version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/hono':
         specifier: ^2.6.0
-        version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.5)(typescript@5.9.3)(utf-8-validate@5.0.10)
+        version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.6)(typescript@5.9.3)(utf-8-validate@5.0.10)
       hono:
         specifier: ^4.11.9
-        version: 4.12.5
+        version: 4.12.6
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(typescript@5.9.3)(yaml@2.8.2)
@@ -3287,6 +3287,10 @@ packages:
     resolution: {integrity: sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg==}
     engines: {node: '>=16.9.0'}
 
+  hono@4.12.6:
+    resolution: {integrity: sha512-KljEp+MeEEEIOT75qBo1UjqqB29fRMtlDEwCxcexOzdkUq6LR/vRvHk5pdROcxyOYyW1niq7Gb5pFVGy5R1eBw==}
+    engines: {node: '>=16.9.0'}
+
   html-escaper@3.0.3:
     resolution: {integrity: sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ==}
 
@@ -5413,6 +5417,10 @@ snapshots:
     dependencies:
       hono: 4.12.5
 
+  '@hono/node-server@1.19.11(hono@4.12.6)':
+    dependencies:
+      hono: 4.12.6
+
   '@img/colour@1.1.0':
     optional: true
 
@@ -7017,11 +7025,11 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/hono@2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.5)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+  '@x402/hono@2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hono@4.12.6)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@x402/core': 2.6.0
       '@x402/extensions': 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
-      hono: 4.12.5
+      hono: 4.12.6
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
@@ -8041,6 +8049,8 @@ snapshots:
   highlight.js@10.7.3: {}
 
   hono@4.12.5: {}
+
+  hono@4.12.6: {}
 
   html-escaper@3.0.3: {}
 
