@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "boltzpay-crewai"
-version = "0.1.2"
+version = "0.1.3"
 description = "CrewAI tools for BoltzPay — pay for API data with AI agents"
 readme = "README.md"
 license = "MIT"
