@@ -45,9 +45,9 @@
         <path class="fl-b fl-b-mini" d="M465,52 C455,42 435,34 412,30" pathLength="1000" style="--dd:650ms" />
         <!-- 5. Router → L402 (mirror of x402 around x=500) -->
         <path class="fl-b fl-b-mini" d="M535,52 C545,42 565,34 588,30" pathLength="1000" style="--dd:650ms" />
-        <!-- 6. BoltzPay → Budget: diagonal (mirror of pay around x=500) -->
+        <!-- 6. BoltzPay → Budget: diagonal -->
         <path class="fl-b" d="M460,187 C448,222 405,252 350,264" pathLength="1000" style="--dd:750ms" />
-        <!-- 7. BoltzPay → Wallet: diagonal (mirror of check around x=500) -->
+        <!-- 7. BoltzPay → Wallet: diagonal -->
         <path class="fl-b" d="M540,187 C552,222 595,252 650,264" pathLength="1000" style="--dd:750ms" />
         <!-- 8. BoltzPay → API: arc down (retry) -->
         <path class="fl-b" d="M570,170 C654,208 766,208 850,170" pathLength="1000" style="--dd:1000ms" />
@@ -62,7 +62,7 @@
         <path class="fl-s" d="M570,170 C654,132 766,132 850,170" pathLength="1000" style="--sd:3.5s;--sl:0.5s" filter="url(#sg)" />
         <!-- 3. detect: BoltzPay → Router -->
         <path class="fl-s" d="M500,153 C498,122 502,100 500,80" pathLength="1000" style="--sd:2s;--sl:1s" filter="url(#sg)" />
-        <!-- 4. check: BoltzPay → Budget -->
+        <!-- 4. budget: BoltzPay → Budget -->
         <path class="fl-s" d="M460,187 C448,222 405,252 350,264" pathLength="1000" style="--sd:2.8s;--sl:1.5s" filter="url(#sg)" />
         <!-- 5. pay: BoltzPay → Wallet -->
         <path class="fl-s" d="M540,187 C552,222 595,252 650,264" pathLength="1000" style="--sd:2.8s;--sl:1.5s" filter="url(#sg)" />
@@ -76,7 +76,7 @@
         <text class="el" x="288" y="126" text-anchor="middle">fetch()</text>
         <text class="el" x="695" y="126" text-anchor="middle">request</text>
         <text class="el" x="512" y="112" text-anchor="start">detect</text>
-        <text class="el" x="410" y="242" text-anchor="end">check</text>
+        <text class="el" x="410" y="242" text-anchor="end">budget</text>
         <text class="el" x="590" y="242" text-anchor="start">pay</text>
         <text class="el" x="695" y="216" text-anchor="middle">retry</text>
         <text class="el" x="288" y="216" text-anchor="middle">response</text>
@@ -162,7 +162,7 @@
         </g>
         <g class="fn fn-main">
           <rect x="45" y="255" width="210" height="38" rx="8" />
-          <text x="150" y="278" text-anchor="middle" class="nl nl-m">detect · check · pay</text>
+          <text x="150" y="278" text-anchor="middle" class="nl nl-m">detect · budget · pay</text>
         </g>
         <g class="fn fn-ok">
           <rect x="75" y="375" width="150" height="38" rx="8" />

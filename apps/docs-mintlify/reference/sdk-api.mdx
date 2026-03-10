@@ -123,6 +123,45 @@ getHistory(): readonly PaymentRecord[]
 
 ---
 
+#### `getMetrics()`
+
+Compute aggregate metrics from payment history.
+
+```ts
+getMetrics(): PaymentMetrics
+```
+
+**Returns:** [`PaymentMetrics`](#paymentmetrics)
+
+```ts
+const metrics = sdk.getMetrics();
+console.log(metrics.totalSpent.toDisplayString()); // "$4.25"
+console.log(metrics.successCount);                  // 12
+console.log(metrics.errorRate);                      // 0.08
+console.log(metrics.avgLatencyMs);                   // 342
+```
+
+---
+
+#### `exportHistory(format)`
+
+Export payment history as CSV or JSON string.
+
+```ts
+exportHistory(format: "csv" | "json"): string
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `format` | `"csv" \| "json"` | Yes | Export format |
+
+```ts
+const csv = sdk.exportHistory("csv");
+const json = sdk.exportHistory("json");
+```
+
+---
+
 #### `getCapabilities()`
 
 Return the configured network, supported protocols, payment readiness, chain namespaces, and cached wallet addresses.
@@ -331,6 +370,7 @@ interface FetchOptions {
   method?: string;                    // Default: "GET"
   body?: Uint8Array;
   chain?: ChainNamespace;
+  dryRun?: boolean;                   // Default: false
 }
 ```
 
@@ -341,6 +381,7 @@ interface FetchOptions {
 | `method` | `string` | HTTP method. Defaults to `"GET"`. |
 | `body` | `Uint8Array` | Request body as raw bytes. |
 | `chain` | `ChainNamespace` | Override chain selection for this request. Takes priority over `preferredChains` in config. |
+| `dryRun` | `boolean` | Simulate the payment flow without spending. Returns a [`DryRunResult`](#dryrunresult) instead of `BoltzPayResponse`. |
 
 ---
 
@@ -428,6 +469,87 @@ interface PaymentRecord {
   readonly timestamp: Date;
   readonly txHash: string | undefined;
   readonly network: string | undefined;
+  readonly durationMs?: number;       // Payment round-trip time
+}
+```
+
+---
+
+### PaymentMetrics
+
+Returned by `getMetrics()`.
+
+```ts
+interface PaymentMetrics {
+  readonly totalSpent: Money;
+  readonly callCount: number;
+  readonly successCount: number;
+  readonly errorCount: number;
+  readonly errorRate: number;         // 0..1 ratio
+  readonly avgLatencyMs: number;
+  readonly lastPaymentAt: Date | undefined;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `totalSpent` | `Money` | Sum of all successful payments |
+| `callCount` | `number` | Total calls (successes + errors) |
+| `successCount` | `number` | Successful payments |
+| `errorCount` | `number` | Failed payment attempts |
+| `errorRate` | `number` | `errorCount / callCount` (0 if no calls) |
+| `avgLatencyMs` | `number` | Average payment round-trip time in ms |
+| `lastPaymentAt` | `Date \| undefined` | Timestamp of most recent payment |
+
+---
+
+### DryRunResult
+
+Returned by `fetch()` when `dryRun: true`. Simulates the full payment flow without spending.
+
+```ts
+interface DryRunResult {
+  readonly wouldPay: boolean;
+  readonly reason?: DryRunFailureReason;
+  readonly quote?: {
+    readonly amount: Money;
+    readonly protocol: string;
+    readonly network: string | undefined;
+    readonly scheme: string;
+  };
+  readonly budgetCheck?: {
+    readonly allowed: boolean;
+    readonly dailyRemaining: Money | undefined;
+    readonly monthlyRemaining: Money | undefined;
+    readonly wouldExceed: "daily" | "monthly" | "per_transaction" | null;
+  };
+  readonly wallet?: {
+    readonly name: string;
+    readonly type: "coinbase" | "nwc";
+  };
+  readonly endpoint?: {
+    readonly health: EndpointHealth;
+    readonly formatVersion: string;
+  };
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `wouldPay` | `boolean` | `true` if payment would succeed |
+| `reason` | `string` | Why payment would fail (e.g. `"budget_exceeded"`, `"not_paid"`, `"no_wallet_for_network"`) |
+| `quote` | `object` | Detected price and protocol info |
+| `budgetCheck` | `object` | Budget validation result |
+| `wallet` | `object` | Which wallet would be used |
+| `endpoint` | `object` | Endpoint health and format version |
+
+```ts
+const result = await sdk.fetch("https://invy.bot/api", { dryRun: true });
+if (result.wouldPay) {
+  console.log(result.quote?.amount.toDisplayString()); // "$0.05"
+  console.log(result.wallet?.type);                     // "coinbase"
+} else {
+  console.log(result.reason);                           // "budget_exceeded"
 }
 ```
 

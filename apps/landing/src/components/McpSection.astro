@@ -19,8 +19,9 @@ const sdkCode = `<span class="text-accent-cyan">import</span> { BoltzPay } <span
 <span class="text-text-secondary">// 402? SDK pays automatically, retries, returns 200</span>
 console.log(res.status); <span class="text-text-secondary">// 200</span>`;
 
-const cliCode = `<span class="text-accent-warm/50">$</span> boltzpay quote https://nickeljoke.vercel.app/api/joke
-  <span class="text-text-secondary">Protocol: x402 · Price: $0.01 USDC · Chain: Base</span>
+const cliCode = `<span class="text-accent-warm/50">$</span> boltzpay diagnose https://nickeljoke.vercel.app/api/joke
+  <span class="text-text-secondary">Protocol: x402 · Format: V1 body · Price: $0.01</span>
+  <span class="text-text-secondary">Health: <span class="text-status-live">●</span> healthy · Latency: 411ms</span>
 
 <span class="text-accent-warm/50">$</span> boltzpay fetch https://nickeljoke.vercel.app/api/joke
   <span class="text-status-live">✓</span> <span class="text-text-secondary">Paid $0.01 USDC via x402 on Base</span>
