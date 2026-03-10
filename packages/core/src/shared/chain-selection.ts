@@ -37,8 +37,10 @@ function selectBestAccept(
   const sorted = [...candidates].sort((a, b) => {
     if (a.amount < b.amount) return -1;
     if (a.amount > b.amount) return 1;
-    const aOrder = NAMESPACE_TIE_BREAK_ORDER[a.namespace] ?? UNKNOWN_NAMESPACE_ORDER;
-    const bOrder = NAMESPACE_TIE_BREAK_ORDER[b.namespace] ?? UNKNOWN_NAMESPACE_ORDER;
+    const aOrder =
+      NAMESPACE_TIE_BREAK_ORDER[a.namespace] ?? UNKNOWN_NAMESPACE_ORDER;
+    const bOrder =
+      NAMESPACE_TIE_BREAK_ORDER[b.namespace] ?? UNKNOWN_NAMESPACE_ORDER;
     return aOrder - bOrder;
   });
 

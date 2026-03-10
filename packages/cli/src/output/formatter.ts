@@ -52,13 +52,15 @@ export function formatFetchResult(options: FetchFormatOptions): string {
 
   if (response.payment) {
     lines.push(renderHeader("Payment"));
-    lines.push(renderBox([
-      `Protocol:  ${chalk.white(response.payment.protocol)}`,
-      `Amount:    ${chalk.yellow(response.payment.amount.toDisplayString())}`,
-      ...(response.payment.txHash
-        ? [`Tx Hash:   ${MUTED(response.payment.txHash)}`]
-        : []),
-    ]).trimStart());
+    lines.push(
+      renderBox([
+        `Protocol:  ${chalk.white(response.payment.protocol)}`,
+        `Amount:    ${chalk.yellow(response.payment.amount.toDisplayString())}`,
+        ...(response.payment.txHash
+          ? [`Tx Hash:   ${MUTED(response.payment.txHash)}`]
+          : []),
+      ]).trimStart(),
+    );
     lines.push("");
   }
 
@@ -121,7 +123,9 @@ export function formatQuoteResult(quote: QuoteData): string {
     const testnetBadge = isTestnet(quote.network)
       ? chalk.yellow(" \u26A0 TESTNET")
       : "";
-    quoteLines.push(`Network:   ${chalk.white(name)} (${quote.network})${testnetBadge}`);
+    quoteLines.push(
+      `Network:   ${chalk.white(name)} (${quote.network})${testnetBadge}`,
+    );
   }
   lines.push(renderBox(quoteLines).trimStart());
 
@@ -163,7 +167,9 @@ export function formatBudgetResult(budget: BudgetState): string {
     const dailyRatio =
       Number(budget.dailySpent.cents) / Number(budget.dailyLimit.cents);
     lines.push(`  ${BRAND("Daily")}`);
-    lines.push(`    ${renderBar(dailyRatio, BUDGET_BAR_WIDTH)}  ${chalk.white(spent)} / ${chalk.white(limit)}`);
+    lines.push(
+      `    ${renderBar(dailyRatio, BUDGET_BAR_WIDTH)}  ${chalk.white(spent)} / ${chalk.white(limit)}`,
+    );
     lines.push(`    Remaining: ${formatRemaining(remaining)}`);
     lines.push("");
   }
@@ -177,7 +183,9 @@ export function formatBudgetResult(budget: BudgetState): string {
     const monthlyRatio =
       Number(budget.monthlySpent.cents) / Number(budget.monthlyLimit.cents);
     lines.push(`  ${BRAND("Monthly")}`);
-    lines.push(`    ${renderBar(monthlyRatio, BUDGET_BAR_WIDTH)}  ${chalk.white(spent)} / ${chalk.white(limit)}`);
+    lines.push(
+      `    ${renderBar(monthlyRatio, BUDGET_BAR_WIDTH)}  ${chalk.white(spent)} / ${chalk.white(limit)}`,
+    );
     lines.push(`    Remaining: ${formatRemaining(remaining)}`);
     lines.push("");
   }
@@ -304,8 +312,7 @@ export function formatDiscoverResult(
   lines.push(`  ${summaryBar}`);
 
   const parts: string[] = [];
-  if (counts.live > 0)
-    parts.push(chalk.green(`■ ${counts.live} live`));
+  if (counts.live > 0) parts.push(chalk.green(`■ ${counts.live} live`));
   if (counts.free > 0) parts.push(chalk.blue(`■ ${counts.free} free`));
   if (counts.offline > 0)
     parts.push(chalk.yellow(`■ ${counts.offline} offline`));
@@ -381,11 +388,11 @@ function formatConnectionSection(status: WalletStatus): string[] {
   const lines: string[] = [];
   if (status.connection.status === "connected") {
     lines.push(
-      `    Connection: ${chalk.green("Connected")} (${renderLatencyIndicator(status.connection.latencyMs!)})`,
+      `    Connection: ${chalk.green("Connected")} (${renderLatencyIndicator(status.connection.latencyMs ?? 0)})`,
     );
   } else if (status.connection.status === "error") {
     lines.push(
-      `    Connection: ${chalk.red("Failed")} (${chalk.red(status.connection.error!)})`,
+      `    Connection: ${chalk.red("Failed")} (${chalk.red(status.connection.error ?? "Unknown")})`,
     );
   } else {
     lines.push(`    Connection: ${MUTED("Skipped")}`);
@@ -443,14 +450,14 @@ function formatLightningSection(
 
   if (lightning.connection.status === "connected") {
     lines.push(
-      `    Connection: ${chalk.green("Connected")} (${renderLatencyIndicator(lightning.connection.latencyMs!)})`,
+      `    Connection: ${chalk.green("Connected")} (${renderLatencyIndicator(lightning.connection.latencyMs ?? 0)})`,
     );
     if (lightning.balance) {
       lines.push(`    Balance:    ${chalk.green(lightning.balance.display)}`);
     }
   } else if (lightning.connection.status === "error") {
     lines.push(
-      `    Connection: ${chalk.red("Failed")} (${chalk.red(lightning.connection.error!)})`,
+      `    Connection: ${chalk.red("Failed")} (${chalk.red(lightning.connection.error ?? "Unknown")})`,
     );
   } else {
     lines.push(`    Connection: ${MUTED("Skipped")}`);
@@ -580,9 +587,7 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
     `Protocol:    ${chalk.white(result.protocol ?? "unknown")}`,
   ];
 
-  const postOnlyNote = result.postOnly
-    ? chalk.yellow(" (POST-only)")
-    : "";
+  const postOnlyNote = result.postOnly ? chalk.yellow(" (POST-only)") : "";
   boxLines.push(
     `Format:      ${chalk.white(result.formatVersion ?? "unknown")}${postOnlyNote}`,
   );
@@ -591,11 +596,15 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
 
   if (result.network) {
     const shortName = networkToShortName(result.network);
-    boxLines.push(`Network:     ${chalk.white(shortName)} ${MUTED(`(${result.network})`)}`);
+    boxLines.push(
+      `Network:     ${chalk.white(shortName)} ${MUTED(`(${result.network})`)}`,
+    );
   }
 
   if (result.price) {
-    boxLines.push(`Price:       ${chalk.yellow(result.price.toDisplayString())}`);
+    boxLines.push(
+      `Price:       ${chalk.yellow(result.price.toDisplayString())}`,
+    );
   }
 
   if (result.facilitator) {
@@ -603,7 +612,9 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
   }
 
   boxLines.push(``);
-  boxLines.push(`Health:      ${healthEmoji(result.health)} ${healthLabel(result.health)}`);
+  boxLines.push(
+    `Health:      ${healthEmoji(result.health)} ${healthLabel(result.health)}`,
+  );
   boxLines.push(`Latency:     ${renderLatencyIndicator(result.latencyMs)}`);
 
   lines.push(renderBox(boxLines).trimStart());
@@ -612,7 +623,8 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
     lines.push("");
     lines.push(`  ${BRAND("Available Chains:")}`);
     for (let i = 0; i < result.chains.length; i++) {
-      const chain = result.chains[i]!;
+      const chain = result.chains[i];
+      if (!chain) continue;
       lines.push(
         `    ${ACCENT(`${i + 1}.`)} ${chalk.white(chain.namespace)} ${MUTED(`(${chain.network})`)} \u2014 ${chalk.yellow(chain.price.toDisplayString())}`,
       );
@@ -624,12 +636,18 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
 
 function formatDeathReason(reason?: string): string {
   switch (reason) {
-    case "dns_failure": return "DNS resolution failed";
-    case "http_404": return "Not found (404)";
-    case "http_5xx": return "Server error";
-    case "timeout": return "Connection timed out";
-    case "tls_error": return "TLS/SSL error";
-    default: return "Unreachable";
+    case "dns_failure":
+      return "DNS resolution failed";
+    case "http_404":
+      return "Not found (404)";
+    case "http_5xx":
+      return "Server error";
+    case "timeout":
+      return "Connection timed out";
+    case "tls_error":
+      return "TLS/SSL error";
+    default:
+      return "Unreachable";
   }
 }
 
@@ -645,10 +663,7 @@ export function formatVerifyDirectoryResult(
   entries: readonly VerifyDirectoryEntry[],
 ): string {
   if (entries.length === 0) {
-    return renderEmptyState(
-      ACCENT("\u25CB"),
-      "No directory entries found",
-    );
+    return renderEmptyState(ACCENT("\u25CB"), "No directory entries found");
   }
 
   const lines: string[] = [];
@@ -725,7 +740,9 @@ export function formatCheckResult(result: CheckResultData): string {
     for (let i = 0; i < result.options.length; i++) {
       const opt = result.options[i];
       if (!opt) continue;
-      const recommended = opt.recommended ? chalk.green("  \u2605 recommended") : "";
+      const recommended = opt.recommended
+        ? chalk.green("  \u2605 recommended")
+        : "";
       lines.push(
         `    ${ACCENT(`${i + 1}.`)} ${chalk.white(opt.chain)} ${MUTED(`(${opt.network})`)} \u2014 ${chalk.yellow(opt.amount)}${recommended}`,
       );

@@ -13,6 +13,14 @@ export {
 } from "./bazaar";
 export type { FetchOptions, QuoteResult } from "./boltzpay";
 export { BoltzPay } from "./boltzpay";
+export type { BudgetLimits, BudgetState } from "./budget/budget-manager";
+export type {
+  BoltzPayConfig,
+  BudgetConfig,
+  StorageConfig,
+  ValidatedConfig,
+  WalletConfig,
+} from "./config/types";
 export type {
   ChainInfo,
   DeathReason,
@@ -26,13 +34,6 @@ export type {
   DryRunFailureReason,
   DryRunResult,
 } from "./diagnostics/dry-run";
-export type { BudgetLimits, BudgetState } from "./budget/budget-manager";
-export type {
-  BoltzPayConfig,
-  BudgetConfig,
-  ValidatedConfig,
-  WalletConfig,
-} from "./config/types";
 export type {
   ApiDirectoryEntry,
   DiscoverEntryStatus,
@@ -82,10 +83,9 @@ export type {
 export type { PaymentDetails, PaymentRecord } from "./history/types";
 export type { PaymentMetrics } from "./metrics/metrics";
 export { isTestnet, networkToShortName } from "./network-utils";
-export type { StorageAdapter } from "./persistence/storage-adapter";
-export type { StorageConfig } from "./config/types";
-export { MemoryAdapter } from "./persistence/memory-adapter";
 export { FileAdapter } from "./persistence/file-adapter";
+export { MemoryAdapter } from "./persistence/memory-adapter";
+export type { StorageAdapter } from "./persistence/storage-adapter";
 export { BoltzPayResponse } from "./response/boltzpay-response";
 export type {
   AccountStatus,

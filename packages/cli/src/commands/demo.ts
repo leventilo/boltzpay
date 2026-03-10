@@ -35,7 +35,10 @@ function selectEndpoint(
     return { url: TESTNET_ENDPOINT, label: "Nickel Joke (testnet)" };
   }
   if (capabilities.canPayLightning) {
-    return { url: MAINNET_L402_ENDPOINT, label: "SatsAPI Bitcoin Price (L402)" };
+    return {
+      url: MAINNET_L402_ENDPOINT,
+      label: "SatsAPI Bitcoin Price (L402)",
+    };
   }
   if (capabilities.canPay) {
     return { url: MAINNET_X402_ENDPOINT, label: "Polymarket Trending (x402)" };

@@ -1,14 +1,23 @@
-import type { AcceptOption, ProtocolQuote } from "@boltzpay/core";
+import { resolve as dnsResolve } from "node:dns/promises";
+import type { AcceptOption } from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
 import type { NegotiatedPayment, ProbeResult } from "@boltzpay/protocols";
-import { negotiatePayment, ProtocolRouter } from "@boltzpay/protocols";
-import { resolve as dnsResolve } from "node:dns/promises";
+import { negotiatePayment, type ProtocolRouter } from "@boltzpay/protocols";
 
 export type EndpointHealth = "healthy" | "degraded" | "dead";
 
-export type EndpointClassification = "paid" | "free_confirmed" | "dead" | "ambiguous";
+export type EndpointClassification =
+  | "paid"
+  | "free_confirmed"
+  | "dead"
+  | "ambiguous";
 
-export type DeathReason = "dns_failure" | "http_404" | "http_5xx" | "timeout" | "tls_error";
+export type DeathReason =
+  | "dns_failure"
+  | "http_404"
+  | "http_5xx"
+  | "timeout"
+  | "tls_error";
 
 export type FormatVersion = "V1 body" | "V2 header" | "www-authenticate";
 
@@ -62,14 +71,12 @@ export function classifyHealth(
   network: string | undefined,
 ): EndpointHealth {
   if (scheme && scheme !== "exact") return "degraded";
-  if (network && network.startsWith("stellar")) return "degraded";
+  if (network?.startsWith("stellar")) return "degraded";
   if (latencyMs >= SLOW_THRESHOLD_MS) return "degraded";
   return "healthy";
 }
 
-export function toFormatVersion(
-  negotiation: NegotiatedPayment,
-): FormatVersion {
+export function toFormatVersion(negotiation: NegotiatedPayment): FormatVersion {
   switch (negotiation.transport) {
     case "body":
       return "V1 body";
@@ -128,8 +135,11 @@ function classifyFetchError(error: unknown): DeathReason {
   return "timeout";
 }
 
-async function resolveDns(hostname: string, timeoutMs: number): Promise<boolean> {
-  let timer: ReturnType<typeof setTimeout>;
+async function resolveDns(
+  hostname: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       dnsResolve(hostname),
@@ -141,7 +151,7 @@ async function resolveDns(hostname: string, timeoutMs: number): Promise<boolean>
   } catch {
     return false;
   } finally {
-    clearTimeout(timer!);
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -166,10 +176,14 @@ export async function diagnoseEndpoint(
   const totalBudget = detectTimeoutMs ?? DEFAULT_DETECT_TIMEOUT_MS;
   const totalStart = Date.now();
 
-  const remainingBudget = () => Math.max(0, totalBudget - (Date.now() - totalStart));
+  const remainingBudget = () =>
+    Math.max(0, totalBudget - (Date.now() - totalStart));
 
   try {
-    const dnsBudget = Math.min(DNS_MAX_MS, Math.max(DNS_MIN_MS, totalBudget * DNS_BUDGET_FRACTION));
+    const dnsBudget = Math.min(
+      DNS_MAX_MS,
+      Math.max(DNS_MIN_MS, totalBudget * DNS_BUDGET_FRACTION),
+    );
     const hostname = new URL(url).hostname;
     const dnsOk = await resolveDns(hostname, dnsBudget);
     if (!dnsOk) {
@@ -180,15 +194,30 @@ export async function diagnoseEndpoint(
     let response: Response;
 
     try {
-      response = await timedFetch(url, { method: "GET", redirect: "follow" }, remainingBudget());
+      response = await timedFetch(
+        url,
+        { method: "GET", redirect: "follow" },
+        remainingBudget(),
+      );
     } catch (error) {
-      return buildDeadResult(url, Date.now() - totalStart, classifyFetchError(error));
+      return buildDeadResult(
+        url,
+        Date.now() - totalStart,
+        classifyFetchError(error),
+      );
     }
 
     const status = response.status;
 
     if (status === 402) {
-      return buildPaidResult(url, totalStart, detectStart, response, false, router);
+      return buildPaidResult(
+        url,
+        totalStart,
+        detectStart,
+        response,
+        false,
+        router,
+      );
     }
 
     if (status === 404 || status === 410) {
@@ -201,22 +230,48 @@ export async function diagnoseEndpoint(
 
     if (status >= 200 && status < 300) {
       if (hasPaymentHeaders(response)) {
-        return buildPaidResult(url, totalStart, detectStart, response, false, router);
+        return buildPaidResult(
+          url,
+          totalStart,
+          detectStart,
+          response,
+          false,
+          router,
+        );
       }
 
-      const postBudget = Math.max(POST_MIN_MS, remainingBudget() * POST_BUDGET_FRACTION);
+      const postBudget = Math.max(
+        POST_MIN_MS,
+        remainingBudget() * POST_BUDGET_FRACTION,
+      );
       try {
         const postResponse = await timedFetch(
           url,
-          { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", redirect: "follow" },
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+            redirect: "follow",
+          },
           postBudget,
         );
 
         if (postResponse.status === 402) {
-          return buildPaidResult(url, totalStart, detectStart, postResponse, true, router);
+          return buildPaidResult(
+            url,
+            totalStart,
+            detectStart,
+            postResponse,
+            true,
+            router,
+          );
         }
 
-        return buildNonPaidResult(url, Date.now() - totalStart, "free_confirmed");
+        return buildNonPaidResult(
+          url,
+          Date.now() - totalStart,
+          "free_confirmed",
+        );
       } catch {
         return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
       }

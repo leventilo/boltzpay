@@ -93,9 +93,12 @@ export class BudgetManager {
   convertToUsd(amount: Money): Money {
     if (amount.currency === "USD") return amount;
     const rate = this.limits?.satToUsdRate ?? DEFAULT_SAT_TO_USD_RATE;
-    const rateScaled = BigInt(Math.round(rate * CENTS_PER_DOLLAR * Number(RATE_PRECISION)));
+    const rateScaled = BigInt(
+      Math.round(rate * CENTS_PER_DOLLAR * Number(RATE_PRECISION)),
+    );
     const cents = (amount.cents * rateScaled) / RATE_PRECISION;
-    const finalCents = cents === 0n && amount.cents > 0n ? MINIMUM_BUDGET_CENTS : cents;
+    const finalCents =
+      cents === 0n && amount.cents > 0n ? MINIMUM_BUDGET_CENTS : cents;
     return Money.fromCents(finalCents);
   }
 

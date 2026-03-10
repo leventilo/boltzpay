@@ -38,7 +38,7 @@ export async function withRetry<T>(
 ): Promise<T> {
   const { maxRetries, backoffMs, logger, emitter, phase } = options;
 
-  let lastError: Error | undefined;
+  let lastError: Error = new Error("retry exhausted with no attempts");
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -48,7 +48,11 @@ export async function withRetry<T>(
       lastError = error;
 
       if (isRateLimitError(error)) {
-        const action = await handleRateLimit(error as RateLimitError, attempt, options);
+        const action = await handleRateLimit(
+          error as RateLimitError,
+          attempt,
+          options,
+        );
         if (action === "throw" || action === "passthrough") {
           throw error;
         }
@@ -84,10 +88,10 @@ export async function withRetry<T>(
   emitter?.emit("retry:exhausted", {
     maxRetries,
     phase,
-    error: lastError!,
+    error: lastError,
   });
 
-  throw lastError!;
+  throw lastError;
 }
 
 function isRateLimitError(error: Error): error is RateLimitError {
@@ -142,7 +146,9 @@ async function handleRateLimit(
 }
 
 export function calculateDelay(backoffMs: number, attempt: number): number {
-  return Math.round(backoffMs * Math.pow(2, attempt) * (JITTER_MIN + Math.random() * JITTER_RANGE));
+  return Math.round(
+    backoffMs * 2 ** attempt * (JITTER_MIN + Math.random() * JITTER_RANGE),
+  );
 }
 
 export function parseRetryAfter(
@@ -153,12 +159,16 @@ export function parseRetryAfter(
   }
 
   const seconds = parseInt(headerValue, 10);
-  if (!isNaN(seconds) && seconds >= 0 && String(seconds) === headerValue.trim()) {
+  if (
+    !Number.isNaN(seconds) &&
+    seconds >= 0 &&
+    String(seconds) === headerValue.trim()
+  ) {
     return seconds * MS_PER_SECOND;
   }
 
   const dateMs = Date.parse(headerValue);
-  if (!isNaN(dateMs)) {
+  if (!Number.isNaN(dateMs)) {
     return Math.max(0, dateMs - Date.now());
   }
 

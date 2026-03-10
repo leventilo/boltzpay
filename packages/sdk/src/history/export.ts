@@ -36,7 +36,7 @@ export function exportCSV(records: readonly PaymentRecord[]): string {
       .join(","),
   );
 
-  return CSV_HEADER + "\n" + rows.join("\n");
+  return `${CSV_HEADER}\n${rows.join("\n")}`;
 }
 
 export function exportJSON(records: readonly PaymentRecord[]): string {

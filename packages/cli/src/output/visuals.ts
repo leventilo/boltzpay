@@ -29,20 +29,27 @@ const HEADER_PREFIX_LENGTH = 4;
 const HEADER_SUFFIX_SPACING = 1;
 const BOX_PADDING = 2;
 
-export function renderHeader(title: string, width = DEFAULT_HEADER_WIDTH): string {
+export function renderHeader(
+  title: string,
+  width = DEFAULT_HEADER_WIDTH,
+): string {
   const prefix = `${ACCENT("───")} ${BRAND(title)} `;
-  const visibleLen = HEADER_PREFIX_LENGTH + title.length + HEADER_SUFFIX_SPACING;
+  const visibleLen =
+    HEADER_PREFIX_LENGTH + title.length + HEADER_SUFFIX_SPACING;
   const remaining = Math.max(0, width - visibleLen);
   return prefix + ACCENT(SEPARATOR_CHAR.repeat(remaining));
 }
 
-export function renderBox(lines: readonly string[], width = DEFAULT_BOX_WIDTH): string {
-  const top = ACCENT("  ┌" + SEPARATOR_CHAR.repeat(width) + "┐");
-  const bottom = ACCENT("  └" + SEPARATOR_CHAR.repeat(width) + "┘");
+export function renderBox(
+  lines: readonly string[],
+  width = DEFAULT_BOX_WIDTH,
+): string {
+  const top = ACCENT(`  ┌${SEPARATOR_CHAR.repeat(width)}┐`);
+  const bottom = ACCENT(`  └${SEPARATOR_CHAR.repeat(width)}┘`);
   const rows = lines.map((line) => {
     const visible = stripAnsi(line);
     const pad = Math.max(0, width - BOX_PADDING - visible.length);
-    return ACCENT("  │") + " " + line + " ".repeat(pad) + " " + ACCENT("│");
+    return `${ACCENT("  │")} ${line}${" ".repeat(pad)} ${ACCENT("│")}`;
   });
   return [top, ...rows, bottom].join("\n");
 }
@@ -74,7 +81,7 @@ export function renderBar(ratio: number, width = DEFAULT_BAR_WIDTH): string {
     filledStr = colorFn("█".repeat(filled));
   } else {
     const core = filled - 1;
-    filledStr = colorFn("█".repeat(core) + "▓");
+    filledStr = colorFn(`${"█".repeat(core)}▓`);
   }
 
   const emptyStr = chalk.gray("░".repeat(empty));
@@ -90,13 +97,13 @@ export function renderSparkline(values: readonly number[]): string {
   const max = Math.max(...values);
 
   if (min === max) {
-    return ACCENT(SPARK_CHARS[SPARK_MID_INDEX]!.repeat(values.length));
+    return ACCENT(SPARK_CHARS[SPARK_MID_INDEX]?.repeat(values.length));
   }
 
   const range = max - min;
   const chars = values.map((v) => {
     const index = Math.round(((v - min) / range) * SPARK_MAX_INDEX);
-    return SPARK_CHARS[index]!;
+    return SPARK_CHARS[index] ?? "▁";
   });
 
   return ACCENT(chars.join(""));
@@ -207,7 +214,7 @@ function latencyColorForMs(ms: number): ColorFn {
 }
 
 function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape sequence stripping
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 

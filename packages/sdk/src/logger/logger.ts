@@ -39,17 +39,15 @@ export function createLogger(
     if (LOG_LEVELS[logLevel] >= threshold) {
       if (format === "json") {
         process.stderr.write(
-          JSON.stringify({
+          `${JSON.stringify({
             ts: new Date().toISOString(),
             level: logLevel,
             msg,
             ...entry,
-          }) + "\n",
+          })}\n`,
         );
       } else {
-        process.stderr.write(
-          `[BoltzPay ${logLevel.toUpperCase()}] ${msg}\n`,
-        );
+        process.stderr.write(`[BoltzPay ${logLevel.toUpperCase()}] ${msg}\n`);
       }
     }
   }

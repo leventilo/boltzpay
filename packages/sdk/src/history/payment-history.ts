@@ -78,9 +78,7 @@ export class PaymentHistory {
       }
     }
 
-    records.sort(
-      (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
-    );
+    records.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
     if (records.length > this.maxSize) {
       this.records = records.slice(-this.maxSize);
@@ -92,7 +90,10 @@ export class PaymentHistory {
   add(record: PaymentRecord): void {
     this.records.push(record);
     if (this.records.length > this.maxSize) {
-      const evicted = this.records.splice(0, this.records.length - this.maxSize);
+      const evicted = this.records.splice(
+        0,
+        this.records.length - this.maxSize,
+      );
       this.persistRecord(record);
       this.deleteOldRecords(evicted.map((r) => r.id));
     } else {

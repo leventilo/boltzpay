@@ -32,16 +32,16 @@ async function promisePool<T, R>(
   async function worker(): Promise<void> {
     while (nextIndex < items.length) {
       const index = nextIndex++;
-      results[index] = await fn(items[index]!, index);
+      const item = items[index];
+      if (!item) continue;
+      results[index] = await fn(item, index);
       completedCount++;
       onProgress?.(completedCount, items.length);
     }
   }
 
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, () =>
-      worker(),
-    ),
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
   );
   return results;
 }

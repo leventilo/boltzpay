@@ -11,9 +11,7 @@ export function registerDiagnoseCommand(program: Command): void {
   program
     .command("diagnose")
     .alias("check")
-    .description(
-      "Diagnose a paid endpoint — protocol, format, scheme, health",
-    )
+    .description("Diagnose a paid endpoint — protocol, format, scheme, health")
     .argument("<url>", "URL to diagnose")
     .action(
       async (url: string, _opts: Record<string, unknown>, command: Command) => {

@@ -1,5 +1,10 @@
 import type { z } from "zod";
-import type { BoltzPayConfigSchema, BudgetSchema, StorageSchema, WalletSchema } from "./schema";
+import type {
+  BoltzPayConfigSchema,
+  BudgetSchema,
+  StorageSchema,
+  WalletSchema,
+} from "./schema";
 
 export type BoltzPayConfig = z.input<typeof BoltzPayConfigSchema>;
 

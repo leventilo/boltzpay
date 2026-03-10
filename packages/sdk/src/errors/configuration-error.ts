@@ -1,6 +1,9 @@
 import { BoltzPayError } from "./boltzpay-error";
 
-type ConfigurationErrorCode = "missing_coinbase_credentials" | "invalid_config" | "domain_blocked";
+type ConfigurationErrorCode =
+  | "missing_coinbase_credentials"
+  | "invalid_config"
+  | "domain_blocked";
 
 export class ConfigurationError extends BoltzPayError {
   readonly code: ConfigurationErrorCode;

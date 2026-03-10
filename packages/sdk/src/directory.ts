@@ -125,7 +125,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://api.ordiscan.com/v1/rune/UNCOMMON•GOODS",
     protocol: "x402",
     category: "crypto-data",
-    description: "Bitcoin Runes data — supply, mints, etching info (replace name in URL)",
+    description:
+      "Bitcoin Runes data — supply, mints, etching info (replace name in URL)",
     pricing: "$0.01",
   },
   {
@@ -173,7 +174,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://x402.911fund.io/alpha/trending",
     protocol: "x402",
     category: "crypto-data",
-    description: "Trending tokens, sectors, narrative clustering, and social momentum",
+    description:
+      "Trending tokens, sectors, narrative clustering, and social momentum",
     pricing: "$0.03",
   },
   {
@@ -232,7 +234,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://polynews.news/api/v1/feed",
     protocol: "x402",
     category: "crypto-data",
-    description: "Real-time trade stream and market summaries ($500+ trades, 2hr window)",
+    description:
+      "Real-time trade stream and market summaries ($500+ trades, 2hr window)",
     pricing: "$0.01",
   },
   {
@@ -264,7 +267,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://sportsarbitrageapi-production.up.railway.app/api/opportunities/sport",
     protocol: "x402",
     category: "finance",
-    description: "Sports betting arbitrage opportunities (Soccer, NBA, Tennis, NFL, MLB)",
+    description:
+      "Sports betting arbitrage opportunities (Soccer, NBA, Tennis, NFL, MLB)",
     pricing: "$0.03",
   },
   {
@@ -298,7 +302,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://verify.agentutil.net/v1/verify",
     protocol: "x402",
     category: "research",
-    description: "Fact verification with verdict, confidence score, and current truth",
+    description:
+      "Fact verification with verdict, confidence score, and current truth",
     pricing: "$0.01",
   },
   {
@@ -357,7 +362,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://httpay.xyz/api/news/crypto",
     protocol: "x402",
     category: "research",
-    description: "Crypto news RSS aggregation (4 endpoints: news, gas, MEV, yield)",
+    description:
+      "Crypto news RSS aggregation (4 endpoints: news, gas, MEV, yield)",
     pricing: "$0.01",
   },
   {
@@ -373,7 +379,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://rng.sociologic.ai/random/int",
     protocol: "x402",
     category: "utilities",
-    description: "Cryptographically secure random integer (pass ?min=1&max=1000)",
+    description:
+      "Cryptographically secure random integer (pass ?min=1&max=1000)",
     pricing: "$0.01",
   },
   {
@@ -423,7 +430,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://hello-world-x402.vercel.app/hello",
     protocol: "x402",
     category: "demo",
-    description: "Returns \"Hello World\" after payment — simplest x402 sanity test",
+    description:
+      'Returns "Hello World" after payment — simplest x402 sanity test',
     pricing: "$0.01",
   },
   {
@@ -464,7 +472,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://l402.services/geoip/8.8.8.8",
     protocol: "l402",
     category: "utilities",
-    description: "IP geolocation — country, city, ISP, coordinates (replace IP in URL)",
+    description:
+      "IP geolocation — country, city, ISP, coordinates (replace IP in URL)",
     pricing: "1 sat",
   },
   {
@@ -472,7 +481,8 @@ export const API_DIRECTORY: readonly ApiDirectoryEntry[] = [
     url: "https://l402.services/ln/search?q=acinq",
     protocol: "l402",
     category: "crypto-data",
-    description: "Search Lightning Network nodes by alias (18 LN endpoints available)",
+    description:
+      "Search Lightning Network nodes by alias (18 LN endpoints available)",
     pricing: "10 sats",
   },
   {
