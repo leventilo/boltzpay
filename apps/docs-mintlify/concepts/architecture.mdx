@@ -3,7 +3,7 @@ title: "Architecture"
 description: "Package structure and dependency graph"
 ---
 
-BoltzPay is split into five packages with strict dependency boundaries. Dependencies flow inward: outer packages depend on inner ones, never the reverse. The core domain has zero external dependencies.
+BoltzPay is split into six packages with strict dependency boundaries. Dependencies flow inward: outer packages depend on inner ones, never the reverse. The core domain has zero external dependencies.
 
 ## Package Dependency Graph
 
@@ -11,6 +11,7 @@ BoltzPay is split into five packages with strict dependency boundaries. Dependen
 flowchart TB
     CLI["@boltzpay/cli<br/>Terminal & Python bridge"]
     MCP["@boltzpay/mcp<br/>Claude Desktop / MCP tools"]
+    AISDK["@boltzpay/ai-sdk<br/>Vercel AI SDK tools"]
     SDK["@boltzpay/sdk<br/>Composition root"]
     Protocols["@boltzpay/protocols<br/>Adapters: x402, L402"]
     Core["@boltzpay/core<br/>Domain logic, zero deps"]
@@ -21,6 +22,7 @@ flowchart TB
 
     CLI --> SDK
     MCP --> SDK
+    AISDK --> SDK
     SDK --> Protocols
     SDK --> Core
     Protocols --> Core
@@ -33,6 +35,7 @@ flowchart TB
     style Protocols fill:#1e3a5f,stroke:#60a5fa,color:#fff
     style CLI fill:#3b2f63,stroke:#a78bfa,color:#fff
     style MCP fill:#3b2f63,stroke:#a78bfa,color:#fff
+    style AISDK fill:#3b2f63,stroke:#a78bfa,color:#fff
     style CDP fill:#333,stroke:#888,color:#ccc
     style Facilitator fill:#333,stroke:#888,color:#ccc
     style Lightning fill:#333,stroke:#888,color:#ccc
@@ -60,15 +63,19 @@ Each adapter implements a shared interface: `detect()`, `quote()`, `execute()`.
 
 ### @boltzpay/sdk (blue)
 
-The composition root. This is what users import. It wires together core domain logic and protocol adapters into the `BoltzPay` class. Exposes `fetch()`, `quote()`, `discover()`, `getBudget()`, `getHistory()`, `getCapabilities()`, `getWalletStatus()`, and `getBalances()`.
+The composition root. This is what users import. It wires together core domain logic and protocol adapters into the `BoltzPay` class. Exposes `fetch()`, `quote()`, `diagnose()`, `discover()`, `getBudget()`, `getHistory()`, `getCapabilities()`, `getWalletStatus()`, and `getBalances()`.
 
 ### @boltzpay/cli (purple)
 
-A terminal interface that wraps the SDK. Commands: `quote`, `fetch`, `discover`, `diagnose`, `budget`, `history`, `wallet`, `demo`. Also serves as a bridge for Python agents (LangChain, CrewAI) via subprocess calls.
+A terminal interface that wraps the SDK. Commands: `quote`, `fetch`, `discover`, `diagnose`, `budget`, `history`, `wallet`, `demo`, `verify-directory`. Also serves as a bridge for Python agents (LangChain, CrewAI) via subprocess calls.
 
 ### @boltzpay/mcp (purple)
 
 An MCP server exposing 7 tools for Claude Desktop and other MCP-compatible clients. Install with `npx @boltzpay/mcp` and point Claude Desktop at it.
+
+### @boltzpay/ai-sdk (purple)
+
+A Vercel AI SDK integration exposing 7 tools via `boltzpayTools()`. Use with `generateText()` or `streamText()` from the Vercel AI SDK.
 
 ## External Systems (gray)
 
@@ -78,7 +85,7 @@ An MCP server exposing 7 tools for Claude Desktop and other MCP-compatible clien
 
 ## Design Principles
 
-- **Inward dependencies** -- CLI and MCP depend on SDK. SDK depends on Protocols and Core. Core depends on nothing. No circular dependencies.
+- **Inward dependencies** -- CLI, MCP, and AI-SDK depend on SDK. SDK depends on Protocols and Core. Core depends on nothing. No circular dependencies.
 - **Protocol-agnostic core** -- `Money`, `Budget`, and `BudgetTracker` know nothing about x402 or L402. Adding a new protocol means adding a new adapter in `packages/protocols`, not touching core.
 - **Lazy credentials** -- The SDK accepts wallet credentials optionally. Read-only operations (`quote`, `discover`, `diagnose`) work without any keys. Payment operations validate credentials at call time.
 
