@@ -119,7 +119,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/*/package.json integrations/*/package.json \
                  integrations/*/pyproject.toml packages/config/package.json \
-                 apps/landing/src/components/Header.astro
+                 apps/landing/src/components/Header.astro \
+                 packages/cli/src/program.ts packages/mcp/src/index.ts
           git commit -m "chore(release): ${VERSION}"
           git tag "${VERSION}"
           git push origin main --tags
