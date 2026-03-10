@@ -1,4 +1,4 @@
-"""LangChain BaseTool subclasses for all 7 BoltzPay CLI commands."""
+"""LangChain BaseTool subclasses for all 8 BoltzPay CLI commands."""
 
 from __future__ import annotations
 
@@ -10,10 +10,6 @@ from pydantic import BaseModel, Field
 
 from .bridge import async_run_cli, run_cli
 
-
-# ---------------------------------------------------------------------------
-# Pydantic input schemas
-# ---------------------------------------------------------------------------
 
 
 class FetchInput(BaseModel):
@@ -46,9 +42,11 @@ class DiscoverInput(BaseModel):
     )
 
 
-# ---------------------------------------------------------------------------
-# Tool implementations
-# ---------------------------------------------------------------------------
+class DiagnoseInput(BaseModel):
+    """Input for BoltzPayDiagnoseTool."""
+
+    url: str = Field(description="The URL of the API endpoint to diagnose")
+
 
 
 class BoltzPayFetchTool(BaseTool):
@@ -198,4 +196,25 @@ class BoltzPayWalletTool(BaseTool):
 
     async def _arun(self, **kwargs: Any) -> str:
         result = await async_run_cli("wallet")
+        return json.dumps(result, indent=2)
+
+
+class BoltzPayDiagnoseTool(BaseTool):
+    """Full diagnostic of an API endpoint: protocol, health, latency."""
+
+    name: str = "boltzpay_diagnose"
+    description: str = (
+        "Full diagnostic of an API endpoint: DNS resolution, protocol detection "
+        "(x402/L402), format version, pricing, health status, and latency. "
+        "Returns a complete report in one call. No payment credentials required."
+    )
+    args_schema: Type[BaseModel] = DiagnoseInput
+    handle_tool_error: bool = True
+
+    def _run(self, url: str, **kwargs: Any) -> str:
+        result = run_cli("diagnose", [url])
+        return json.dumps(result, indent=2)
+
+    async def _arun(self, url: str, **kwargs: Any) -> str:
+        result = await async_run_cli("diagnose", [url])
         return json.dumps(result, indent=2)

@@ -11,6 +11,7 @@ from .errors import BoltzPayBridgeError, BoltzPayNodeNotFoundError, BoltzPayTime
 from .tools import (
     BoltzPayBudgetTool,
     BoltzPayCheckTool,
+    BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
     BoltzPayHistoryTool,
@@ -24,6 +25,7 @@ __all__ = [
     "BoltzPayCheckTool",
     "BoltzPayQuoteTool",
     "BoltzPayDiscoverTool",
+    "BoltzPayDiagnoseTool",
     "BoltzPayBudgetTool",
     "BoltzPayHistoryTool",
     "BoltzPayWalletTool",

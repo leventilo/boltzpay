@@ -1,32 +1,45 @@
 # BoltzPay
 
-> Open-source SDK that gives AI agents a fetch() that pays. Multi-protocol (x402 + L402), multi-chain, your own keys.
+> Open-source SDK that gives AI agents a fetch() that pays. Drop-in replacement for fetch — automatic protocol detection, payment, and retry.
 
-## Quickstart
+- Multi-protocol: x402 (USDC on Base + Solana) and L402 (Bitcoin Lightning)
+- Multi-chain: EVM and SVM, with automatic chain selection
+- Your own keys: Coinbase CDP for x402, Nostr Wallet Connect for L402
+- Zero-config explore mode: quote, check, discover, diagnose work without credentials
+
+## Install
 
 ```
 npm install @boltzpay/sdk
 ```
 
-```typescript
-import { BoltzPay } from "@boltzpay/sdk";
-const agent = new BoltzPay({});
-const quote = await agent.quote("https://invy.bot/api");
-```
-
-## Docs
-
-- [README](https://github.com/leventilo/boltzpay#readme): Full documentation
-- [Examples](https://github.com/leventilo/boltzpay/tree/main/examples): Runnable code examples
-- [CONTRIBUTING](https://github.com/leventilo/boltzpay/blob/main/CONTRIBUTING.md): How to contribute
-
 ## Packages
 
-- [@boltzpay/sdk](https://www.npmjs.com/package/@boltzpay/sdk): Core SDK
-- [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp): MCP server for Claude Desktop
-- [@boltzpay/cli](https://www.npmjs.com/package/@boltzpay/cli): CLI for terminal and Python bridge
-- [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk): Vercel AI SDK tools
+- [@boltzpay/sdk](https://www.npmjs.com/package/@boltzpay/sdk): Core SDK — `agent.fetch(url)` with automatic payment
+- [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp): MCP server — 8 tools for Claude Desktop, Cursor, Windsurf
+- [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk): Vercel AI SDK — 8 tools for any AI agent
+- [@boltzpay/cli](https://www.npmjs.com/package/@boltzpay/cli): CLI — terminal usage and Python bridge (LangChain, CrewAI)
 
-## Optional
+## Key Methods
 
-- [llms-full.txt](https://boltzpay.ai/llms-full.txt): Complete documentation for LLMs
+| Method | What it does | Needs keys |
+|--------|-------------|------------|
+| `fetch(url)` | Pay and retrieve data from any paid API | Yes |
+| `quote(url)` | Get price without paying | No |
+| `diagnose(url)` | Full health check in 2s (DNS, protocol, pricing, latency) | No |
+| `discover()` | Browse curated directory with live probing | No |
+| `getBudget()` | Check spending limits and remaining balance | No |
+| `getHistory()` | List all payments made | No |
+| `getWalletStatus()` | Wallet connectivity, balances, credentials | No |
+
+## API Directory
+
+Curated directory of verified paid endpoints, updated regularly.
+- Source of truth: https://raw.githubusercontent.com/leventilo/boltzpay/main/directory.json
+- Browse via SDK: `agent.discover()` | CLI: `boltzpay discover` | MCP: `boltzpay_discover`
+
+## Links
+
+- [GitHub](https://github.com/leventilo/boltzpay)
+- [Docs](https://docs.boltzpay.ai)
+- [llms-full.txt](https://boltzpay.ai/llms-full.txt): Complete API reference for LLMs

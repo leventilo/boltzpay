@@ -49,9 +49,7 @@ function selectEndpoint(
   };
 }
 
-async function confirmPayment(skipConfirm: boolean): Promise<boolean> {
-  if (skipConfirm) return true;
-
+async function promptPaymentConfirmation(): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -108,7 +106,7 @@ export function registerDemoCommand(program: Command): void {
           if (canPay) {
             process.stdout.write(formatDemoStep(4, "Fetching with payment..."));
 
-            const shouldPay = await confirmPayment(opts.yes ?? false);
+            const shouldPay = opts.yes || (await promptPaymentConfirmation());
             if (!shouldPay) {
               process.stdout.write("  Skipped payment.\n\n");
             } else {

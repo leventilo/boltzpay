@@ -11,13 +11,14 @@ from pydantic import ValidationError
 from langchain_boltzpay import (
     BoltzPayBudgetTool,
     BoltzPayCheckTool,
+    BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
     BoltzPayHistoryTool,
     BoltzPayQuoteTool,
     BoltzPayWalletTool,
 )
-from langchain_boltzpay.tools import FetchInput
+from langchain_boltzpay.tools import DiagnoseInput, FetchInput
 
 
 ALL_TOOLS = [
@@ -28,6 +29,7 @@ ALL_TOOLS = [
     BoltzPayBudgetTool,
     BoltzPayHistoryTool,
     BoltzPayWalletTool,
+    BoltzPayDiagnoseTool,
 ]
 
 
@@ -171,6 +173,38 @@ class TestToolExecution:
         parsed = json.loads(result)
         assert "protocols" in parsed["data"]
 
+    def test_diagnose_run_returns_json(self):
+        mock_response = {
+            "success": True,
+            "data": {
+                "url": "https://invy.bot/api",
+                "classification": "paid",
+                "isPaid": True,
+                "protocol": "x402",
+                "health": "live",
+                "latencyMs": 245,
+            },
+        }
+
+        with patch("langchain_boltzpay.tools.run_cli", return_value=mock_response):
+            tool = BoltzPayDiagnoseTool()
+            result = tool._run(url="https://invy.bot/api")
+
+        parsed = json.loads(result)
+        assert parsed["data"]["classification"] == "paid"
+        assert parsed["data"]["protocol"] == "x402"
+
+    def test_diagnose_run_passes_url(self):
+        mock_response = {"success": True, "data": {"url": "https://example.com"}}
+
+        with patch("langchain_boltzpay.tools.run_cli", return_value=mock_response) as mock_cli:
+            tool = BoltzPayDiagnoseTool()
+            tool._run(url="https://example.com")
+
+        args = mock_cli.call_args
+        assert args[0][0] == "diagnose"
+        assert "https://example.com" in args[0][1]
+
 
 class TestInputValidation:
     """Test Pydantic input schema validation."""
@@ -189,3 +223,15 @@ class TestInputValidation:
         assert inp.url == "https://example.com"
         assert inp.method == "POST"
         assert inp.chain == "evm"
+
+    def test_diagnose_input_requires_url(self):
+        with pytest.raises(ValidationError):
+            DiagnoseInput()  # type: ignore[call-arg]
+
+    def test_diagnose_input_accepts_url(self):
+        inp = DiagnoseInput(url="https://example.com")
+        assert inp.url == "https://example.com"
+
+    def test_diagnose_tool_has_args_schema(self):
+        tool = BoltzPayDiagnoseTool()
+        assert tool.args_schema is DiagnoseInput

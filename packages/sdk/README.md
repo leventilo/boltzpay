@@ -41,8 +41,16 @@ console.log(`${quote.protocol}: ${quote.amount.toDisplayString()}`);
 - **Budget engine** — Daily, monthly, and per-transaction spending limits
 - **Payment events** — Subscribe to `payment`, `budget:warning`, `budget:exceeded`, `error`
 - **Explore mode** — Quote, check, and discover APIs without credentials
-- **API directory** — Built-in directory of 25+ verified paid endpoints
+- **API directory** — Built-in directory of 48 verified paid endpoints (42 x402 + 6 L402)
 - **Persistent history** — Payment history saved to `~/.boltzpay/history.jsonl`
+- **Configurable timeouts** — Per-phase timeouts (detect, quote, payment) with sensible defaults
+- **Payment-safe retry** — Automatic retry for transient failures, never retries post-payment
+- **Structured logging** — NDJSON log output for observability
+- **Storage adapters** — Pluggable persistence (`MemoryAdapter`, `FileAdapter`) with async API
+- **Endpoint diagnostics** — `diagnose(url)` deep health check (DNS, GET, POST, headers) in under 2s
+- **Allowlist / blocklist** — Domain-level access control for payments
+- **Max amount guard** — Hard ceiling on any single payment
+- **Dry-run mode** — Simulate the full payment flow without spending
 
 ## Key Methods
 
@@ -56,6 +64,7 @@ console.log(`${quote.protocol}: ${quote.amount.toDisplayString()}`);
 | `getWalletStatus()` | Comprehensive wallet health check | No |
 | `getBalances()` | Query USDC balance per chain | No |
 | `discover(options?)` | Browse and probe paid API directory | No |
+| `diagnose(url)` | Deep endpoint health check (DNS, HTTP, headers) in under 2s | No |
 | `close()` | Close connections (NWC WebSocket, etc.) | No |
 | `on(event, cb)` | Subscribe to payment/budget/error events | No |
 

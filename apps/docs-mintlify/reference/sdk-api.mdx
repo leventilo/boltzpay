@@ -197,6 +197,30 @@ async discover(options?: DiscoverOptions): Promise<readonly DiscoveredEntry[]>
 
 ---
 
+#### `diagnose(url)`
+
+Run a full diagnostic on any API endpoint in under 2 seconds. Checks DNS resolution, HTTP reachability (GET and POST), protocol detection (x402/L402), format version, pricing, and latency. No credentials required.
+
+```ts
+async diagnose(url: string): Promise<DiagnoseResult>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `url` | `string` | Yes | URL of the endpoint to diagnose |
+
+**Returns:** `DiagnoseResult` with `url`, `dns`, `get`, `post`, `protocol`, `version`, `price`, `network`, `health` (`"paid"` | `"free_confirmed"` | `"dead"` | `"ambiguous"`), and `totalMs`.
+
+```ts
+const result = await sdk.diagnose('https://invy.bot/api');
+console.log(result.health);   // "paid"
+console.log(result.protocol); // "x402"
+console.log(result.price);    // "$0.05"
+console.log(result.totalMs);  // 257
+```
+
+---
+
 #### `close()`
 
 Close open connections (NWC WebSocket, etc.). Call when done using the SDK instance.
@@ -787,5 +811,5 @@ try {
 ## Constants
 
 ```ts
-export const VERSION = "0.1.1";
+export const VERSION = "0.2.0";
 ```

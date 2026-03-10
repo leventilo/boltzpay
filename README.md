@@ -17,7 +17,7 @@ BoltzPay detects whether an API endpoint requires payment, negotiates the best p
 Browse paid APIs and check prices from your terminal — zero configuration:
 
 ```bash
-npx @boltzpay/cli discover        # list 25+ paid API endpoints with live prices
+npx @boltzpay/cli discover        # list 48 verified paid API endpoints with live prices
 npx @boltzpay/cli check https://invy.bot/api   # detect protocol, show price and chains
 npx @boltzpay/cli quote https://invy.bot/api   # detailed quote with alternatives
 ```
@@ -83,8 +83,19 @@ const response = await agent.fetch(url);
 ## Why BoltzPay
 
 - **Budget engine** — Daily, monthly, and per-transaction spending limits. Payment events and full spending history. No other x402 client gives you this level of control over what your agent spends.
-- **MCP-ready** — Give Claude a payment wallet in 30 seconds with `npx @boltzpay/mcp`. 7 tools, zero code.
+- **MCP-ready** — Give Claude a payment wallet in 30 seconds with `npx @boltzpay/mcp`. 8 tools, zero code.
 - **Protocol-agnostic** — x402, L402, and whatever comes next. Your code doesn't change when the ecosystem does.
+
+## v0.2 Highlights
+
+- **Configurable timeouts** — Per-phase timeouts (detect, quote, payment) with sensible defaults
+- **Payment-safe retry** — Automatic retry for transient failures, never retries after payment (no double-spend)
+- **Structured logging** — NDJSON log output for observability and debugging
+- **Storage adapters** — Pluggable persistence (`MemoryAdapter`, `FileAdapter`) for payment history and metrics
+- **Endpoint diagnostics** — `diagnose(url)` performs deep health checks (DNS, GET, POST, headers) in under 2s
+- **Allowlist / blocklist** — Restrict which domains your agent can pay
+- **Max amount guard** — Hard ceiling on any single payment
+- **Dry-run mode** — Simulate the full payment flow without spending
 
 ## MCP Server (Claude Desktop)
 
@@ -128,7 +139,7 @@ Add Coinbase credentials and a daily spending limit:
 }
 ```
 
-**7 MCP tools available:** `fetch` (pay and retrieve), `quote` (check cost), `check` (detect payment requirement), `budget` (show remaining budget), `history` (list recent payments), `discover` (browse compatible APIs), `wallet` (show addresses and balances).
+**8 MCP tools available:** `fetch` (pay and retrieve), `quote` (check cost), `check` (detect payment requirement), `budget` (show remaining budget), `history` (list recent payments), `discover` (browse compatible APIs), `wallet` (show addresses and balances), `diagnose` (deep endpoint diagnostics in 2s).
 
 ## Budget & Safety
 
@@ -208,7 +219,7 @@ boltzpay fetch https://invy.bot/api --json
 
 ```bash
 boltzpay discover
-# 25 endpoints across 5 categories: Crypto Data, Utilities, Demo, Research, Dev Tools
+# 48 endpoints across 9 categories: Crypto Data, Utilities, Demo, Research, Dev Tools, Finance, AI Tools, Social, Media
 ```
 
 **Interactive demo:**
@@ -244,7 +255,7 @@ See [examples/test-server/README.md](examples/test-server/README.md) for prerequ
 
 ## Compatible APIs
 
-BoltzPay works with any x402 or L402 endpoint. The built-in directory includes 25 verified endpoints (23 x402 + 2 L402) across categories: `crypto-data`, `utilities`, `demo`, `research`, and `dev-tools`.
+BoltzPay works with any x402 or L402 endpoint. The built-in directory includes 48 verified endpoints (42 x402 + 6 L402) across categories: `crypto-data`, `utilities`, `demo`, `research`, `dev-tools`, `finance`, `ai-tools`, `social`, and `media`.
 
 Browse the directory programmatically:
 
@@ -252,7 +263,7 @@ Browse the directory programmatically:
 import { API_DIRECTORY, getDirectoryCategories } from "@boltzpay/sdk";
 
 console.log(getDirectoryCategories()); // ["crypto-data", "utilities", "demo", "research", "dev-tools"]
-console.log(API_DIRECTORY.length);     // 25
+console.log(API_DIRECTORY.length);     // 48
 ```
 
 Or via CLI: `boltzpay discover`
@@ -266,7 +277,7 @@ Or via CLI: `boltzpay discover`
 | [@boltzpay/protocols](https://www.npmjs.com/package/@boltzpay/protocols) | Protocol adapters (x402, L402) and wallet management |
 | [@boltzpay/mcp](https://www.npmjs.com/package/@boltzpay/mcp) | MCP server for Claude Desktop |
 | [@boltzpay/cli](https://www.npmjs.com/package/@boltzpay/cli) | Command-line interface and Python bridge |
-| [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk) | Vercel AI SDK tools (7 tools) |
+| [@boltzpay/ai-sdk](https://www.npmjs.com/package/@boltzpay/ai-sdk) | Vercel AI SDK tools (8 tools) |
 
 ## Framework Integrations
 
@@ -291,7 +302,7 @@ const { text } = await generateText({
 });
 ```
 
-7 tools: fetch, quote, check, discover, budget, history, wallet. [Full docs](https://docs.boltzpay.ai)
+8 tools: fetch, quote, check, discover, budget, history, wallet, diagnose. [Full docs](https://docs.boltzpay.ai)
 
 ### LangChain (Python)
 

@@ -2,7 +2,7 @@
 
 # @boltzpay/mcp
 
-MCP server for BoltzPay — add paid API access to Claude Desktop and other MCP clients. 7 tools, zero code.
+MCP server for BoltzPay — add paid API access to Claude Desktop and other MCP clients. 8 tools, zero code.
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ Omit the `env` block to run in **explore-only mode** (quote, check, discover wor
 
 ## Features
 
-- **7 MCP tools** — fetch, quote, check, discover, budget, history, wallet
+- **8 MCP tools** — fetch, quote, check, discover, budget, history, wallet, diagnose
 - **Zero code** — Run with `npx`, configure via environment variables
 - **Explore mode** — Discover and quote APIs without credentials
 - **Budget enforcement** — Daily spending limits via `BOLTZPAY_DAILY_BUDGET`
@@ -49,6 +49,7 @@ Omit the `env` block to run in **explore-only mode** (quote, check, discover wor
 | `boltzpay_budget` | View current spending budget status | No |
 | `boltzpay_history` | List payments made during session | No |
 | `boltzpay_wallet` | View wallet config, addresses, balances | No |
+| `boltzpay_diagnose` | Full endpoint diagnostic — DNS, protocol detection (x402/L402), format version, pricing, health, latency. No credentials required. | No |
 
 ## Environment Variables
 

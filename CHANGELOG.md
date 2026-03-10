@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Payment events system (payment, budget:warning, budget:exceeded, error)
 - Payment history tracking
 - Zero-config explore mode (check, quote, discover without credentials)
-- MCP server (`@boltzpay/mcp`) with 7 tools for Claude Desktop
-- CLI (`@boltzpay/cli`) with 7 commands and JSON output mode
-- API directory with 11+ verified endpoints
+- MCP server (`@boltzpay/mcp`) with 8 tools for Claude Desktop
+- CLI (`@boltzpay/cli`) with 8 commands and JSON output mode
+- API directory with 48 verified endpoints
 - ESM + CJS dual build for library packages (core, protocols, sdk); ESM-only for executables (mcp, cli)
 - GitHub Actions CI pipeline

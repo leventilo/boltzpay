@@ -24,7 +24,7 @@ pnpm test
 | `packages/core` | Domain types and value objects (zero dependencies) |
 | `packages/protocols` | Protocol adapters for x402 and L402 |
 | `packages/sdk` | Composition root — the `BoltzPay` class and `agent.fetch()` |
-| `packages/mcp` | MCP server for Claude Desktop (7 tools) |
+| `packages/mcp` | MCP server for Claude Desktop (8 tools) |
 | `packages/cli` | CLI for terminal usage and Python bridge |
 | `apps/landing` | Astro static landing page |
 

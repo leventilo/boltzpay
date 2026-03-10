@@ -1,12 +1,12 @@
 # Using BoltzPay with CrewAI via MCP
 
-CrewAI natively supports the Model Context Protocol (MCP). This means your CrewAI agents can use **all 7 BoltzPay tools instantly** — no Python package installation required. Just point CrewAI at the BoltzPay MCP server.
+CrewAI natively supports the Model Context Protocol (MCP). This means your CrewAI agents can use **all 8 BoltzPay tools instantly** — no Python package installation required. Just point CrewAI at the BoltzPay MCP server.
 
 ## Why MCP?
 
 - **Zero Python dependencies** — no `pip install` needed for BoltzPay tools
 - **Always up-to-date** — `npx` fetches the latest `@boltzpay/mcp` automatically
-- **All 7 tools available** — fetch, check, quote, discover, budget, history, wallet
+- **All 8 tools available** — fetch, check, quote, discover, diagnose, budget, history, wallet
 - **Same tools as Claude Desktop** — if you use BoltzPay in Claude, you already know these tools
 
 ## Prerequisites
@@ -104,7 +104,7 @@ with MCPServerAdapter(server_params) as tools:
 
 ## Available Tools
 
-All 7 BoltzPay tools are automatically exposed through the MCP server:
+All 8 BoltzPay tools are automatically exposed through the MCP server:
 
 | Tool | Description | Requires Credentials |
 |------|-------------|---------------------|
@@ -112,6 +112,7 @@ All 7 BoltzPay tools are automatically exposed through the MCP server:
 | `boltzpay_check` | Check if a URL requires payment. Returns protocol and pricing. | No |
 | `boltzpay_quote` | Get a detailed price quote with chain options. | No |
 | `boltzpay_discover` | Browse the directory of compatible paid APIs. | No |
+| `boltzpay_diagnose` | Full endpoint diagnostic: protocol, pricing, health, latency. | No |
 | `boltzpay_budget` | Check daily spending budget and remaining balance. | No |
 | `boltzpay_history` | View recent payment transactions. | No |
 | `boltzpay_wallet` | Check wallet address and USDC balance. | No |
@@ -142,7 +143,7 @@ By default, BoltzPay selects the best chain automatically. To force a specific c
 
 ### Without Credentials
 
-Six of the seven tools work without any Coinbase credentials:
+Seven of the eight tools work without any Coinbase credentials:
 
 ```python
 # No credentials needed — just discover and check
@@ -159,7 +160,7 @@ with MCPServerAdapter(server_params) as tools:
         backstory="You scout APIs and report on pricing.",
         tools=tools,
     )
-    # Agent can use: check, quote, discover, budget, history, wallet
+    # Agent can use: check, quote, discover, diagnose, budget, history, wallet
     # Agent cannot use: fetch (requires credentials + budget > 0)
 ```
 

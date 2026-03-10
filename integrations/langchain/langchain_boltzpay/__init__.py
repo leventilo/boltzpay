@@ -5,6 +5,7 @@ from .errors import BoltzPayBridgeError, BoltzPayNodeNotFoundError, BoltzPayTime
 from .tools import (
     BoltzPayBudgetTool,
     BoltzPayCheckTool,
+    BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
     BoltzPayHistoryTool,
@@ -21,6 +22,7 @@ __all__ = [
     "BoltzPayBudgetTool",
     "BoltzPayHistoryTool",
     "BoltzPayWalletTool",
+    "BoltzPayDiagnoseTool",
     # Bridge
     "run_cli",
     "async_run_cli",

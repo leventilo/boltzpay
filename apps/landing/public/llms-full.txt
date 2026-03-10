@@ -20,6 +20,14 @@ const agent = new BoltzPay({
   network?: string,
   // Preferred chains for multi-chain endpoints: ["evm"] or ["svm"]
   preferredChains?: string[],
+  // Configurable timeouts (all optional, in milliseconds)
+  timeouts?: {
+    detect?: number,              // default: 10000
+    quote?: number,               // default: 15000
+    payment?: number,             // default: 30000
+  },
+  // Dry-run mode: detect and quote without executing payments
+  dryRun?: boolean,
   // Budget limits (all optional)
   budget?: {
     daily?: string | number,      // e.g. "5.00" or 5
@@ -35,6 +43,7 @@ const agent = new BoltzPay({
     historyMaxRecords?: number,   // default: 500
   },
   // Log level: "debug" | "info" | "warn" | "error" | "silent"
+  // Logs are structured NDJSON when logLevel is set
   logLevel?: string,
 });
 ```
@@ -44,7 +53,7 @@ All config options are optional. Without Coinbase keys, the SDK runs in read-onl
 ### Methods
 
 **`fetch(url: string, options?: FetchOptions): Promise<BoltzPayResponse>`**
-Fetch a URL. If 402 Payment Required is detected, automatically pays via the appropriate protocol and retries. Options: `maxAmount` (number | string), `headers`, `method`, `body`, `chain`.
+Fetch a URL. If 402 Payment Required is detected, automatically pays via the appropriate protocol and retries. Pre-payment steps (detect, quote) are retried on transient errors; post-payment steps are never retried to prevent double-spend. Options: `maxAmount` (number | string), `headers`, `method`, `body`, `chain`.
 
 **`quote(url: string): Promise<QuoteResult>`**
 Check if a URL requires payment and how much it costs, without paying. Returns `{ amount, protocol, network, allAccepts?, inputHints? }`.
@@ -78,6 +87,9 @@ Subscribe to events. Chainable.
 
 **`off(event, callback): this`**
 Unsubscribe from events. Chainable.
+
+**`diagnose(url: string): Promise<DiagnoseResult>`**
+Run a full endpoint diagnostic in under 2 seconds. Tests DNS resolution, HTTP reachability, protocol detection, pricing extraction, and latency. Returns a structured result with `status` ("paid" | "free_confirmed" | "dead" | "ambiguous"), `dnsOk`, `httpOk`, `protocol`, `price`, `latencyMs`, and `details`.
 
 ### Response Type
 
@@ -132,7 +144,7 @@ Bitcoin Lightning payment protocol by Lightning Labs. Server responds with HTTP 
 
 ## MCP Tools
 
-The `@boltzpay/mcp` package provides 7 tools for Claude Desktop and other MCP clients:
+The `@boltzpay/mcp` package provides 8 tools for Claude Desktop and other MCP clients:
 
 | Tool | Description | Requires Keys |
 |------|-------------|---------------|
@@ -143,6 +155,7 @@ The `@boltzpay/mcp` package provides 7 tools for Claude Desktop and other MCP cl
 | `boltzpay_budget` | View current spending budget status | No |
 | `boltzpay_history` | List payments made during session | No |
 | `boltzpay_wallet` | View wallet config, addresses, balances | No |
+| `boltzpay_diagnose` | Full endpoint diagnostic — DNS, protocol detection, pricing, health, latency | No |
 
 ### MCP Setup (Claude Desktop)
 
@@ -162,11 +175,11 @@ The `@boltzpay/mcp` package provides 7 tools for Claude Desktop and other MCP cl
 }
 ```
 
-Omit the `env` block to run in explore-only mode (quote, check, discover work without keys).
+Omit the `env` block to run in explore-only mode (quote, check, discover, diagnose work without keys).
 
 ## CLI Commands
 
-The `@boltzpay/cli` package provides 8 commands:
+The `@boltzpay/cli` package provides 10 commands:
 
 | Command | Description | Requires Keys |
 |---------|-------------|---------------|
@@ -174,6 +187,8 @@ The `@boltzpay/cli` package provides 8 commands:
 | `boltzpay quote <url>` | Check endpoint price | No |
 | `boltzpay check <url>` | Detect if URL requires payment | No |
 | `boltzpay discover [-c, --category]` | Browse API directory | No |
+| `boltzpay diagnose <url>` | Full endpoint diagnostic (DNS, protocol, pricing, health) | No |
+| `boltzpay verify-directory` | Health-check all directory endpoints | No |
 | `boltzpay budget` | Show budget status | No |
 | `boltzpay history` | Show payment history | No |
 | `boltzpay wallet` | Show wallet info and balances | No |
@@ -198,53 +213,30 @@ The `@boltzpay/cli` package provides 8 commands:
 
 ## API Directory
 
-BoltzPay ships a built-in directory of 25 verified paid API endpoints:
+BoltzPay ships a curated directory of verified paid API endpoints supporting x402 (USDC on-chain) and L402 (Bitcoin Lightning). The directory is updated regularly and served from a canonical source.
+
+### Live Source of Truth
+
+The canonical directory is maintained at:
+- **JSON**: https://raw.githubusercontent.com/leventilo/boltzpay/main/directory.json
+- **SDK**: `await agent.discover()` returns all entries with real-time health probing
+- **CLI**: `boltzpay discover` lists all endpoints with live status
+- **MCP/AI-SDK**: `boltzpay_discover` tool browses and filters the directory
+
+The SDK fetches the remote directory with a 5-minute cache and falls back to the embedded static copy on failure.
 
 ### Categories
 
-- **crypto-data** — Token holdings, DeFi protocols, whale tracking, market data, transaction history
-- **utilities** — Holidays, RNG, IPFS, events, concerts
-- **demo** — Testnet and sanity-test endpoints for development
-- **research** — Academic publication trends, intelligence reports
-- **dev-tools** — UI components and developer resources
+crypto-data, finance, research, utilities, dev-tools, ai-tools, social, demo, media
 
-### Endpoints
+### Protocols and Pricing
 
-#### x402 (USDC on-chain) — 23 endpoints
+- **x402** — USDC payments on Base (EVM) and Solana (SVM). Prices range from $0.005 to $0.85 per request.
+- **L402** — Bitcoin Lightning payments via NWC. Prices range from 1 to 150 sats per request.
 
-| Name | URL | Price | Category |
-|------|-----|-------|----------|
-| Invy — Token Holdings | invy.bot/api | $0.05 | crypto-data |
-| x402-tools — Polymarket Trending | x402-tools.vercel.app/api/polymarket/trending | $0.01 | crypto-data |
-| Einstein AI — Top Tokens | emc2ai.io/x402/bitquery/top-tokens | $0.55 | crypto-data |
-| Einstein AI — Whale Intel | emc2ai.io/x402/bitquery/whale-intel/raw | $0.85 | crypto-data |
-| Silverback — DeFi Top Protocols | silverback-x402.onrender.com/api/v1/top-protocols | $0.01 | crypto-data |
-| x402scan — Top Merchants | x402scan-j55w7ornb-merit-systems.vercel.app/api/data/merchants | $0.01 | crypto-data |
-| OttoAI — Token Security Audit | x402.ottoai.services/token-security | $0.01 | crypto-data |
-| Zapper — Token Ranking | public.zapper.xyz/x402/token-ranking | $0.01 | crypto-data |
-| Zapper — DeFi Balances | public.zapper.xyz/x402/defi-balances | $0.01 | crypto-data |
-| Zapper — Transaction History | public.zapper.xyz/x402/transaction-history | $0.01 | crypto-data |
-| x402-tools — Concerts | x402-tools.vercel.app/api/concerts | $0.01 | utilities |
-| Auor — Public Holidays | api.auor.io/open-holidays/v1/public | $0.01 | utilities |
-| SocioLogic — Cryptographic RNG | rng.sociologic.ai/random/int | $0.01 | utilities |
-| Grapevine — IPFS Gateway | gateway.grapevine.fyi/x402/cid/... | $0.01 | utilities |
-| PubMed Trends | pubmed.sekgen.xyz/api/v1/trends | $0.01 | research |
-| Hugen Scout — Intelligence Report | scout.hugen.tokyo/scout/report | $0.01 | research |
-| Nickel Joke (Testnet) | nickeljoke.vercel.app/api/joke | $0.005 (testnet) | demo |
-| Hello World | hello-world-x402.vercel.app/hello | $0.01 | demo |
-| BoostPass Ping | boostpass.qrbase.xyz/api/x402/ping | $0.01 | demo |
-| SkillfulAI — Demo Premium | api-dev.agents.skillfulai.io/api/x402/demo/mainnet/premium | $0.01 | demo |
+### Diagnostics
 
-#### L402 (Bitcoin Lightning) — 6 endpoints
-
-| Name | URL | Price | Category |
-|------|-----|-------|----------|
-| SatsAPI — Bitcoin Price | satsapi.dev/v1/price | 3 sats | crypto-data |
-| SatsAPI — Trading Signal | satsapi.dev/v1/signal | 150 sats | crypto-data |
-| l402.services — GeoIP | l402.services/geoip/8.8.8.8 | 1 sat | utilities |
-| l402.services — Lightning Search | l402.services/ln/search?q=acinq | 10 sats | crypto-data |
-| l402.services — Prediction Markets | l402.services/predictions/markets | 10 sats | crypto-data |
-| Hyperdope — Video Streaming | hyperdope.com/api/l402/videos/test/master.m3u8 | 10 sats | media |
+Use `boltzpay diagnose <url>` or the `boltzpay_diagnose` tool to check any endpoint's health, protocol, pricing, and latency in under 2 seconds — no credentials required.
 
 ## Examples
 

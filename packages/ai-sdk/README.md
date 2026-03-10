@@ -2,7 +2,7 @@
 
 # @boltzpay/ai-sdk
 
-Vercel AI SDK tools for BoltzPay — 7 tools that give your AI agent the ability to discover, quote, and pay for APIs.
+Vercel AI SDK tools for BoltzPay — 8 tools that give your AI agent the ability to discover, quote, and pay for APIs.
 
 ## Install
 
@@ -27,7 +27,7 @@ const { text } = await generateText({
 
 ## Features
 
-- **7 AI tools** — fetch, quote, check, discover, budget, history, wallet
+- **8 AI tools** — fetch, quote, check, discover, budget, history, wallet, diagnose
 - **Drop-in integration** — Works with `generateText`, `streamText`, and agent loops
 - **Explore mode** — Discover, check, and quote without credentials
 - **Payment mode** — Pass Coinbase CDP credentials for automatic payments
@@ -69,6 +69,7 @@ const tools = boltzpayTools(sdk);
 | `boltzpay_budget` | View current budget limits and spending | No |
 | `boltzpay_history` | View payment history for this session | No |
 | `boltzpay_wallet` | View wallet info, chains, and balances | No |
+| `boltzpay_diagnose` | Full endpoint diagnostic — DNS, protocol detection (x402/L402), format version, pricing, health, latency. No credentials required. | No |
 
 ## Protocols & Chains
 

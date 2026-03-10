@@ -1,4 +1,4 @@
-import { BoltzPay, ProtocolError } from "@boltzpay/sdk";
+import { BoltzPay, type DiscoveredEntry, ProtocolError } from "@boltzpay/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { boltzpayTools } from "../src/index";
 
@@ -14,7 +14,7 @@ const TOOL_KEYS = [
 ] as const;
 
 describe("boltzpayTools factory", () => {
-  it("returns an object with all 7 tool keys", () => {
+  it("returns an object with all 8 tool keys", () => {
     const tools = boltzpayTools();
     for (const key of TOOL_KEYS) {
       expect(tools).toHaveProperty(key);
@@ -56,43 +56,90 @@ describe("tool shapes", () => {
   }
 });
 
+const MOCK_DISCOVERED: DiscoveredEntry[] = [
+  {
+    name: "Test API — Price",
+    url: "https://test-api.example.com/price",
+    protocol: "x402",
+    category: "crypto-data",
+    description: "Test price endpoint",
+    pricing: "$0.01",
+    live: {
+      status: "live",
+      livePrice: "$0.01",
+      protocol: "x402",
+      network: "base-sepolia",
+    },
+  },
+  {
+    name: "Test API — Signal",
+    url: "https://test-api.example.com/signal",
+    protocol: "x402",
+    category: "crypto-data",
+    description: "Test signal endpoint",
+    pricing: "$0.05",
+    live: { status: "offline", reason: "Timeout" },
+  },
+];
+
 describe("boltzpay_discover", () => {
-  it("returns directory entries with no filter", async () => {
-    const tools = boltzpayTools();
+  it("returns live-probed entries with no filter", async () => {
+    const sdk = new BoltzPay({});
+    vi.spyOn(sdk, "discover").mockResolvedValueOnce(MOCK_DISCOVERED);
+    const tools = boltzpayTools(sdk);
     const result = await tools.boltzpay_discover.execute(
       {},
       { toolCallId: "test-1", messages: [], abortSignal: undefined as never },
     );
-    expect(result.count).toBeGreaterThan(0);
+    expect(result.count).toBe(2);
     expect(result.entries).toBeInstanceOf(Array);
     expect(result.categories).toBeInstanceOf(Array);
     expect(result.entries[0]).toHaveProperty("name");
     expect(result.entries[0]).toHaveProperty("url");
     expect(result.entries[0]).toHaveProperty("protocol");
     expect(result.entries[0]).toHaveProperty("category");
-    expect(result.entries[0]).toHaveProperty("pricing");
+    expect(result.entries[0]).toHaveProperty("status");
+    expect(result.entries[0]).toHaveProperty("price");
+    expect(result.entries[0]).toHaveProperty("isPriceVerified");
+    expect(result.entries[0].status).toBe("live");
+    expect(result.entries[0].isPriceVerified).toBe(true);
+    expect(result.entries[1].status).toBe("offline");
+    expect(result.entries[1].isPriceVerified).toBe(false);
   });
 
-  it("filters by category", async () => {
-    const tools = boltzpayTools();
+  it("passes category and enableLiveDiscovery to sdk.discover", async () => {
+    const sdk = new BoltzPay({});
+    const spy = vi
+      .spyOn(sdk, "discover")
+      .mockResolvedValueOnce([MOCK_DISCOVERED[0]]);
+    const tools = boltzpayTools(sdk);
     const result = await tools.boltzpay_discover.execute(
-      { category: "crypto-data" },
+      { category: "crypto-data", enableLiveDiscovery: false },
       { toolCallId: "test-2", messages: [], abortSignal: undefined as never },
     );
-    expect(result.count).toBeGreaterThan(0);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "crypto-data",
+        enableLiveDiscovery: false,
+      }),
+    );
+    expect(result.count).toBe(1);
     for (const entry of result.entries) {
       expect(entry.category).toBe("crypto-data");
     }
   });
 
   it("returns empty list for unknown category", async () => {
-    const tools = boltzpayTools();
+    const sdk = new BoltzPay({});
+    vi.spyOn(sdk, "discover").mockResolvedValueOnce([]);
+    const tools = boltzpayTools(sdk);
     const result = await tools.boltzpay_discover.execute(
       { category: "nonexistent" },
       { toolCallId: "test-3", messages: [], abortSignal: undefined as never },
     );
     expect(result.count).toBe(0);
     expect(result.entries).toEqual([]);
+    expect(result.message).toContain("nonexistent");
   });
 });
 

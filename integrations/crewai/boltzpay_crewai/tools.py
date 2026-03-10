@@ -16,10 +16,6 @@ from .bridge import run_cli
 from .errors import BoltzPayBridgeError
 
 
-# ---------------------------------------------------------------------------
-# Pydantic input schemas
-# ---------------------------------------------------------------------------
-
 
 class FetchInput(BaseModel):
     """Input schema for the BoltzPay fetch tool."""
@@ -43,6 +39,10 @@ class QuoteInput(BaseModel):
     url: str = Field(description="URL to get a price quote for")
 
 
+class DiagnoseInput(BaseModel):
+    url: str = Field(description="URL of the API endpoint to diagnose")
+
+
 class DiscoverInput(BaseModel):
     """Input schema for the BoltzPay discover tool."""
 
@@ -50,10 +50,6 @@ class DiscoverInput(BaseModel):
         default=None, description="Filter by category (e.g. 'crypto-data', 'utilities', 'demo')"
     )
 
-
-# ---------------------------------------------------------------------------
-# Tool implementations
-# ---------------------------------------------------------------------------
 
 
 def _safe_run(command: str, args: list[str] | None = None) -> str:
@@ -157,6 +153,19 @@ class BoltzPayHistoryTool(BaseTool):
 
     def _run(self) -> str:
         return _safe_run("history", [])
+
+
+class BoltzPayDiagnoseTool(BaseTool):
+    name: str = "boltzpay_diagnose"
+    description: str = (
+        "Full diagnostic of an API endpoint: DNS resolution, protocol detection "
+        "(x402/L402), format version, pricing, health status, and latency. "
+        "Returns a complete report in one call. No payment credentials required."
+    )
+    args_schema: Type[BaseModel] = DiagnoseInput
+
+    def _run(self, url: str) -> str:
+        return _safe_run("diagnose", [url])
 
 
 class BoltzPayWalletTool(BaseTool):

@@ -53,6 +53,7 @@ result = executor.invoke({"input": "Check the price of invy.bot/api"})
 | `BoltzPayBudgetTool` | `boltzpay_budget` | Show remaining spending budget | No |
 | `BoltzPayHistoryTool` | `boltzpay_history` | Show payment history | No |
 | `BoltzPayWalletTool` | `boltzpay_wallet` | Show wallet and config info | No |
+| `BoltzPayDiagnoseTool` | `boltzpay_diagnose` | Full endpoint diagnostic (protocol, health, latency) | No |
 
 ## No Credentials Needed
 
@@ -123,7 +124,7 @@ If you're using **CrewAI** or another MCP-compatible framework, you can use the 
 npx @boltzpay/mcp
 ```
 
-This exposes the same 7 tools via the Model Context Protocol.
+This exposes the same 8 tools via the Model Context Protocol.
 
 ## Links
 

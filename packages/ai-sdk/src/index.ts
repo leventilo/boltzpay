@@ -19,7 +19,7 @@ export function boltzpayTools(config?: BoltzPayToolsConfig) {
     boltzpay_check: createCheckTool(sdk),
     boltzpay_diagnose: createDiagnoseTool(sdk),
     boltzpay_quote: createQuoteTool(sdk),
-    boltzpay_discover: createDiscoverTool(),
+    boltzpay_discover: createDiscoverTool(sdk),
     boltzpay_budget: createBudgetTool(sdk),
     boltzpay_history: createHistoryTool(sdk),
     boltzpay_wallet: createWalletTool(sdk),

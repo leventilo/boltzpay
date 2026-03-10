@@ -29,7 +29,7 @@ with MCPServerAdapter(server_params) as tools:
 
 ## Alternative: CLI Bridge Tools
 
-For users who prefer native Python tools, this package provides 7 `BaseTool` subclasses that call `@boltzpay/cli` via subprocess.
+For users who prefer native Python tools, this package provides 8 `BaseTool` subclasses that call `@boltzpay/cli` via subprocess.
 
 ### Install
 
@@ -77,13 +77,14 @@ result = crew.kickoff()
 | `BoltzPayCheckTool` | `boltzpay_check` | Check if URL requires payment. Returns protocol and pricing. | Not needed |
 | `BoltzPayQuoteTool` | `boltzpay_quote` | Get detailed price quote with chain options. | Not needed |
 | `BoltzPayDiscoverTool` | `boltzpay_discover` | Browse directory of compatible paid APIs. | Not needed |
+| `BoltzPayDiagnoseTool` | `boltzpay_diagnose` | Full endpoint diagnostic: protocol, pricing, health, latency. | Not needed |
 | `BoltzPayBudgetTool` | `boltzpay_budget` | Check daily spending budget and remaining balance. | Not needed |
 | `BoltzPayHistoryTool` | `boltzpay_history` | View recent payment transactions. | Not needed |
 | `BoltzPayWalletTool` | `boltzpay_wallet` | Check wallet address and USDC balance. | Not needed |
 
 ## No Credentials Needed
 
-Six tools work without any Coinbase credentials:
+Seven tools work without any Coinbase credentials:
 
 ```python
 from boltzpay_crewai import BoltzPayCheckTool, BoltzPayDiscoverTool

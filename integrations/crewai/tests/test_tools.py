@@ -14,6 +14,7 @@ import pytest
 from boltzpay_crewai import (
     BoltzPayBudgetTool,
     BoltzPayCheckTool,
+    BoltzPayDiagnoseTool,
     BoltzPayDiscoverTool,
     BoltzPayFetchTool,
     BoltzPayHistoryTool,
@@ -36,6 +37,7 @@ ALL_TOOLS = [
     BoltzPayCheckTool,
     BoltzPayQuoteTool,
     BoltzPayDiscoverTool,
+    BoltzPayDiagnoseTool,
     BoltzPayBudgetTool,
     BoltzPayHistoryTool,
     BoltzPayWalletTool,
@@ -46,6 +48,7 @@ TOOL_NAMES = [
     "boltzpay_check",
     "boltzpay_quote",
     "boltzpay_discover",
+    "boltzpay_diagnose",
     "boltzpay_budget",
     "boltzpay_history",
     "boltzpay_wallet",
@@ -80,6 +83,12 @@ def test_fetch_tool_has_args_schema():
 def test_check_tool_has_args_schema():
     """CheckTool must declare an args_schema with url."""
     tool = BoltzPayCheckTool()
+    fields = tool.args_schema.model_fields
+    assert "url" in fields
+
+
+def test_diagnose_tool_has_args_schema():
+    tool = BoltzPayDiagnoseTool()
     fields = tool.args_schema.model_fields
     assert "url" in fields
 
@@ -123,6 +132,25 @@ MOCK_DISCOVER_RESPONSE = {
     "metadata": {"url": "", "status": 200, "duration": 100},
 }
 
+MOCK_DIAGNOSE_RESPONSE = {
+    "success": True,
+    "data": {
+        "url": "https://example.com/api",
+        "classification": "paid",
+        "isPaid": True,
+        "protocol": "x402",
+        "formatVersion": "v2",
+        "scheme": "exact",
+        "network": "base",
+        "price": "$0.01",
+        "health": "live",
+        "latencyMs": 234,
+        "postOnly": False,
+    },
+    "payment": None,
+    "metadata": {"url": "https://example.com/api", "status": 0, "duration": 234},
+}
+
 
 @patch("boltzpay_crewai.tools.run_cli")
 def test_fetch_tool_run(mock_run_cli):
@@ -155,6 +183,17 @@ def test_check_tool_run(mock_run_cli):
     result = tool._run(url="https://example.com/api")
     parsed = json.loads(result)
     assert parsed["data"]["isPaid"] is True
+
+
+@patch("boltzpay_crewai.tools.run_cli")
+def test_diagnose_tool_run(mock_run_cli):
+    mock_run_cli.return_value = MOCK_DIAGNOSE_RESPONSE
+    tool = BoltzPayDiagnoseTool()
+    result = tool._run(url="https://example.com/api")
+    parsed = json.loads(result)
+    assert parsed["data"]["classification"] == "paid"
+    assert parsed["data"]["protocol"] == "x402"
+    mock_run_cli.assert_called_once_with("diagnose", ["https://example.com/api"])
 
 
 @patch("boltzpay_crewai.tools.run_cli")

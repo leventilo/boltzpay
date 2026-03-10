@@ -21,9 +21,9 @@ npm install @boltzpay/n8n-nodes-boltzpay
 
 ## Features
 
-- **4 operations** — Fetch, Check, Quote, Discover
+- **8 operations** — Fetch, Check, Quote, Discover, Diagnose, Budget, History, Wallet
 - **Credential management** — Native n8n credential type for Coinbase CDP keys
-- **Explore without keys** — Check, Quote, and Discover work without credentials
+- **Explore without keys** — Check, Quote, Discover, Diagnose, Budget, History, and Wallet work without credentials
 - **Multi-protocol** — x402 (USDC on Base/Solana) and L402 (Lightning)
 
 ## Credentials
@@ -39,16 +39,20 @@ Some operations (like Fetch) require Coinbase CDP credentials to sign payment tr
 
 Get your keys from the [Coinbase Developer Platform](https://portal.cdp.coinbase.com/).
 
-> **Note:** The `Check`, `Quote`, and `Discover` operations work **without credentials**. You only need credentials for the `Fetch` operation which executes payments.
+> **Note:** Only the `Fetch` operation requires credentials to execute payments. All other operations work **without credentials**.
 
 ## Operations
 
-| Operation    | Description                     | Requires Credentials |
-| ------------ | ------------------------------- | :------------------: |
-| **Fetch**    | Fetch and pay for API data      | Yes                  |
-| **Check**    | Check if URL requires payment   | No                   |
-| **Quote**    | Get price quote for URL         | No                   |
-| **Discover** | Browse compatible API directory | No                   |
+| Operation     | Description                                          | Requires Credentials |
+| ------------- | ---------------------------------------------------- | :------------------: |
+| **Fetch**     | Fetch and pay for API data                           | Yes                  |
+| **Check**     | Check if URL requires payment                        | No                   |
+| **Quote**     | Get price quote for URL                              | No                   |
+| **Discover**  | Browse compatible API directory                      | No                   |
+| **Diagnose**  | Diagnose endpoint protocol, health, and latency      | No                   |
+| **Budget**    | View current spending budget status                  | No                   |
+| **History**   | List recent payments made during session              | No                   |
+| **Wallet**    | Check wallet connectivity, credentials, and balances | No                   |
 
 ### Fetch
 
@@ -73,6 +77,25 @@ Browses the built-in API directory of compatible paid endpoints. Optionally filt
 
 **Categories:** `crypto-data`, `utilities`, `demo`
 
+### Diagnose
+
+Full diagnostic of a URL: DNS resolution, protocol detection (x402/L402), format version, pricing, health status, and latency. Returns a complete report in one call.
+
+**Parameters:**
+- **URL** — The endpoint URL to diagnose
+
+### Budget
+
+View current spending budget status including daily/monthly limits, amount spent, and remaining balance.
+
+### History
+
+List recent payments made during the current session, including URLs, amounts, protocols, chains, and timestamps.
+
+### Wallet
+
+Check wallet connectivity, credentials, balances, and budget. Tests the CDP connection when credentials are configured.
+
 ## Usage Examples
 
 ### Check Before You Pay
@@ -89,6 +112,26 @@ Browses the built-in API directory of compatible paid endpoints. Optionally filt
 2. **BoltzPay (Discover)** — List all APIs (or filter by category)
 3. **Filter** — Select APIs matching your criteria
 4. **BoltzPay (Quote)** — Get live pricing for each API
+
+### Diagnose Before Integrating
+
+1. **Manual Trigger** — Start the workflow
+2. **BoltzPay (Diagnose)** — Diagnose `https://api.example.com/endpoint`
+3. **IF** — Branch on `health === "live"` and `isPaid === true`
+4. **BoltzPay (Fetch)** — Fetch data from healthy paid endpoints
+
+### Monitor Budget and Spending
+
+1. **Schedule Trigger** — Run every hour
+2. **BoltzPay (Budget)** — Get current budget status
+3. **IF** — Check if daily remaining is below threshold
+4. **Slack/Email** — Send alert when budget is running low
+
+### Audit Payment History
+
+1. **Manual Trigger** — Start the workflow
+2. **BoltzPay (History)** — Get all payments from session
+3. **Spreadsheet** — Export payment records for accounting
 
 ## Links
 

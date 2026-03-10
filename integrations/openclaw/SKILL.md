@@ -27,7 +27,7 @@ npx @boltzpay/cli fetch https://invy.bot/api
 | `npx @boltzpay/cli budget` | Check spending budget | No |
 | `npx @boltzpay/cli history` | View payment history | No |
 | `npx @boltzpay/cli wallet` | Check wallet address and balance | No |
-| `npx @boltzpay/cli demo` | Interactive demo walkthrough | No |
+| `npx @boltzpay/cli diagnose <url>` | Full diagnostic of an API endpoint — DNS, protocol detection (x402/L402), format version, pricing, health, latency | No |
 
 ## Setup
 
@@ -76,7 +76,7 @@ Seven of the eight commands work without any Coinbase credentials:
 - `budget` — check spending limits
 - `history` — view past transactions
 - `wallet` — check wallet address and balance
-- `demo` — interactive demo walkthrough
+- `diagnose` — full endpoint diagnostic (DNS, protocol, pricing, health, latency)
 
 Only `fetch` requires credentials (it makes actual payments).
 

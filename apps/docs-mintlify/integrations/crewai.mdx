@@ -24,7 +24,7 @@ with MCPServerAdapter(server_params) as tools:
     Crew(agents=[agent], tasks=[task]).kickoff()
 ```
 
-This gives your agent all 7 BoltzPay tools automatically.
+This gives your agent all 8 BoltzPay tools automatically.
 
 <Tip>
   Add Coinbase credentials to the `env` dict to enable payments. Without them, the agent can discover, check, and quote for free.
@@ -75,6 +75,7 @@ result = crew.kickoff()
 | `BoltzPayBudgetTool` | `boltzpay_budget` | Show remaining spending budget | No |
 | `BoltzPayHistoryTool` | `boltzpay_history` | Show payment history | No |
 | `BoltzPayWalletTool` | `boltzpay_wallet` | Show wallet and config info | No |
+| `BoltzPayDiagnoseTool` | `boltzpay_diagnose` | Full endpoint diagnostic (DNS, protocol, health) | No |
 
 ## Error Handling
 

@@ -3,7 +3,7 @@ title: Claude Desktop (MCP)
 description: Give Claude the ability to discover and pay for APIs.
 ---
 
-The BoltzPay MCP server gives Claude 7 tools for discovering, quoting, and paying for API data, all through natural language. It communicates via the [Model Context Protocol](https://modelcontextprotocol.io/), an open standard for AI tool use.
+The BoltzPay MCP server gives Claude 8 tools for discovering, quoting, diagnosing, and paying for API data, all through natural language. It communicates via the [Model Context Protocol](https://modelcontextprotocol.io/), an open standard for AI tool use.
 
 ## Quick Start
 
@@ -39,7 +39,7 @@ The BoltzPay MCP server gives Claude 7 tools for discovering, quoting, and payin
     }
     ```
 
-    This gives Claude read-only tools: `check`, `quote`, `discover`, `budget`, `history`, and `wallet`. No credentials required.
+    This gives Claude read-only tools: `check`, `quote`, `discover`, `diagnose`, `budget`, `history`, and `wallet`. No credentials required.
   </Step>
   <Step title="Restart Claude Desktop">
     Quit and reopen the app. Open Settings > MCP Servers to confirm BoltzPay is listed, or type `/mcp` in a conversation to check.
@@ -92,6 +92,7 @@ Not every tool needs keys. Only `boltzpay_fetch` requires credentials to make pa
 | `boltzpay_budget` | — | — |
 | `boltzpay_history` | — | — |
 | `boltzpay_wallet` | — | — |
+| `boltzpay_diagnose` | — | — |
 
 ## Budget Control
 
@@ -201,7 +202,7 @@ Browse a directory of known paid API endpoints. Each endpoint is probed in real-
 
 | Parameter | Type | Required | Description |
 |-----------|------|:---:|-------------|
-| `category` | `string` | No | Filter: `crypto-data`, `utilities`, `demo` |
+| `category` | `string` | No | Filter: `crypto-data`, `finance`, `research`, `utilities`, `dev-tools`, `ai-tools`, `social`, `demo`, `media` |
 
 ```json title="Output"
 [
@@ -268,6 +269,39 @@ List all payments made during the current session. No parameters.
 ```
 
 Returns `No payments made yet` when the session has no transactions.
+
+---
+
+### boltzpay_diagnose
+
+Run a full diagnostic on any API endpoint in under 2 seconds. Checks DNS resolution, HTTP reachability, protocol detection (x402/L402), format version, pricing, and latency. No credentials required.
+
+| Parameter | Type | Required | Description |
+|-----------|------|:---:|-------------|
+| `url` | `string` | Yes | URL of the endpoint to diagnose |
+
+```json title="Output"
+{
+  "url": "https://invy.bot/api",
+  "dns": { "ok": true, "ip": "76.76.21.21", "ms": 12 },
+  "get": { "status": 402, "ms": 245 },
+  "protocol": "x402",
+  "version": "v1",
+  "price": "$0.05",
+  "network": "eip155:8453",
+  "health": "paid",
+  "totalMs": 257
+}
+```
+
+The `health` field classifies the endpoint into one of four states:
+
+| Health | Meaning |
+|--------|---------|
+| `paid` | Online and requiring payment (x402 or L402 detected) |
+| `free_confirmed` | Online but no payment protocol detected |
+| `dead` | Unreachable (DNS failure, timeout, or server error) |
+| `ambiguous` | Reachable but inconclusive protocol detection |
 
 ---
 
@@ -348,7 +382,7 @@ Node.js is not in Claude Desktop's PATH.
 
 ### "MISSING_CREDENTIALS" error
 
-The `boltzpay_fetch` tool requires Coinbase keys to make payments. Read-only tools (`check`, `quote`, `discover`) work without credentials. To enable payments, add the three `COINBASE_*` env vars to your config.
+The `boltzpay_fetch` tool requires Coinbase keys to make payments. Read-only tools (`check`, `quote`, `discover`, `diagnose`) work without credentials. To enable payments, add the three `COINBASE_*` env vars to your config.
 
 ### "BUDGET_EXCEEDED" error
 
