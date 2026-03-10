@@ -81,6 +81,23 @@ if (badgeRegex.test(header)) {
 	console.log("  + apps/landing/src/components/Header.astro (badge)");
 }
 
+// --- Source code version strings ---
+
+const sourceVersionFiles = [
+	{ path: "packages/cli/src/program.ts", regex: /\.version\("[^"]*"\)/ , replacement: `.version("${next}")` },
+	{ path: "packages/mcp/src/index.ts", regex: /version:\s*"[^"]*"/, replacement: `version: "${next}"` },
+];
+
+for (const { path: rel, regex, replacement } of sourceVersionFiles) {
+	const abs = join(root, rel);
+	let content = readFileSync(abs, "utf-8");
+	if (regex.test(content)) {
+		content = content.replace(regex, replacement);
+		writeFileSync(abs, content);
+		console.log(`  + ${rel} (source version)`);
+	}
+}
+
 // --- GitHub Actions output ---
 
 if (process.env.GITHUB_OUTPUT) {
