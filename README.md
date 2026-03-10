@@ -9,7 +9,7 @@ BoltzPay detects whether an API endpoint requires payment, negotiates the best p
 **[Docs](https://docs.boltzpay.ai)** · **[npm](https://www.npmjs.com/package/@boltzpay/sdk)** · **[GitHub](https://github.com/leventilo/boltzpay)**
 
 <p align="center">
-  <img src="assets/demo.gif" alt="BoltzPay CLI — diagnose, discover and budget for paid APIs" width="800">
+  <img src="assets/demo.gif" alt="BoltzPay CLI — diagnose, budget, fetch and discover paid APIs" width="800">
 </p>
 
 ## Try it now (no keys required)
