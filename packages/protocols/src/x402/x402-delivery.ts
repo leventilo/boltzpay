@@ -106,9 +106,8 @@ function isNonceSafe(status: number): boolean {
   return status === 402 || status === 405 || status === 404;
 }
 
-// Retry on: 402 (payment not seen), 405 (wrong method), 400 (wrong header format)
 function isRetryableStatus(status: number): boolean {
-  return status === 402 || status === 405 || status === 400;
+  return status === 402 || status === 405 || status === 400 || status === 404;
 }
 
 function inferSigningErrorSuggestion(message: string): string {

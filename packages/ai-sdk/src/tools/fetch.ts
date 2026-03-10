@@ -13,15 +13,24 @@ export function createFetchTool(sdk: BoltzPay) {
         .record(z.string(), z.string())
         .optional()
         .describe("Additional HTTP headers"),
+      body: z
+        .string()
+        .optional()
+        .describe("Request body (JSON string for POST endpoints)"),
       chain: z
         .enum(["evm", "svm"])
         .optional()
         .describe("Override chain selection (evm=Base, svm=Solana)"),
     }),
-    execute: async ({ url, method, headers, chain }, { abortSignal }) => {
+    execute: async ({ url, method, headers, body, chain }, { abortSignal }) => {
       abortSignal?.throwIfAborted();
       try {
-        const response = await sdk.fetch(url, { method, headers, chain });
+        const response = await sdk.fetch(url, {
+          method,
+          headers,
+          body: body ? new TextEncoder().encode(body) : undefined,
+          chain,
+        });
         const text = await response.text();
         return {
           status: response.status,

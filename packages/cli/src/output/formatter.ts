@@ -27,6 +27,7 @@ import {
 } from "./visuals.js";
 
 const MAX_BODY_LENGTH = 5000;
+const JSON_INDENT = 2;
 const MAX_URL_DISPLAY_LENGTH = 40;
 const ELLIPSIS = "...";
 const ZERO_AMOUNT_DISPLAY = "$0.00";
@@ -87,14 +88,23 @@ export function formatFetchResult(options: FetchFormatOptions): string {
   lines.push("");
   lines.push(renderHeader("Body"));
 
-  if (body.length > MAX_BODY_LENGTH) {
-    lines.push(body.slice(0, MAX_BODY_LENGTH));
-    lines.push(MUTED(`...truncated (${body.length} chars total)`));
+  const formatted = prettyPrintJson(body);
+  if (formatted.length > MAX_BODY_LENGTH) {
+    lines.push(formatted.slice(0, MAX_BODY_LENGTH));
+    lines.push(MUTED(`...truncated (${formatted.length} chars total)`));
   } else {
-    lines.push(body);
+    lines.push(formatted);
   }
 
   return lines.join("\n");
+}
+
+function prettyPrintJson(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, JSON_INDENT);
+  } catch {
+    return raw;
+  }
 }
 
 interface AcceptOptionDisplay {

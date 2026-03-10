@@ -94,7 +94,7 @@ function getSuggestion(error: unknown): string | undefined {
     if (error.code === "l402_credentials_missing") {
       return "Add NWC_CONNECTION_STRING to your .env to enable Lightning payments.";
     }
-    return "Run `boltzpay quote <url>` to inspect the endpoint before paying.";
+    return "Run `boltzpay diagnose <url>` to inspect the endpoint before paying.";
   }
   if (error instanceof NetworkError) {
     return "Check your internet connection and try again.";
