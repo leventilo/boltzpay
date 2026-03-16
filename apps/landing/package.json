@@ -14,7 +14,7 @@
     "@fontsource/crimson-pro": "^5.2.5",
     "@fontsource/space-grotesk": "^5.2.5",
     "@tailwindcss/vite": "^4.2.0",
-    "@vercel/analytics": "^1.6.1",
+    "@vercel/analytics": "^2.0.0",
     "astro": "^5.17.2",
     "tailwindcss": "^4.2.0"
   }
