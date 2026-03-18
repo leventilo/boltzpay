@@ -437,7 +437,7 @@ async function buildPaidResult(
   const primaryProbe = probeResults[0];
 
   if (!primaryProbe) {
-    const mpp = tryDetectMpp(response);
+    const mpp = tryDetectMpp(response.clone());
     if (mpp) {
       const latencyMs = Date.now() - totalStart;
       return buildMppDiagnoseResult(

@@ -58,6 +58,12 @@ describe("hasMppScheme", () => {
   it("rejects Payment without params", () => {
     expect(hasMppScheme("Payment")).toBe(false);
   });
+
+  it("rejects Bearer with Payment in realm value", () => {
+    expect(hasMppScheme('Bearer realm="Payment Portal", scope=read')).toBe(
+      false,
+    );
+  });
 });
 
 describe("splitChallenges", () => {
@@ -82,6 +88,27 @@ describe("splitChallenges", () => {
       'Payment   method="tempo",   Payment   method="stripe"';
     const result = splitChallenges(header);
     expect(result).toHaveLength(2);
+  });
+
+  it("does not split on Payment inside quoted value", () => {
+    const header =
+      'Payment method="tempo", realm="Payment Gateway", ' +
+      'Payment method="stripe", intent="charge"';
+    const result = splitChallenges(header);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toContain("tempo");
+    expect(result[0]).toContain("Payment Gateway");
+    expect(result[1]).toContain("stripe");
+  });
+
+  it("handles Payment in base64 request value without splitting", () => {
+    const header =
+      'Payment method="tempo", request="UGF5bWVudCBtZXRob2Q9", ' +
+      'Payment method="stripe"';
+    const result = splitChallenges(header);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toContain("tempo");
+    expect(result[1]).toContain("stripe");
   });
 });
 
@@ -324,5 +351,16 @@ describe("parseMppChallenges", () => {
       "lightning",
       "card",
     ]);
+  });
+
+  it("preserves realm containing Payment keyword", () => {
+    const header =
+      'Payment method="tempo", realm="Payment Gateway", ' +
+      'Payment method="stripe", intent="charge"';
+    const { challenges } = parseMppChallenges(header);
+    expect(challenges).toHaveLength(2);
+    expect(challenges[0]?.method).toBe("tempo");
+    expect(challenges[0]?.realm).toBe("Payment Gateway");
+    expect(challenges[1]?.method).toBe("stripe");
   });
 });

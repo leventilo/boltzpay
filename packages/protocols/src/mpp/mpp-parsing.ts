@@ -1,6 +1,6 @@
 import type { MppChallenge, MppParseResult, MppRequest } from "./mpp-types";
 
-const MPP_SCHEME_RE = /\bPayment\s+\w+\s*=/i;
+const MPP_SCHEME_RE = /(?:^|,\s*)Payment\s+\w+\s*=/i;
 const PARAM_RE = /(\w+)\s*=\s*(?:"([^"]*)"|([^\s,]+))/g;
 
 function hasMppScheme(wwwAuthenticate: string): boolean {
@@ -21,20 +21,30 @@ function parseMppChallenges(wwwAuthenticate: string): MppParseResult {
 }
 
 function splitChallenges(header: string): string[] {
-  const results: string[] = [];
   const starts: number[] = [];
-  const re = /\bPayment\s/gi;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(header)) !== null) {
-    starts.push(match.index + match[0].length);
+  let i = 0;
+  while (i < header.length) {
+    if (header[i] === '"') {
+      i++;
+      while (i < header.length && header[i] !== '"') i++;
+      i++;
+      continue;
+    }
+    const remaining = header.slice(i);
+    const m = remaining.match(/^Payment\s/i);
+    if (m && (i === 0 || /[\s,]/.test(header[i - 1]!))) {
+      starts.push(i + m[0].length);
+    }
+    i++;
   }
-  for (let i = 0; i < starts.length; i++) {
-    const start = starts[i];
+  const results: string[] = [];
+  for (let j = 0; j < starts.length; j++) {
+    const start = starts[j];
     if (start === undefined) continue;
-    const end = starts[i + 1];
+    const end = starts[j + 1];
     const raw =
       end !== undefined ? header.slice(start, end) : header.slice(start);
-    results.push(raw.replace(/,\s*$/, "").trim());
+    results.push(raw.replace(/,\s*Payment\s*$/i, "").replace(/,\s*$/, "").trim());
   }
   return results;
 }
