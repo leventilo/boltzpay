@@ -538,10 +538,11 @@ describe("diagnose — endpoint diagnostic report", () => {
 
     it("GET returns 200 with x-payment header -> classification = 'paid'", async () => {
       const quote = makeQuote();
+      const validXPayment = Buffer.from(JSON.stringify({ scheme: "exact" })).toString("base64");
       fetchSpy.mockResolvedValue(
         new Response("ok", {
           status: 200,
-          headers: { "x-payment": "some-value" },
+          headers: { "x-payment": validXPayment },
         }),
       );
       mockProbeFromResponse.mockResolvedValue([

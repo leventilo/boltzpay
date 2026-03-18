@@ -95,4 +95,4 @@ export type {
   WalletStatus,
 } from "./wallet-status";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.2.1";

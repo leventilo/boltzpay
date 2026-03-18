@@ -1,3 +1,4 @@
+import type { DiagnoseResult } from "./diagnostics/diagnose";
 import { NetworkError } from "./errors/network-error";
 import { ProtocolError } from "./errors/protocol-error";
 
@@ -549,6 +550,26 @@ export function classifyProbeError(err: unknown): DiscoverEntryStatus {
     status: "error",
     reason: err instanceof Error ? err.message : String(err),
   };
+}
+
+export function toDiscoverStatus(
+  result: DiagnoseResult,
+): DiscoverEntryStatus {
+  switch (result.classification) {
+    case "paid":
+      return {
+        status: "live",
+        livePrice: result.price?.toDisplayString() ?? "unknown",
+        protocol: result.protocol ?? "unknown",
+        network: result.network,
+      };
+    case "free_confirmed":
+      return { status: "free" };
+    case "dead":
+      return { status: "offline", reason: result.deathReason ?? "unknown" };
+    case "ambiguous":
+      return { status: "error", reason: "Ambiguous — 402 without valid payment options" };
+  }
 }
 
 const STATUS_ORDER: Record<DiscoverEntryStatus["status"], number> = {

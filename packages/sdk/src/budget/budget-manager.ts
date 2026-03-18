@@ -87,7 +87,9 @@ export class BudgetManager {
       if (data.lastMonthlyReset === month) {
         this.monthlySpent = Money.fromCents(BigInt(data.monthlySpent));
       }
-    } catch {}
+    } catch {
+      // Intent: corrupted budget state starts fresh — no data loss, only resets counters
+    }
   }
 
   convertToUsd(amount: Money): Money {

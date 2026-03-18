@@ -41,11 +41,9 @@ import type {
   DiscoverOptions,
 } from "./directory";
 import {
-  classifyProbeError,
-  DISCOVER_PROBE_TIMEOUT_MS,
   filterEntries,
   sortDiscoveredEntries,
-  withTimeout,
+  toDiscoverStatus,
 } from "./directory";
 import { BoltzPayError } from "./errors/boltzpay-error";
 import { BudgetExceededError } from "./errors/budget-exceeded-error";
@@ -188,7 +186,9 @@ function extractServerMessage(
         if (typeof nested.message === "string") return nested.message;
       }
     }
-  } catch {}
+  } catch {
+    // Intent: response body may not be valid JSON — fall through to raw text truncation
+  }
 
   return text.length > SERVER_MESSAGE_MAX_LENGTH
     ? `${text.slice(0, SERVER_MESSAGE_MAX_LENGTH)}…`
@@ -609,7 +609,9 @@ export class BoltzPay {
           "Legacy v0.1 data files detected. v0.2 uses a new storage format — starting fresh.",
         );
       }
-    } catch {}
+    } catch {
+      // Intent: legacy v0.1 detection is best-effort — missing dir is normal on fresh installs
+    }
   }
 
   private buildRetryOptions(phase: string): RetryOptions {
@@ -1530,37 +1532,25 @@ export class BoltzPay {
   async discover(
     options?: DiscoverOptions,
   ): Promise<readonly DiscoveredEntry[]> {
+    await this.initPromise;
     const live = options?.enableLiveDiscovery ?? true;
     const allEntries = await getMergedDirectory({ live });
     const entries = filterEntries(allEntries, options?.category);
     const results = await Promise.all(
-      entries.map((entry) => this.probeDirectoryEntry(entry, options?.signal)),
+      entries.map((entry) => this.probeDirectoryEntry(entry)),
     );
     return sortDiscoveredEntries(results);
   }
 
   private async probeDirectoryEntry(
     entry: ApiDirectoryEntry,
-    signal?: AbortSignal,
   ): Promise<DiscoveredEntry> {
-    try {
-      const result = await withTimeout(
-        this.quote(entry.url),
-        DISCOVER_PROBE_TIMEOUT_MS,
-        signal,
-      );
-      return {
-        ...entry,
-        live: {
-          status: "live",
-          livePrice: result.amount.toDisplayString(),
-          protocol: result.protocol,
-          network: result.network,
-        },
-      };
-    } catch (err) {
-      return { ...entry, live: classifyProbeError(err) };
-    }
+    const result = await diagnoseEndpoint({
+      url: entry.url,
+      router: this.router,
+      detectTimeoutMs: this.config.timeouts?.detect,
+    });
+    return { ...entry, live: toDiscoverStatus(result) };
   }
 
   close(): void {

@@ -118,15 +118,29 @@ const POST_MIN_MS = 500;
 
 const TLS_ERROR_RE = /tls|ssl|certificate/i;
 
-function hasPaymentHeaders(response: Response): boolean {
-  if (response.headers.has("x-payment")) return true;
+function hasValidPaymentHeaders(response: Response): boolean {
+  const xPayment = response.headers.get("x-payment");
+  if (xPayment && isDecodableBase64Json(xPayment)) return true;
+
   const wwwAuth = response.headers.get("www-authenticate");
   if (wwwAuth && /X402|L402/i.test(wwwAuth)) return true;
+
   let hasX402Header = false;
   response.headers.forEach((_value, key) => {
     if (key.toLowerCase().startsWith("x402-")) hasX402Header = true;
   });
   return hasX402Header;
+}
+
+function isDecodableBase64Json(value: string): boolean {
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf-8");
+    JSON.parse(decoded);
+    return true;
+  } catch {
+    // Intent: malformed x-payment header should not trigger "paid" classification
+    return false;
+  }
 }
 
 function classifyFetchError(error: unknown): DeathReason {
@@ -230,7 +244,7 @@ export async function diagnoseEndpoint(
     }
 
     if (status >= 200 && status < 300) {
-      if (hasPaymentHeaders(response)) {
+      if (hasValidPaymentHeaders(response)) {
         return buildPaidResult(
           url,
           totalStart,
@@ -343,7 +357,9 @@ async function buildPaidResult(
     if (negotiation) {
       formatVersion = toFormatVersion(negotiation);
     }
-  } catch {}
+  } catch {
+    // Intent: format negotiation is best-effort; diagnosis proceeds without version info
+  }
 
   const detectMs = Date.now() - detectStart;
 
@@ -355,10 +371,11 @@ async function buildPaidResult(
 
   if (!primaryProbe) {
     const latencyMs = Date.now() - totalStart;
+    const hasValidFormat = formatVersion !== undefined;
     return {
       url,
-      classification: "paid",
-      isPaid: true,
+      classification: hasValidFormat ? "paid" : "ambiguous",
+      isPaid: hasValidFormat,
       protocol: undefined,
       formatVersion,
       scheme: undefined,
