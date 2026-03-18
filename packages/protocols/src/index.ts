@@ -1,4 +1,10 @@
 export type { DeliveryAttemptResult } from "./adapter-error";
+export { hasMppScheme, parseMppChallenges } from "./mpp/mpp-parsing";
+export type {
+  MppChallenge,
+  MppParseResult,
+  MppRequest,
+} from "./mpp/mpp-types";
 export {
   AdapterError,
   AggregatePaymentError,

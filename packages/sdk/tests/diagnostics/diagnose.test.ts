@@ -17,6 +17,8 @@ const mockProbe = vi.fn();
 const mockProbeAll = vi.fn();
 const mockProbeFromResponse = vi.fn();
 const mockExecute = vi.fn();
+const mockHasMppScheme = vi.fn().mockReturnValue(false);
+const mockParseMppChallenges = vi.fn().mockReturnValue({ challenges: [] });
 
 vi.mock("@boltzpay/protocols", () => {
   class MockCdpWalletManager {
@@ -78,6 +80,15 @@ vi.mock("@boltzpay/protocols", () => {
     X402PaymentError: MockX402PaymentError,
     AggregatePaymentError: MockAggregatePaymentError,
     negotiatePayment: vi.fn(),
+    hasMppScheme: (value: string) => mockHasMppScheme(value),
+    parseMppChallenges: (value: string) => mockParseMppChallenges(value),
+    usdcAtomicToCents: (atomic: bigint) => {
+      if (atomic < 0n) throw new Error("Atomic units cannot be negative");
+      if (atomic === 0n) return 0n;
+      const ATOMIC_PER_CENT = 10_000n;
+      const cents = (atomic + ATOMIC_PER_CENT - 1n) / ATOMIC_PER_CENT;
+      return cents < 1n ? 1n : cents;
+    },
   };
 });
 
@@ -129,6 +140,8 @@ describe("diagnose — endpoint diagnostic report", () => {
     mockProbeFromResponse.mockReset();
     mockProbeFromResponse.mockResolvedValue([]);
     mockExecute.mockReset();
+    mockHasMppScheme.mockReset().mockReturnValue(false);
+    mockParseMppChallenges.mockReset().mockReturnValue({ challenges: [] });
     mockedNegotiatePayment.mockReset();
     mockedDnsResolve.mockReset();
     mockedDnsResolve.mockResolvedValue(["127.0.0.1"] as Awaited<
@@ -629,6 +642,245 @@ describe("diagnose — endpoint diagnostic report", () => {
       expect(result.classification).toBe("dead");
       expect(result.deathReason).toBe("tls_error");
     });
+  });
+});
+
+describe("diagnose — MPP protocol detection", () => {
+  let agent: BoltzPay;
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    agent = new BoltzPay(validConfig);
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    mockProbe.mockReset();
+    mockProbeAll.mockReset();
+    mockProbeFromResponse.mockReset();
+    mockProbeFromResponse.mockResolvedValue([]);
+    mockExecute.mockReset();
+    mockHasMppScheme.mockReset().mockReturnValue(false);
+    mockParseMppChallenges.mockReset().mockReturnValue({ challenges: [] });
+    mockedNegotiatePayment.mockReset();
+    mockedDnsResolve.mockReset();
+    mockedDnsResolve.mockResolvedValue(["127.0.0.1"] as Awaited<
+      ReturnType<typeof dns.resolve>
+    >);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function make402MppResponse(): Response {
+    return make402Response({
+      "www-authenticate": 'Payment method="tempo", intent="charge"',
+    });
+  }
+
+  function makeMppChallenge(overrides?: Record<string, unknown>) {
+    return {
+      id: "test-id",
+      method: "tempo",
+      intent: "charge",
+      realm: undefined,
+      expires: undefined,
+      request: {
+        amount: "10000",
+        currency: "0x20C0D54F37EF0E3B2A5E3a7C9Ab0bFe15f2F1b80",
+        recipient: "0x10409f8a084D05AbC4E12A8dD8d4CeDF41F06Ce2",
+        chainId: 4217,
+        methodDetails: { chainId: 4217 },
+      },
+      ...overrides,
+    };
+  }
+
+  it("402 with MPP Payment header -> classification = 'paid', protocol = 'mpp'", async () => {
+    fetchSpy.mockResolvedValue(
+      make402Response({
+        "www-authenticate":
+          'Payment id="test-id", method="tempo", intent="charge"',
+      }),
+    );
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://x402.browserbase.com/test");
+    expect(result.classification).toBe("paid");
+    expect(result.isPaid).toBe(true);
+    expect(result.protocol).toBe("mpp");
+    expect(result.formatVersion).toBe("mpp");
+    expect(result.scheme).toBe("exact");
+  });
+
+  it("MPP tempo endpoint exposes network as eip155:chainId", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.network).toBe("eip155:4217");
+  });
+
+  it("MPP tempo endpoint extracts price from stablecoin atomic amount", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.price).toBeDefined();
+    expect(result.price?.equals(Money.fromCents(1n))).toBe(true);
+  });
+
+  it("MPP stripe endpoint treats amount as cents", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({
+          method: "stripe",
+          request: {
+            amount: "1000",
+            currency: "usd",
+            recipient: "acct_test",
+            chainId: undefined,
+            methodDetails: undefined,
+          },
+        }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.price).toBeDefined();
+    expect(result.price?.equals(Money.fromCents(1000n))).toBe(true);
+    expect(result.network).toBeUndefined();
+  });
+
+  it("MPP multi-method populates mppMethods array", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({ id: "a1", method: "tempo" }),
+        makeMppChallenge({
+          id: "b2",
+          method: "stripe",
+          request: {
+            amount: "1000",
+            currency: "usd",
+            recipient: "acct_test",
+            chainId: undefined,
+            methodDetails: undefined,
+          },
+        }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.mppMethods).toHaveLength(2);
+    expect(result.mppMethods?.[0]?.method).toBe("tempo");
+    expect(result.mppMethods?.[1]?.method).toBe("stripe");
+  });
+
+  it("MPP mppMethods includes intent, id, and request details", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({
+          id: "sess-1",
+          intent: "session",
+          expires: "2026-04-01T00:00:00Z",
+        }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    const method = result.mppMethods?.[0];
+    expect(method?.intent).toBe("session");
+    expect(method?.id).toBe("sess-1");
+    expect(method?.expires).toBe("2026-04-01T00:00:00Z");
+    expect(method?.rawAmount).toBe("10000");
+    expect(method?.chainId).toBe(4217);
+  });
+
+  it("MPP facilitator address is truncated", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.facilitator).toBe("0x1040...6Ce2");
+  });
+
+  it("MPP without request payload -> price undefined, network undefined", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({ request: undefined }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.protocol).toBe("mpp");
+    expect(result.price).toBeUndefined();
+    expect(result.network).toBeUndefined();
+    expect(result.facilitator).toBeUndefined();
+  });
+
+  it("402 with no adapter match and no MPP -> classification = 'ambiguous'", async () => {
+    fetchSpy.mockResolvedValue(make402Response());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({ challenges: [] });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.classification).toBe("ambiguous");
+    expect(result.protocol).toBeUndefined();
+  });
+
+  it("200 with MPP www-authenticate header -> classification = 'paid'", async () => {
+    mockHasMppScheme.mockReturnValue(true);
+    fetchSpy.mockResolvedValue(
+      new Response("ok", {
+        status: 200,
+        headers: {
+          "www-authenticate":
+            'Payment method="tempo", intent="charge"',
+        },
+      }),
+    );
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.classification).toBe("paid");
+    expect(result.protocol).toBe("mpp");
+  });
+
+  it("GET 200 POST 402 with MPP -> postOnly = true, protocol = 'mpp'", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }))
+      .mockResolvedValueOnce(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.classification).toBe("paid");
+    expect(result.protocol).toBe("mpp");
+    expect(result.postOnly).toBe(true);
   });
 });
 

@@ -1,8 +1,14 @@
 import { resolve as dnsResolve } from "node:dns/promises";
 import type { AcceptOption, EndpointInputHints } from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
-import type { NegotiatedPayment } from "@boltzpay/protocols";
-import { negotiatePayment, type ProtocolRouter } from "@boltzpay/protocols";
+import type { MppChallenge, NegotiatedPayment } from "@boltzpay/protocols";
+import {
+  hasMppScheme,
+  negotiatePayment,
+  parseMppChallenges,
+  type ProtocolRouter,
+  usdcAtomicToCents,
+} from "@boltzpay/protocols";
 
 export type EndpointHealth = "healthy" | "degraded" | "dead";
 
@@ -19,7 +25,7 @@ export type DeathReason =
   | "timeout"
   | "tls_error";
 
-export type FormatVersion = "V1 body" | "V2 header" | "www-authenticate";
+export type FormatVersion = "V1 body" | "V2 header" | "www-authenticate" | "mpp";
 
 export interface ChainInfo {
   readonly namespace: string;
@@ -32,6 +38,17 @@ export interface ChainInfo {
 export interface DiagnoseTiming {
   readonly detectMs: number;
   readonly quoteMs: number;
+}
+
+export interface MppMethodDetail {
+  readonly method: string;
+  readonly intent: string;
+  readonly id: string | undefined;
+  readonly expires: string | undefined;
+  readonly rawAmount: string | undefined;
+  readonly currency: string | undefined;
+  readonly recipient: string | undefined;
+  readonly chainId: number | undefined;
 }
 
 export interface DiagnoseResult {
@@ -53,6 +70,7 @@ export interface DiagnoseResult {
   readonly rawAccepts?: readonly AcceptOption[];
   readonly inputHints?: EndpointInputHints;
   readonly timing?: DiagnoseTiming;
+  readonly mppMethods?: readonly MppMethodDetail[];
 }
 
 const TRUNCATE_THRESHOLD = 13;
@@ -134,6 +152,7 @@ function hasValidPaymentHeaders(response: Response): boolean {
 
   const wwwAuth = response.headers.get("www-authenticate");
   if (wwwAuth && /X402|L402/i.test(wwwAuth)) return true;
+  if (wwwAuth && hasMppScheme(wwwAuth)) return true;
 
   let hasX402Header = false;
   response.headers.forEach((_value, key) => {
@@ -418,6 +437,17 @@ async function buildPaidResult(
   const primaryProbe = probeResults[0];
 
   if (!primaryProbe) {
+    const mpp = tryDetectMpp(response);
+    if (mpp) {
+      const latencyMs = Date.now() - totalStart;
+      return buildMppDiagnoseResult(
+        url,
+        latencyMs,
+        mpp,
+        postOnly,
+        { detectMs, quoteMs },
+      );
+    }
     const latencyMs = Date.now() - totalStart;
     const hasValidFormat = formatVersion !== undefined;
     return {
@@ -458,4 +488,90 @@ async function buildPaidResult(
     ...(quote.inputHints ? { inputHints: quote.inputHints } : {}),
     timing: { detectMs, quoteMs },
   };
+}
+
+interface MppDetection {
+  readonly primary: MppChallenge;
+  readonly all: readonly MppChallenge[];
+}
+
+function tryDetectMpp(response: Response): MppDetection | undefined {
+  const wwwAuth = response.headers.get("www-authenticate");
+  if (!wwwAuth) return undefined;
+  const { challenges } = parseMppChallenges(wwwAuth);
+  const primary = challenges[0];
+  if (!primary) return undefined;
+  return { primary, all: challenges };
+}
+
+function buildMppDiagnoseResult(
+  url: string,
+  latencyMs: number,
+  mpp: MppDetection,
+  postOnly: boolean,
+  timing: DiagnoseTiming,
+): DiagnoseResult {
+  const price = tryExtractMppPrice(mpp.primary);
+  const network = deriveMppNetwork(mpp.primary);
+  const facilitator = mpp.primary.request?.recipient
+    ? truncateAddress(mpp.primary.request.recipient)
+    : undefined;
+  return {
+    url,
+    classification: "paid",
+    isPaid: true,
+    protocol: "mpp",
+    formatVersion: "mpp",
+    scheme: "exact",
+    network,
+    price,
+    facilitator,
+    health: classifyHealth(latencyMs, "exact", network, price),
+    latencyMs,
+    postOnly,
+    mppMethods: toMppMethodDetails(mpp.all),
+    timing,
+  };
+}
+
+function toMppMethodDetails(
+  challenges: readonly MppChallenge[],
+): readonly MppMethodDetail[] {
+  return challenges.map((c) => ({
+    method: c.method,
+    intent: c.intent,
+    id: c.id,
+    expires: c.expires,
+    rawAmount: c.request?.amount,
+    currency: c.request?.currency,
+    recipient: c.request?.recipient,
+    chainId: c.request?.chainId,
+  }));
+}
+
+function tryExtractMppPrice(challenge: MppChallenge): Money | undefined {
+  if (!challenge.request) return undefined;
+  try {
+    const rawAmount = BigInt(challenge.request.amount);
+    if (rawAmount < 0n) return undefined;
+    // Stripe amounts are in smallest currency unit (cents for USD)
+    if (challenge.method === "stripe") {
+      return Money.fromCents(rawAmount);
+    }
+    // Crypto methods with chainId: assume 6-decimal stablecoin (USDC/USDT)
+    if (challenge.request.chainId !== undefined) {
+      return Money.fromCents(usdcAtomicToCents(rawAmount));
+    }
+    return undefined;
+  } catch {
+    // Intent: price extraction is best-effort — diagnosis proceeds without price
+    return undefined;
+  }
+}
+
+function deriveMppNetwork(challenge: MppChallenge): string | undefined {
+  if (challenge.request?.chainId !== undefined) {
+    return `eip155:${challenge.request.chainId}`;
+  }
+  return undefined;
 }
