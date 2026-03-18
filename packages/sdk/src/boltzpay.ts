@@ -171,6 +171,7 @@ function extractServerMessage(
   try {
     text = new TextDecoder().decode(body);
   } catch {
+    // Intent: binary or non-UTF-8 body cannot be decoded — return no message
     return undefined;
   }
   if (!text.trim()) return undefined;
@@ -709,6 +710,7 @@ export class BoltzPay {
     try {
       selectedQuote = this.selectPaymentChain(primary.quote, options);
     } catch {
+      // Intent: no compatible chain available — report as detection_failed with partial quote
       return {
         wouldPay: false,
         reason: "detection_failed",
@@ -903,6 +905,7 @@ export class BoltzPay {
     try {
       return parseNetworkIdentifier(network);
     } catch {
+      // Intent: non-standard network identifier — treat as unknown rather than crashing
       return undefined;
     }
   }
@@ -1405,6 +1408,7 @@ export class BoltzPay {
 
       return result;
     } catch {
+      // Intent: wallet balance query failure is non-fatal — return empty balances
       return {};
     }
   }
@@ -1537,18 +1541,22 @@ export class BoltzPay {
     const allEntries = await getMergedDirectory({ live });
     const entries = filterEntries(allEntries, options?.category);
     const results = await Promise.all(
-      entries.map((entry) => this.probeDirectoryEntry(entry)),
+      entries.map((entry) =>
+        this.probeDirectoryEntry(entry, options?.signal),
+      ),
     );
     return sortDiscoveredEntries(results);
   }
 
   private async probeDirectoryEntry(
     entry: ApiDirectoryEntry,
+    signal?: AbortSignal,
   ): Promise<DiscoveredEntry> {
     const result = await diagnoseEndpoint({
       url: entry.url,
       router: this.router,
       detectTimeoutMs: this.config.timeouts?.detect,
+      signal,
     });
     return { ...entry, live: toDiscoverStatus(result) };
   }

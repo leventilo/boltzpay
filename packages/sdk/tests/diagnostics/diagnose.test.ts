@@ -560,6 +560,33 @@ describe("diagnose — endpoint diagnostic report", () => {
       expect(result.isPaid).toBe(true);
     });
 
+    it("GET returns 200 with invalid x-payment header -> classification = 'free_confirmed'", async () => {
+      fetchSpy
+        .mockResolvedValueOnce(
+          new Response("ok", {
+            status: 200,
+            headers: { "x-payment": "not-valid-base64-json" },
+          }),
+        )
+        .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("free_confirmed");
+      expect(result.isPaid).toBe(false);
+    });
+
+    it("GET returns 402 but no adapter can parse -> classification = 'ambiguous'", async () => {
+      fetchSpy.mockResolvedValue(
+        new Response("payment required", { status: 402 }),
+      );
+      mockProbeFromResponse.mockResolvedValue([]);
+      mockedNegotiatePayment.mockResolvedValue(undefined);
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("ambiguous");
+      expect(result.isPaid).toBe(false);
+    });
+
     it("GET returns 200 with www-authenticate containing X402 -> classification = 'paid'", async () => {
       const quote = makeQuote();
       fetchSpy.mockResolvedValue(

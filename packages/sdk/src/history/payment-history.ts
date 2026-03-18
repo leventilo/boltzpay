@@ -47,6 +47,7 @@ function deserializeRecord(raw: string): PaymentRecord | undefined {
       durationMs: data.durationMs,
     };
   } catch {
+    // Intent: corrupted history line is silently skipped — partial history is acceptable
     return undefined;
   }
 }

@@ -105,6 +105,7 @@ export interface DiagnoseInput {
   readonly url: string;
   readonly router: ProtocolRouter;
   readonly detectTimeoutMs?: number;
+  readonly signal?: AbortSignal;
 }
 
 const DEFAULT_DETECT_TIMEOUT_MS = 10_000;
@@ -164,6 +165,7 @@ async function resolveDns(
     ]);
     return true;
   } catch {
+    // Intent: DNS failure means endpoint is unreachable — caller handles the false return
     return false;
   } finally {
     if (timer) clearTimeout(timer);
@@ -174,25 +176,33 @@ async function timedFetch(
   url: string,
   init: RequestInit,
   timeoutMs: number,
+  externalSignal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = () => controller.abort();
+  externalSignal?.addEventListener("abort", onAbort, { once: true });
   try {
     return await globalThis.fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", onAbort);
   }
 }
 
 export async function diagnoseEndpoint(
   input: DiagnoseInput,
 ): Promise<DiagnoseResult> {
-  const { url, router, detectTimeoutMs } = input;
+  const { url, router, detectTimeoutMs, signal } = input;
   const totalBudget = detectTimeoutMs ?? DEFAULT_DETECT_TIMEOUT_MS;
   const totalStart = Date.now();
 
   const remainingBudget = () =>
     Math.max(0, totalBudget - (Date.now() - totalStart));
+
+  if (signal?.aborted) {
+    return buildDeadResult(url, 0, "timeout");
+  }
 
   try {
     const dnsBudget = Math.min(
@@ -213,6 +223,7 @@ export async function diagnoseEndpoint(
         url,
         { method: "GET", redirect: "follow" },
         remainingBudget(),
+        signal,
       );
     } catch (error) {
       return buildDeadResult(
@@ -269,6 +280,7 @@ export async function diagnoseEndpoint(
             redirect: "follow",
           },
           postBudget,
+          signal,
         );
 
         if (postResponse.status === 402) {
@@ -288,12 +300,14 @@ export async function diagnoseEndpoint(
           "free_confirmed",
         );
       } catch {
+        // Intent: POST probe failed (timeout/network) — cannot confirm free or paid
         return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
       }
     }
 
     return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
   } catch {
+    // Intent: global budget exhausted or unexpected error — classify as timeout
     return buildDeadResult(url, Date.now() - totalStart, "timeout");
   }
 }

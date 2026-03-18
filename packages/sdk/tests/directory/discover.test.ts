@@ -51,15 +51,12 @@ import { Money } from "@boltzpay/core";
 import type { DiscoveredEntry } from "../../src/directory";
 import {
   API_DIRECTORY,
-  classifyProbeError,
   filterDirectory,
   sortDiscoveredEntries,
   toDiscoverJson,
   toDiscoverStatus,
   withTimeout,
 } from "../../src/directory";
-import { NetworkError } from "../../src/errors/network-error";
-import { ProtocolError } from "../../src/errors/protocol-error";
 
 describe("filterDirectory", () => {
   it("should return all entries without category", () => {
@@ -78,60 +75,6 @@ describe("filterDirectory", () => {
   it("should return empty array for unknown category", () => {
     const result = filterDirectory("nonexistent");
     expect(result).toEqual([]);
-  });
-});
-
-describe("classifyProbeError", () => {
-  it("should classify ProtocolError protocol_detection_failed as free", () => {
-    const err = new ProtocolError("protocol_detection_failed", "No protocol");
-    expect(classifyProbeError(err)).toEqual({ status: "free" });
-  });
-
-  it("should classify ProtocolError payment_failed as error", () => {
-    const err = new ProtocolError("payment_failed", "Payment failed");
-    expect(classifyProbeError(err)).toEqual({
-      status: "error",
-      reason: "Payment failed",
-    });
-  });
-
-  it("should classify NetworkError as offline", () => {
-    const err = new NetworkError("endpoint_unreachable", "Connection refused");
-    expect(classifyProbeError(err)).toEqual({
-      status: "offline",
-      reason: "Connection refused",
-    });
-  });
-
-  it("should classify TimeoutError as offline", () => {
-    const err = new DOMException("Timeout", "TimeoutError");
-    expect(classifyProbeError(err)).toEqual({
-      status: "offline",
-      reason: "Timeout",
-    });
-  });
-
-  it("should classify AbortError as offline", () => {
-    const err = new DOMException("Aborted", "AbortError");
-    expect(classifyProbeError(err)).toEqual({
-      status: "offline",
-      reason: "Aborted",
-    });
-  });
-
-  it("should classify unknown error as error", () => {
-    const err = new Error("Something weird");
-    expect(classifyProbeError(err)).toEqual({
-      status: "error",
-      reason: "Something weird",
-    });
-  });
-
-  it("should classify non-Error as error with string representation", () => {
-    expect(classifyProbeError("string error")).toEqual({
-      status: "error",
-      reason: "string error",
-    });
   });
 });
 
