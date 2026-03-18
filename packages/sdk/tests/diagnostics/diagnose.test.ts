@@ -86,6 +86,7 @@ import { negotiatePayment } from "@boltzpay/protocols";
 // Import AFTER mocks
 import { BoltzPay } from "../../src/boltzpay";
 import type { DiagnoseResult } from "../../src/diagnostics/diagnose";
+import { classifyHealth } from "../../src/diagnostics/diagnose";
 
 const mockedNegotiatePayment = vi.mocked(negotiatePayment);
 const mockedDnsResolve = vi.mocked(dns.resolve);
@@ -263,7 +264,7 @@ describe("diagnose — endpoint diagnostic report", () => {
     expect(result.scheme).toBe("upto");
   });
 
-  it("endpoint on stellar network -> health = 'degraded'", async () => {
+  it("endpoint on stellar network with low latency -> health = 'healthy'", async () => {
     const quote = makeQuote({ network: "stellar:pubnet", scheme: "exact" });
     fetchSpy.mockResolvedValue(make402Response());
     mockProbeFromResponse.mockResolvedValue([
@@ -277,7 +278,8 @@ describe("diagnose — endpoint diagnostic report", () => {
     });
 
     const result = await agent.diagnose("https://api.example.com/data");
-    expect(result.health).toBe("degraded");
+    expect(result.health).toBe("healthy");
+    expect(result.network).toBe("stellar:pubnet");
   });
 
   it("endpoint that times out -> health = 'dead'", async () => {
@@ -627,5 +629,37 @@ describe("diagnose — endpoint diagnostic report", () => {
       expect(result.classification).toBe("dead");
       expect(result.deathReason).toBe("tls_error");
     });
+  });
+});
+
+describe("classifyHealth", () => {
+  it("should return healthy for fast exact-scheme endpoint", () => {
+    expect(classifyHealth(200, "exact", "base")).toBe("healthy");
+  });
+
+  it("should return degraded for non-exact scheme", () => {
+    expect(classifyHealth(100, "upto", "base")).toBe("degraded");
+  });
+
+  it("should return degraded for slow non-stellar endpoint (>1000ms)", () => {
+    expect(classifyHealth(1500, "exact", "base")).toBe("degraded");
+  });
+
+  it("should return healthy for stellar endpoint under 5000ms", () => {
+    expect(classifyHealth(3000, "exact", "stellar:pubnet")).toBe("healthy");
+  });
+
+  it("should return degraded for stellar endpoint over 5000ms", () => {
+    expect(classifyHealth(6000, "exact", "stellar:pubnet")).toBe("degraded");
+  });
+
+  it("should return degraded for suspicious price over $100", () => {
+    const expensivePrice = Money.fromDollars("150.00");
+    expect(classifyHealth(100, "exact", "base", expensivePrice)).toBe("degraded");
+  });
+
+  it("should return healthy for normal price under $100", () => {
+    const normalPrice = Money.fromDollars("0.05");
+    expect(classifyHealth(100, "exact", "base", normalPrice)).toBe("healthy");
   });
 });

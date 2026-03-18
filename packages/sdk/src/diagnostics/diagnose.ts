@@ -65,15 +65,22 @@ export function truncateAddress(addr: string): string {
 }
 
 const SLOW_THRESHOLD_MS = 1000;
+const STELLAR_SLOW_THRESHOLD_MS = 5000;
+const SUSPICIOUS_PRICE_THRESHOLD = Money.fromDollars("100.00");
 
 export function classifyHealth(
   latencyMs: number,
   scheme: string | undefined,
   network: string | undefined,
+  price?: Money,
 ): EndpointHealth {
   if (scheme && scheme !== "exact") return "degraded";
-  if (network?.startsWith("stellar")) return "degraded";
-  if (latencyMs >= SLOW_THRESHOLD_MS) return "degraded";
+  if (price && price.currency === "USD" && price.greaterThan(SUSPICIOUS_PRICE_THRESHOLD)) {
+    return "degraded";
+  }
+  const isStellar = network?.startsWith("stellar") ?? false;
+  const threshold = isStellar ? STELLAR_SLOW_THRESHOLD_MS : SLOW_THRESHOLD_MS;
+  if (latencyMs >= threshold) return "degraded";
   return "healthy";
 }
 
@@ -113,6 +120,8 @@ const DEFAULT_DETECT_TIMEOUT_MS = 10_000;
 const DNS_BUDGET_FRACTION = 0.15;
 const DNS_MIN_MS = 500;
 const DNS_MAX_MS = 3_000;
+
+const MAX_REDIRECTS = 5;
 
 const POST_BUDGET_FRACTION = 0.4;
 const POST_MIN_MS = 500;
@@ -190,6 +199,32 @@ async function timedFetch(
   }
 }
 
+async function fetchFollowingRedirects(
+  url: string,
+  timeoutMs: number,
+  externalSignal?: AbortSignal,
+): Promise<Response> {
+  const visited = new Set<string>();
+  let currentUrl = url;
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    if (visited.has(currentUrl)) {
+      throw new Error(`Redirect cycle: ${currentUrl}`);
+    }
+    visited.add(currentUrl);
+    const response = await timedFetch(
+      currentUrl,
+      { method: "GET", redirect: "manual" },
+      timeoutMs,
+      externalSignal,
+    );
+    if (response.status < 300 || response.status >= 400) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    currentUrl = new URL(location, currentUrl).href;
+  }
+  throw new Error("Too many redirects");
+}
+
 export async function diagnoseEndpoint(
   input: DiagnoseInput,
 ): Promise<DiagnoseResult> {
@@ -219,9 +254,8 @@ export async function diagnoseEndpoint(
     let response: Response;
 
     try {
-      response = await timedFetch(
+      response = await fetchFollowingRedirects(
         url,
-        { method: "GET", redirect: "follow" },
         remainingBudget(),
         signal,
       );
@@ -416,7 +450,7 @@ async function buildPaidResult(
     network: quote.network,
     price: quote.amount,
     facilitator: quote.payTo ? truncateAddress(quote.payTo) : undefined,
-    health: classifyHealth(latencyMs, quote.scheme, quote.network),
+    health: classifyHealth(latencyMs, quote.scheme, quote.network, quote.amount),
     latencyMs,
     postOnly,
     chains: buildChains(quote.allAccepts),
