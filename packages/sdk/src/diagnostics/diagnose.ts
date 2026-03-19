@@ -21,6 +21,7 @@ export type EndpointClassification =
 export type DeathReason =
   | "dns_failure"
   | "http_404"
+  | "http_405"
   | "http_5xx"
   | "timeout"
   | "tls_error";
@@ -304,7 +305,8 @@ export async function diagnoseEndpoint(
         url, totalStart, detectStart, remainingBudget, signal, router,
       );
       if (postProbe.kind === "paid") return postProbe.result;
-      return buildDeadResult(url, Date.now() - totalStart, "http_404", status);
+      const deathReason: DeathReason = status === 405 ? "http_405" : "http_404";
+      return buildDeadResult(url, Date.now() - totalStart, deathReason, status);
     }
 
     if (status >= 500 && status < 600) {

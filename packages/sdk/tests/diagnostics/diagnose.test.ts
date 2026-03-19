@@ -642,6 +642,47 @@ describe("diagnose — endpoint diagnostic report", () => {
       expect(result.classification).toBe("dead");
       expect(result.deathReason).toBe("tls_error");
     });
+
+    it("GET 404, POST 402 -> classification = 'paid', postOnly = true", async () => {
+      const quote = makeQuote();
+      fetchSpy
+        .mockResolvedValueOnce(new Response("", { status: 404 }))
+        .mockResolvedValueOnce(make402Response());
+      mockedNegotiatePayment.mockResolvedValue({ transport: "body" });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("paid");
+      expect(result.postOnly).toBe(true);
+    });
+
+    it("GET 405, POST 402 -> classification = 'paid', postOnly = true", async () => {
+      const quote = makeQuote();
+      fetchSpy
+        .mockResolvedValueOnce(new Response("", { status: 405 }))
+        .mockResolvedValueOnce(make402Response());
+      mockedNegotiatePayment.mockResolvedValue({ transport: "body" });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("paid");
+      expect(result.postOnly).toBe(true);
+    });
+
+    it("GET 405, POST non-402 -> classification = 'dead', deathReason = 'http_405'", async () => {
+      fetchSpy
+        .mockResolvedValueOnce(new Response("", { status: 405 }))
+        .mockResolvedValueOnce(new Response("", { status: 401 }));
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("dead");
+      expect(result.deathReason).toBe("http_405");
+      expect(result.httpStatus).toBe(405);
+    });
   });
 });
 
