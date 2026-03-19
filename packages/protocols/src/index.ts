@@ -2,6 +2,7 @@ export type { DeliveryAttemptResult } from "./adapter-error";
 export { hasMppScheme, parseMppChallenges } from "./mpp/mpp-parsing";
 export { MppMethodSelector } from "./mpp/mpp-method-selector";
 export type { MppResolvedMethod } from "./mpp/mpp-method-selector";
+export { MppAdapter } from "./mpp/mpp-adapter";
 export { buildMppQuote } from "./mpp/mpp-quote-builder";
 export type {
   MppChallenge,
