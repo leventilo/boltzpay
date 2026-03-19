@@ -9,6 +9,15 @@ export interface EndpointInputHints {
   readonly outputExample?: unknown;
 }
 
+export interface MppMethodQuote {
+  readonly method: string;
+  readonly intent: string;
+  readonly amount: Money;
+  readonly currency: string;
+  readonly network: string | undefined;
+  readonly recipient: string | undefined;
+}
+
 export interface ProtocolQuote {
   readonly amount: Money;
   readonly protocol: string;
@@ -17,6 +26,9 @@ export interface ProtocolQuote {
   readonly scheme: string;
   readonly allAccepts?: readonly AcceptOption[];
   readonly inputHints?: EndpointInputHints;
+  readonly allMethods?: readonly MppMethodQuote[];
+  readonly selectedMethod?: string;
+  readonly priceUnknown?: boolean;
 }
 
 export interface ProtocolResult {

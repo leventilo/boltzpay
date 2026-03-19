@@ -23,6 +23,7 @@ export {
 } from "./shared/payment-errors";
 export type {
   EndpointInputHints,
+  MppMethodQuote,
   ProtocolAdapter,
   ProtocolQuote,
   ProtocolResult,

@@ -12,6 +12,8 @@ export {
   L402CredentialsMissingError,
   L402PaymentError,
   L402QuoteError,
+  MppPaymentError,
+  MppQuoteError,
   X402PaymentError,
   X402QuoteError,
 } from "./adapter-error";
