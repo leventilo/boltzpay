@@ -1,5 +1,5 @@
 import { resolve as dnsResolve } from "node:dns/promises";
-import type { AcceptOption, EndpointInputHints } from "@boltzpay/core";
+import type { AcceptOption, EndpointInputHints, MppMethodQuote } from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
 import type { MppChallenge, NegotiatedPayment } from "@boltzpay/protocols";
 import {
@@ -486,6 +486,7 @@ async function buildPaidResult(
     chains: buildChains(quote.allAccepts),
     rawAccepts: quote.allAccepts,
     ...(quote.inputHints ? { inputHints: quote.inputHints } : {}),
+    ...(quote.allMethods ? { mppMethods: quoteMppMethodsToDetails(quote.allMethods) } : {}),
     timing: { detectMs, quoteMs },
   };
 }
@@ -546,6 +547,21 @@ function toMppMethodDetails(
     currency: c.request?.currency,
     recipient: c.request?.recipient,
     chainId: c.request?.chainId,
+  }));
+}
+
+function quoteMppMethodsToDetails(
+  methods: readonly MppMethodQuote[],
+): readonly MppMethodDetail[] {
+  return methods.map((m) => ({
+    method: m.method,
+    intent: m.intent,
+    id: undefined,
+    expires: undefined,
+    rawAmount: m.amount.cents.toString(),
+    currency: m.currency,
+    recipient: m.recipient,
+    chainId: m.network ? Number(m.network) || undefined : undefined,
   }));
 }
 
