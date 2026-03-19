@@ -299,7 +299,11 @@ export async function diagnoseEndpoint(
       );
     }
 
-    if (status === 404 || status === 410) {
+    if (status === 404 || status === 405 || status === 410) {
+      const postProbe = await tryPostProbe(
+        url, totalStart, detectStart, remainingBudget, signal, router,
+      );
+      if (postProbe.kind === "paid") return postProbe.result;
       return buildDeadResult(url, Date.now() - totalStart, "http_404", status);
     }
 
@@ -319,43 +323,19 @@ export async function diagnoseEndpoint(
         );
       }
 
-      const postBudget = Math.max(
-        POST_MIN_MS,
-        remainingBudget() * POST_BUDGET_FRACTION,
+      const postProbe = await tryPostProbe(
+        url, totalStart, detectStart, remainingBudget, signal, router,
       );
-      try {
-        const postResponse = await timedFetch(
-          url,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: "{}",
-            redirect: "follow",
-          },
-          postBudget,
-          signal,
-        );
-
-        if (postResponse.status === 402) {
-          return buildPaidResult(
-            url,
-            totalStart,
-            detectStart,
-            postResponse,
-            true,
-            router,
-          );
-        }
-
-        return buildNonPaidResult(
-          url,
-          Date.now() - totalStart,
-          "free_confirmed",
-        );
-      } catch {
-        // Intent: POST probe failed (timeout/network) — cannot confirm free or paid
+      if (postProbe.kind === "paid") return postProbe.result;
+      if (postProbe.kind === "failed") {
         return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
       }
+
+      return buildNonPaidResult(
+        url,
+        Date.now() - totalStart,
+        "free_confirmed",
+      );
     }
 
     return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
@@ -387,6 +367,53 @@ function buildDeadResult(
     latencyMs,
     postOnly: false,
   };
+}
+
+type PostProbeOutcome =
+  | { readonly kind: "paid"; readonly result: DiagnoseResult }
+  | { readonly kind: "not_paid" }
+  | { readonly kind: "failed" };
+
+async function tryPostProbe(
+  url: string,
+  totalStart: number,
+  detectStart: number,
+  remainingBudget: () => number,
+  signal: AbortSignal | undefined,
+  router: ProtocolRouter,
+): Promise<PostProbeOutcome> {
+  const postBudget = Math.max(
+    POST_MIN_MS,
+    remainingBudget() * POST_BUDGET_FRACTION,
+  );
+  try {
+    const postResponse = await timedFetch(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        redirect: "follow",
+      },
+      postBudget,
+      signal,
+    );
+    if (postResponse.status === 402) {
+      const result = await buildPaidResult(
+        url,
+        totalStart,
+        detectStart,
+        postResponse,
+        true,
+        router,
+      );
+      return { kind: "paid", result };
+    }
+    return { kind: "not_paid" };
+  } catch {
+    // Intent: POST probe network failure — cannot determine paid/free
+    return { kind: "failed" };
+  }
 }
 
 function buildNonPaidResult(
