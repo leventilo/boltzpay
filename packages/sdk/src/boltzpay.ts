@@ -307,9 +307,12 @@ function resolveMaxHistoryRecords(config: ValidatedConfig): number {
 
 const LEGACY_DATA_DIR = ".boltzpay";
 
+const RESOLVED_WALLET_TYPES = ["coinbase", "nwc", "stripe-mpp", "tempo", "visa-mpp"] as const;
+type ResolvedWalletType = (typeof RESOLVED_WALLET_TYPES)[number];
+
 interface ResolvedWallet {
   readonly name: string;
-  readonly type: "coinbase" | "nwc";
+  readonly type: ResolvedWalletType;
   readonly cdpManager?: CdpWalletManager;
   readonly nwcManager?: NwcWalletManager;
   readonly networks?: readonly string[];
@@ -413,12 +416,21 @@ export class BoltzPay {
         networks: wc.networks,
       };
     }
-    const wc = walletConfig;
+    if (walletConfig.type === "nwc") {
+      const wc = walletConfig;
+      return {
+        name: wc.name,
+        type: "nwc",
+        nwcManager: new NwcWalletManager(wc.nwcConnectionString),
+        networks: wc.networks,
+      };
+    }
+    // MPP wallet types (stripe-mpp, tempo, visa-mpp) store config only;
+    // payment execution wired in MppAdapter (Phase 13 Plan 03).
     return {
-      name: wc.name,
-      type: "nwc",
-      nwcManager: new NwcWalletManager(wc.nwcConnectionString),
-      networks: wc.networks,
+      name: walletConfig.name,
+      type: walletConfig.type,
+      networks: walletConfig.networks,
     };
   }
 
