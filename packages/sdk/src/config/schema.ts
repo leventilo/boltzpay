@@ -85,9 +85,33 @@ const NwcWalletSchema = z.object({
   networks: z.array(z.string().min(1)).optional(),
 });
 
+const StripeMppWalletSchema = z.object({
+  type: z.literal("stripe-mpp"),
+  name: z.string().min(1),
+  stripeSecretKey: z.string().min(1),
+  networks: z.array(z.string().min(1)).optional(),
+});
+
+const TempoWalletSchema = z.object({
+  type: z.literal("tempo"),
+  name: z.string().min(1),
+  tempoPrivateKey: z.string().min(1),
+  networks: z.array(z.string().min(1)).optional(),
+});
+
+const VisaMppWalletSchema = z.object({
+  type: z.literal("visa-mpp"),
+  name: z.string().min(1),
+  visaJwe: z.string().min(1),
+  networks: z.array(z.string().min(1)).optional(),
+});
+
 export const WalletSchema = z.discriminatedUnion("type", [
   CoinbaseWalletSchema,
   NwcWalletSchema,
+  StripeMppWalletSchema,
+  TempoWalletSchema,
+  VisaMppWalletSchema,
 ]);
 
 export const BoltzPayConfigSchema = z.object({
@@ -116,6 +140,7 @@ export const BoltzPayConfigSchema = z.object({
   retry: RetrySchema.optional(),
   rateLimit: RateLimitSchema.optional(),
   wallets: z.array(WalletSchema).optional(),
+  mppPreferredMethods: z.array(z.string().min(1)).optional(),
 });
 
 function formatZodIssues(issues: ReadonlyArray<z.core.$ZodIssue>): string {
