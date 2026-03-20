@@ -21,14 +21,17 @@ export type {
   ValidatedConfig,
   WalletConfig,
 } from "./config/types";
+export { diagnoseEndpoint } from "./diagnostics/diagnose";
 export type {
   ChainInfo,
   DeathReason,
+  DiagnoseInput,
   DiagnoseResult,
   DiagnoseTiming,
   EndpointClassification,
   EndpointHealth,
   FormatVersion,
+  MppMethodDetail,
 } from "./diagnostics/diagnose";
 export type {
   DryRunFailureReason,
@@ -95,4 +98,4 @@ export type {
   WalletStatus,
 } from "./wallet-status";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.2.1";

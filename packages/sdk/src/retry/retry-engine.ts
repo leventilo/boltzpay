@@ -30,6 +30,9 @@ const TRANSIENT_ERROR_PATTERNS = [
   "enotfound",
   "fetch failed",
   "network error",
+  "bad gateway",
+  "service unavailable",
+  "gateway timeout",
 ];
 
 export async function withRetry<T>(

@@ -70,6 +70,18 @@ export class L402CredentialsMissingError extends AdapterError {
   }
 }
 
+export class MppQuoteError extends AdapterError {
+  constructor(message: string) {
+    super("mpp_quote_failed", message);
+  }
+}
+
+export class MppPaymentError extends AdapterError {
+  constructor(message: string, options?: ErrorOptions) {
+    super("mpp_payment_failed", message, options);
+  }
+}
+
 /**
  * Thrown when all payment adapters fail during fallback execution.
  * Contains all individual errors for diagnostic context.

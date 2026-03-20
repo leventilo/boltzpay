@@ -1,5 +1,4 @@
-import { NetworkError } from "./errors/network-error";
-import { ProtocolError } from "./errors/protocol-error";
+import type { DiagnoseResult } from "./diagnostics/diagnose";
 
 const REMOTE_DIRECTORY_URL =
   "https://raw.githubusercontent.com/leventilo/boltzpay/main/directory.json";
@@ -51,6 +50,7 @@ export async function fetchRemoteDirectory(): Promise<
     directoryCache = { data, timestamp: Date.now() };
     return data;
   } catch {
+    // Intent: remote directory fetch is best-effort — fall back to embedded static directory
     return API_DIRECTORY;
   }
 }
@@ -508,7 +508,6 @@ export function getDirectoryCategories(): string[] {
   return [...new Set(API_DIRECTORY.map((e) => e.category))];
 }
 
-export const DISCOVER_PROBE_TIMEOUT_MS = 5_000;
 
 /** Filter the static API directory by category. Returns all entries if no category given. */
 export function filterDirectory(
@@ -529,26 +528,24 @@ export function filterEntries(
   return entries.filter((e) => e.category === lower);
 }
 
-export function classifyProbeError(err: unknown): DiscoverEntryStatus {
-  if (
-    err instanceof ProtocolError &&
-    err.code === "protocol_detection_failed"
-  ) {
-    return { status: "free" };
+export function toDiscoverStatus(
+  result: DiagnoseResult,
+): DiscoverEntryStatus {
+  switch (result.classification) {
+    case "paid":
+      return {
+        status: "live",
+        livePrice: result.price?.toDisplayString() ?? "unknown",
+        protocol: result.protocol ?? "unknown",
+        network: result.network,
+      };
+    case "free_confirmed":
+      return { status: "free" };
+    case "dead":
+      return { status: "offline", reason: result.deathReason ?? "unknown" };
+    case "ambiguous":
+      return { status: "error", reason: "Ambiguous — 402 without valid payment options" };
   }
-  if (err instanceof NetworkError) {
-    return { status: "offline", reason: err.message };
-  }
-  if (err instanceof Error && err.name === "TimeoutError") {
-    return { status: "offline", reason: "Timeout" };
-  }
-  if (err instanceof Error && err.name === "AbortError") {
-    return { status: "offline", reason: "Aborted" };
-  }
-  return {
-    status: "error",
-    reason: err instanceof Error ? err.message : String(err),
-  };
 }
 
 const STATUS_ORDER: Record<DiscoverEntryStatus["status"], number> = {

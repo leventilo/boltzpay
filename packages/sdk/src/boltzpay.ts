@@ -41,11 +41,9 @@ import type {
   DiscoverOptions,
 } from "./directory";
 import {
-  classifyProbeError,
-  DISCOVER_PROBE_TIMEOUT_MS,
   filterEntries,
   sortDiscoveredEntries,
-  withTimeout,
+  toDiscoverStatus,
 } from "./directory";
 import { BoltzPayError } from "./errors/boltzpay-error";
 import { BudgetExceededError } from "./errors/budget-exceeded-error";
@@ -173,6 +171,7 @@ function extractServerMessage(
   try {
     text = new TextDecoder().decode(body);
   } catch {
+    // Intent: binary or non-UTF-8 body cannot be decoded — return no message
     return undefined;
   }
   if (!text.trim()) return undefined;
@@ -188,7 +187,9 @@ function extractServerMessage(
         if (typeof nested.message === "string") return nested.message;
       }
     }
-  } catch {}
+  } catch {
+    // Intent: response body may not be valid JSON — fall through to raw text truncation
+  }
 
   return text.length > SERVER_MESSAGE_MAX_LENGTH
     ? `${text.slice(0, SERVER_MESSAGE_MAX_LENGTH)}…`
@@ -306,9 +307,12 @@ function resolveMaxHistoryRecords(config: ValidatedConfig): number {
 
 const LEGACY_DATA_DIR = ".boltzpay";
 
+const RESOLVED_WALLET_TYPES = ["coinbase", "nwc", "stripe-mpp", "tempo", "visa-mpp"] as const;
+type ResolvedWalletType = (typeof RESOLVED_WALLET_TYPES)[number];
+
 interface ResolvedWallet {
   readonly name: string;
-  readonly type: "coinbase" | "nwc";
+  readonly type: ResolvedWalletType;
   readonly cdpManager?: CdpWalletManager;
   readonly nwcManager?: NwcWalletManager;
   readonly networks?: readonly string[];
@@ -412,12 +416,21 @@ export class BoltzPay {
         networks: wc.networks,
       };
     }
-    const wc = walletConfig;
+    if (walletConfig.type === "nwc") {
+      const wc = walletConfig;
+      return {
+        name: wc.name,
+        type: "nwc",
+        nwcManager: new NwcWalletManager(wc.nwcConnectionString),
+        networks: wc.networks,
+      };
+    }
+    // MPP wallet types (stripe-mpp, tempo, visa-mpp) store config only;
+    // payment execution wired in MppAdapter (Phase 13 Plan 03).
     return {
-      name: wc.name,
-      type: "nwc",
-      nwcManager: new NwcWalletManager(wc.nwcConnectionString),
-      networks: wc.networks,
+      name: walletConfig.name,
+      type: walletConfig.type,
+      networks: walletConfig.networks,
     };
   }
 
@@ -609,7 +622,9 @@ export class BoltzPay {
           "Legacy v0.1 data files detected. v0.2 uses a new storage format — starting fresh.",
         );
       }
-    } catch {}
+    } catch {
+      // Intent: legacy v0.1 detection is best-effort — missing dir is normal on fresh installs
+    }
   }
 
   private buildRetryOptions(phase: string): RetryOptions {
@@ -707,6 +722,7 @@ export class BoltzPay {
     try {
       selectedQuote = this.selectPaymentChain(primary.quote, options);
     } catch {
+      // Intent: no compatible chain available — report as detection_failed with partial quote
       return {
         wouldPay: false,
         reason: "detection_failed",
@@ -901,6 +917,7 @@ export class BoltzPay {
     try {
       return parseNetworkIdentifier(network);
     } catch {
+      // Intent: non-standard network identifier — treat as unknown rather than crashing
       return undefined;
     }
   }
@@ -1403,6 +1420,7 @@ export class BoltzPay {
 
       return result;
     } catch {
+      // Intent: wallet balance query failure is non-fatal — return empty balances
       return {};
     }
   }
@@ -1530,11 +1548,14 @@ export class BoltzPay {
   async discover(
     options?: DiscoverOptions,
   ): Promise<readonly DiscoveredEntry[]> {
+    await this.initPromise;
     const live = options?.enableLiveDiscovery ?? true;
     const allEntries = await getMergedDirectory({ live });
     const entries = filterEntries(allEntries, options?.category);
     const results = await Promise.all(
-      entries.map((entry) => this.probeDirectoryEntry(entry, options?.signal)),
+      entries.map((entry) =>
+        this.probeDirectoryEntry(entry, options?.signal),
+      ),
     );
     return sortDiscoveredEntries(results);
   }
@@ -1543,24 +1564,13 @@ export class BoltzPay {
     entry: ApiDirectoryEntry,
     signal?: AbortSignal,
   ): Promise<DiscoveredEntry> {
-    try {
-      const result = await withTimeout(
-        this.quote(entry.url),
-        DISCOVER_PROBE_TIMEOUT_MS,
-        signal,
-      );
-      return {
-        ...entry,
-        live: {
-          status: "live",
-          livePrice: result.amount.toDisplayString(),
-          protocol: result.protocol,
-          network: result.network,
-        },
-      };
-    } catch (err) {
-      return { ...entry, live: classifyProbeError(err) };
-    }
+    const result = await diagnoseEndpoint({
+      url: entry.url,
+      router: this.router,
+      detectTimeoutMs: this.config.timeouts?.detect,
+      signal,
+    });
+    return { ...entry, live: toDiscoverStatus(result) };
   }
 
   close(): void {

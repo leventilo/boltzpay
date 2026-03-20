@@ -28,7 +28,7 @@ export interface DryRunResult {
   };
   readonly wallet?: {
     readonly name: string;
-    readonly type: "coinbase" | "nwc";
+    readonly type: string;
   };
   readonly endpoint?: {
     readonly health: EndpointHealth;

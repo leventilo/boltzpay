@@ -238,17 +238,17 @@ function parseWwwAuthenticate(
   if (x402Index === -1) return null;
   const content = headerValue.slice(x402Index + X402_SCHEME_PREFIX.length);
   const params: Record<string, string> = {};
-  for (const match of content.matchAll(/(\w+)="([^"]*)"/g)) {
+  for (const match of content.matchAll(/(\w+)\s*=\s*(?:"([^"]*)"|([^\s,]+))/g)) {
     const key = match[1];
-    const value = match[2];
-    if (key !== undefined && value !== undefined) params[key] = value;
+    const value = match[2] ?? match[3];
+    if (key !== undefined && value !== undefined) params[key.toLowerCase()] = value;
   }
   const address = params.address;
   const rawAmount = params.amount;
   if (!address || !rawAmount) return null;
   const atomicAmount = usdcDisplayToAtomic(rawAmount);
   if (!atomicAmount) return null;
-  const chainId = params.chainId;
+  const chainId = params.chainid;
   const network = chainId ? `eip155:${chainId}` : DEFAULT_EIP155_NETWORK;
   const token = params.token ?? "";
   return {

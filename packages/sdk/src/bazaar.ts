@@ -148,6 +148,7 @@ export async function fetchBazaarDirectory(
     cache = { data: entries, timestamp: Date.now() };
     return entries;
   } catch {
+    // Intent: Bazaar API is best-effort — network failure returns empty, SDK proceeds with static directory
     return [];
   }
 }

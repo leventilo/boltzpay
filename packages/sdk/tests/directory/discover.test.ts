@@ -51,14 +51,12 @@ import { Money } from "@boltzpay/core";
 import type { DiscoveredEntry } from "../../src/directory";
 import {
   API_DIRECTORY,
-  classifyProbeError,
   filterDirectory,
   sortDiscoveredEntries,
   toDiscoverJson,
+  toDiscoverStatus,
   withTimeout,
 } from "../../src/directory";
-import { NetworkError } from "../../src/errors/network-error";
-import { ProtocolError } from "../../src/errors/protocol-error";
 
 describe("filterDirectory", () => {
   it("should return all entries without category", () => {
@@ -77,60 +75,6 @@ describe("filterDirectory", () => {
   it("should return empty array for unknown category", () => {
     const result = filterDirectory("nonexistent");
     expect(result).toEqual([]);
-  });
-});
-
-describe("classifyProbeError", () => {
-  it("should classify ProtocolError protocol_detection_failed as free", () => {
-    const err = new ProtocolError("protocol_detection_failed", "No protocol");
-    expect(classifyProbeError(err)).toEqual({ status: "free" });
-  });
-
-  it("should classify ProtocolError payment_failed as error", () => {
-    const err = new ProtocolError("payment_failed", "Payment failed");
-    expect(classifyProbeError(err)).toEqual({
-      status: "error",
-      reason: "Payment failed",
-    });
-  });
-
-  it("should classify NetworkError as offline", () => {
-    const err = new NetworkError("endpoint_unreachable", "Connection refused");
-    expect(classifyProbeError(err)).toEqual({
-      status: "offline",
-      reason: "Connection refused",
-    });
-  });
-
-  it("should classify TimeoutError as offline", () => {
-    const err = new DOMException("Timeout", "TimeoutError");
-    expect(classifyProbeError(err)).toEqual({
-      status: "offline",
-      reason: "Timeout",
-    });
-  });
-
-  it("should classify AbortError as offline", () => {
-    const err = new DOMException("Aborted", "AbortError");
-    expect(classifyProbeError(err)).toEqual({
-      status: "offline",
-      reason: "Aborted",
-    });
-  });
-
-  it("should classify unknown error as error", () => {
-    const err = new Error("Something weird");
-    expect(classifyProbeError(err)).toEqual({
-      status: "error",
-      reason: "Something weird",
-    });
-  });
-
-  it("should classify non-Error as error with string representation", () => {
-    expect(classifyProbeError("string error")).toEqual({
-      status: "error",
-      reason: "string error",
-    });
   });
 });
 
@@ -274,6 +218,84 @@ describe("toDiscoverJson", () => {
   });
 });
 
+describe("toDiscoverStatus", () => {
+  const baseDiagnose = {
+    url: "https://test.com",
+    postOnly: false,
+    latencyMs: 100,
+    protocol: undefined,
+    formatVersion: undefined,
+    scheme: undefined,
+    network: undefined,
+    price: undefined,
+    facilitator: undefined,
+  } as const;
+
+  it("should map paid classification to live status", () => {
+    const result = toDiscoverStatus({
+      ...baseDiagnose,
+      classification: "paid",
+      isPaid: true,
+      protocol: "x402",
+      network: "eip155:8453",
+      price: Money.fromDollars("0.05"),
+      health: "healthy",
+    });
+    expect(result).toEqual({
+      status: "live",
+      livePrice: "$0.05",
+      protocol: "x402",
+      network: "eip155:8453",
+    });
+  });
+
+  it("should map paid without price to live with unknown price", () => {
+    const result = toDiscoverStatus({
+      ...baseDiagnose,
+      classification: "paid",
+      isPaid: true,
+      health: "healthy",
+    });
+    expect(result).toEqual({
+      status: "live",
+      livePrice: "unknown",
+      protocol: "unknown",
+      network: undefined,
+    });
+  });
+
+  it("should map free_confirmed to free status", () => {
+    const result = toDiscoverStatus({
+      ...baseDiagnose,
+      classification: "free_confirmed",
+      isPaid: false,
+      health: "healthy",
+    });
+    expect(result).toEqual({ status: "free" });
+  });
+
+  it("should map dead to offline with reason", () => {
+    const result = toDiscoverStatus({
+      ...baseDiagnose,
+      classification: "dead",
+      deathReason: "dns_failure",
+      isPaid: false,
+      health: "dead",
+    });
+    expect(result).toEqual({ status: "offline", reason: "dns_failure" });
+  });
+
+  it("should map ambiguous to error", () => {
+    const result = toDiscoverStatus({
+      ...baseDiagnose,
+      classification: "ambiguous",
+      isPaid: false,
+      health: "degraded",
+    });
+    expect(result.status).toBe("error");
+  });
+});
+
 describe("withTimeout", () => {
   it("should resolve when promise completes before timeout", async () => {
     const result = await withTimeout(Promise.resolve(42), 1000);
@@ -332,27 +354,62 @@ describe("withTimeout", () => {
 });
 
 describe("BoltzPay.discover()", () => {
-  it("should probe entries and return enriched results", async () => {
-    // Dynamic import to avoid circular issues; use real BoltzPay with mocked router
-    const { BoltzPay } = await import("../../src/boltzpay");
+  it("should probe entries via diagnose and return enriched results", async () => {
+    const diagnoseModule = await import("../../src/diagnostics/diagnose");
+    const diagnoseSpy = vi.spyOn(diagnoseModule, "diagnoseEndpoint");
 
-    const sdk = new BoltzPay({ network: "base" });
-    const quoteSpy = vi.spyOn(sdk, "quote");
+    diagnoseSpy.mockImplementation(async (input) => {
+      const base = {
+        url: input.url,
+        postOnly: false,
+        latencyMs: 50,
+        protocol: undefined,
+        formatVersion: undefined,
+        scheme: undefined,
+        network: undefined,
+        price: undefined,
+        facilitator: undefined,
+      } as const;
 
-    quoteSpy.mockResolvedValueOnce({
-      amount: Money.fromDollars("0.05"),
-      protocol: "x402",
-      network: "eip155:8453",
+      if (input.url === "https://a.com") {
+        return {
+          ...base,
+          classification: "paid" as const,
+          isPaid: true,
+          protocol: "x402",
+          network: "eip155:8453",
+          price: Money.fromDollars("0.05"),
+          health: "healthy" as const,
+        };
+      }
+      if (input.url === "https://b.com") {
+        return {
+          ...base,
+          classification: "free_confirmed" as const,
+          isPaid: false,
+          health: "healthy" as const,
+        };
+      }
+      if (input.url === "https://c.com") {
+        return {
+          ...base,
+          classification: "dead" as const,
+          deathReason: "timeout" as const,
+          isPaid: false,
+          health: "dead" as const,
+        };
+      }
+      return {
+        ...base,
+        classification: "ambiguous" as const,
+        isPaid: false,
+        health: "degraded" as const,
+      };
     });
-    quoteSpy.mockRejectedValueOnce(
-      new ProtocolError("protocol_detection_failed", "No protocol"),
-    );
-    quoteSpy.mockRejectedValueOnce(
-      new DOMException("Timeout", "TimeoutError"),
-    );
-    quoteSpy.mockRejectedValueOnce(new Error("Unexpected"));
 
-    // Patch getMergedDirectory to control inputs
+    const { BoltzPay } = await import("../../src/boltzpay");
+    const sdk = new BoltzPay({ network: "base" });
+
     const bazaarModule = await import("../../src/bazaar");
     const mergedSpy = vi.spyOn(bazaarModule, "getMergedDirectory");
     const fakeEntries = [
@@ -394,7 +451,6 @@ describe("BoltzPay.discover()", () => {
     const results = await sdk.discover();
 
     expect(results).toHaveLength(4);
-    // Sorted: live, offline (timeout), error, free
     expect(results[0].live.status).toBe("live");
     expect(results[0].name).toBe("A");
     if (results[0].live.status === "live") {
@@ -412,6 +468,6 @@ describe("BoltzPay.discover()", () => {
     expect(results[3].name).toBe("B");
 
     mergedSpy.mockRestore();
-    quoteSpy.mockRestore();
+    diagnoseSpy.mockRestore();
   });
 });

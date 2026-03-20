@@ -147,6 +147,29 @@ describe("parseWwwAuthenticate", () => {
     const result = parseWwwAuthenticate(header);
     expect(result?.accepts[0]?.network).toBe("eip155:8453");
   });
+
+  it("should tolerate spaces around = in params", () => {
+    const header = 'x402 address = "0xabc", amount = "0.01", chainId = "8453"';
+    const result = parseWwwAuthenticate(header);
+    expect(result).not.toBeNull();
+    expect(result?.accepts[0]?.payTo).toBe("0xabc");
+    expect(result?.accepts[0]?.amount).toBe("10000");
+  });
+
+  it("should tolerate unquoted param values", () => {
+    const header = "x402 address=0xabc, amount=0.01";
+    const result = parseWwwAuthenticate(header);
+    expect(result).not.toBeNull();
+    expect(result?.accepts[0]?.payTo).toBe("0xabc");
+  });
+
+  it("should handle case-insensitive param names", () => {
+    const header = 'x402 Address="0xabc", Amount="0.05", ChainId="1"';
+    const result = parseWwwAuthenticate(header);
+    expect(result).not.toBeNull();
+    expect(result?.accepts[0]?.payTo).toBe("0xabc");
+    expect(result?.accepts[0]?.network).toBe("eip155:1");
+  });
 });
 
 describe("usdcDisplayToAtomic", () => {

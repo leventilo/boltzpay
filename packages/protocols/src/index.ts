@@ -1,4 +1,14 @@
 export type { DeliveryAttemptResult } from "./adapter-error";
+export { hasMppScheme, parseMppChallenges } from "./mpp/mpp-parsing";
+export { MppMethodSelector } from "./mpp/mpp-method-selector";
+export type { MppResolvedMethod } from "./mpp/mpp-method-selector";
+export { MppAdapter } from "./mpp/mpp-adapter";
+export { buildMppQuote } from "./mpp/mpp-quote-builder";
+export type {
+  MppChallenge,
+  MppParseResult,
+  MppRequest,
+} from "./mpp/mpp-types";
 export {
   AdapterError,
   AggregatePaymentError,
@@ -6,6 +16,8 @@ export {
   L402CredentialsMissingError,
   L402PaymentError,
   L402QuoteError,
+  MppPaymentError,
+  MppQuoteError,
   X402PaymentError,
   X402QuoteError,
 } from "./adapter-error";
