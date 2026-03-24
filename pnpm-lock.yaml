@@ -211,7 +211,7 @@ importers:
         version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/fetch':
         specifier: ^2.6.0
-        version: 2.7.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
+        version: 2.8.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/svm':
         specifier: ^2.6.0
         version: 2.6.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@6.5.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
@@ -2762,6 +2762,9 @@ packages:
   '@x402/core@2.7.0':
     resolution: {integrity: sha512-2l1QaRO50qtWpnTJed45HtGRAUp3z2Mep1caNCuaNBzeiE8OfWfuXmip+ujgp3vWZHxRqag221aRSnKbA6gDaQ==}
 
+  '@x402/core@2.8.0':
+    resolution: {integrity: sha512-ppsvSzyWzlqG+26dcNzOXo/YLaHreWc3lmdv9W81mEhLDWMdPpiGyRjSUyO9BQFuQJMQppvqA7ujUbLE/EaDkg==}
+
   '@x402/evm@2.6.0':
     resolution: {integrity: sha512-wPkNHf483gie1Up2sJSvERnW+VIEvMoT1KRXr09wSoSWgelglsJm+ug3gPPXKnT3C6AcmNAKZ12rBnu9Paff7g==}
 
@@ -2771,8 +2774,8 @@ packages:
   '@x402/extensions@2.7.0':
     resolution: {integrity: sha512-aNi3sVhTiGqeNJgIzYAqM51zum9wu9P2wBTBYFbv1VFdiO+/u4qKNJMNiDdpC4PYtyLhDpZFx0Fc1j7wExmoUw==}
 
-  '@x402/fetch@2.7.0':
-    resolution: {integrity: sha512-hkJvoVtYjybkhLk1K2kRB0aVVWaxz43qYBSGZo0wgnUuIUXzmArGohhM/VfG8kVqcl+NDIuCD8tFiKSONr9X6A==}
+  '@x402/fetch@2.8.0':
+    resolution: {integrity: sha512-GEY6DS5iy/PxwfbdfIBY0RsxrHnHylKmXMqzL8BJdSaerm3w5XhTkNCOG6JyaIt1CpQccYXbzlOEpqFJQNaNAA==}
 
   '@x402/hono@2.7.0':
     resolution: {integrity: sha512-6TKFF0pq7iMjJ+U3l7HeeVxEzmQuyTO2QUl6iszsTgMP9w4TEgXdMScJ+YQ4v6WrxFS1icwImbwn1K7MX/RLlg==}
@@ -4294,6 +4297,14 @@ packages:
       typescript:
         optional: true
 
+  ox@0.14.7:
+    resolution: {integrity: sha512-zSQ/cfBdolj7U4++NAvH7sI+VG0T3pEohITCgcQj8KlawvTDY4vGVhDT64Atsm0d6adWfIYHDpu88iUBMMp+AQ==}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   p-limit@6.2.0:
     resolution: {integrity: sha512-kuUqqHNUqoIWp/c467RI4X6mmyuojY5jGutNU0wVTmEOOfcuwLqyMVoAi9MKi2Ak+5i9+nhmrK4ufZE8069kHA==}
     engines: {node: '>=18'}
@@ -5022,6 +5033,14 @@ packages:
       typescript:
         optional: true
 
+  viem@2.47.6:
+    resolution: {integrity: sha512-zExmbI99NGvMdYa7fmqSTLgkwh48dmhgEqFrUgkpL4kfG4XkVefZ8dZqIKVUhZo6Uhf0FrrEXOsHm9LUyIvI2Q==}
+    peerDependencies:
+      typescript: '>=5.0.4'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   vite@6.4.1:
     resolution: {integrity: sha512-+Oxm7q9hDoLMyJOYfUYBuHQo+dkAloi33apOPP56pzj+vsdJDzr+j1NISE5pyaAuKL4A3UD34qd0lx5+kfKp2g==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
@@ -5225,6 +5244,18 @@ packages:
 
   ws@8.19.0:
     resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.20.0:
+    resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -6945,7 +6976,7 @@ snapshots:
       '@solana/functional': 5.5.1(typescript@5.9.3)
       '@solana/rpc-subscriptions-spec': 5.5.1(typescript@5.9.3)
       '@solana/subscribable': 5.5.1(typescript@5.9.3)
-      ws: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      ws: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -7554,6 +7585,10 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
+  '@x402/core@2.8.0':
+    dependencies:
+      zod: 3.25.76
+
   '@x402/evm@2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@x402/core': 2.6.0
@@ -7598,10 +7633,10 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/fetch@2.7.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+  '@x402/fetch@2.8.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
-      '@x402/core': 2.7.0
-      viem: 2.47.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      '@x402/core': 2.8.0
+      viem: 2.47.6(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
@@ -9468,6 +9503,21 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  ox@0.14.7(typescript@5.9.3)(zod@3.25.76):
+    dependencies:
+      '@adraffy/ens-normalize': 1.11.1
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)(zod@3.25.76)
+      eventemitter3: 5.0.1
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - zod
+
   p-limit@6.2.0:
     dependencies:
       yocto-queue: 1.2.2
@@ -10353,6 +10403,23 @@ snapshots:
       - utf-8-validate
       - zod
 
+  viem@2.47.6(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76):
+    dependencies:
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)(zod@3.25.76)
+      isows: 1.0.7(ws@8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10))
+      ox: 0.14.7(typescript@5.9.3)(zod@3.25.76)
+      ws: 8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - zod
+
   vite@6.4.1(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.2):
     dependencies:
       esbuild: 0.25.12
@@ -10522,6 +10589,11 @@ snapshots:
       utf-8-validate: 5.0.10
 
   ws@8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10):
+    optionalDependencies:
+      bufferutil: 4.1.0
+      utf-8-validate: 5.0.10
+
+  ws@8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10):
     optionalDependencies:
       bufferutil: 4.1.0
       utf-8-validate: 5.0.10
