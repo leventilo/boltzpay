@@ -214,7 +214,7 @@ importers:
         version: 2.8.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/svm':
         specifier: ^2.6.0
-        version: 2.6.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@6.5.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
+        version: 2.8.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@6.5.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
@@ -2783,8 +2783,8 @@ packages:
       '@x402/paywall':
         optional: true
 
-  '@x402/svm@2.6.0':
-    resolution: {integrity: sha512-SayKQSpN82XQ3qq46d1p348z+nPrYa9SyJ2MXfhwqmGE6JeEd2d0tSUpmghUKjucG8HZ1H4Man9yp/b/9cQZxg==}
+  '@x402/svm@2.8.0':
+    resolution: {integrity: sha512-kDkFU9pYR+/j3JUoK9OyaRD6jGF9FtbRMHoGD122J9bwTfkaWc9+f4QVnVBASK6+5DBz7X8bC0/bLrGhMpXiSg==}
     peerDependencies:
       '@solana/kit': '>=5.1.0'
 
@@ -7632,13 +7632,13 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/svm@2.6.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@6.5.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))':
+  '@x402/svm@2.8.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@6.5.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))':
     dependencies:
       '@solana-program/compute-budget': 0.11.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@solana-program/token': 0.9.0(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@solana-program/token-2022': 0.6.1(@solana/kit@6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@6.5.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       '@solana/kit': 6.5.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
-      '@x402/core': 2.6.0
+      '@x402/core': 2.8.0
     transitivePeerDependencies:
       - '@solana/sysvars'
 
