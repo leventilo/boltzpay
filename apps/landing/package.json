@@ -15,7 +15,7 @@
     "@fontsource/space-grotesk": "^5.2.5",
     "@tailwindcss/vite": "^4.2.0",
     "@vercel/analytics": "^1.6.1",
-    "astro": "^5.17.2",
+    "astro": "^6.0.0",
     "tailwindcss": "^4.2.0"
   }
 }
