@@ -1,4 +1,3 @@
-import { getDirectoryCategories, toDiscoverJson } from "@boltzpay/sdk";
 import type { Command } from "commander";
 import { createSdkFromEnv } from "../config.js";
 import { handleCliError } from "../output/errors.js";
@@ -8,15 +7,24 @@ import { formatJsonOutput } from "../output/json.js";
 export function registerDiscoverCommand(program: Command): void {
   program
     .command("discover")
-    .description("Browse compatible paid API endpoints with live status")
+    .description("Browse paid API endpoints from the BoltzPay registry")
     .option("-c, --category <category>", "Filter by category")
     .option(
-      "--live",
-      "Fetch live endpoints from Bazaar Discovery API (default: true)",
+      "-p, --protocol <protocol>",
+      "Filter by protocol (x402, l402, mpp)",
     )
-    .option("--no-live", "Use static directory only")
+    .option("--min-score <score>", "Minimum trust score (0-100)")
+    .option("-q, --query <query>", "Search by name, URL, or description")
     .action(
-      async (opts: { category?: string; live?: boolean }, command: Command) => {
+      async (
+        opts: {
+          category?: string;
+          protocol?: string;
+          minScore?: string;
+          query?: string;
+        },
+        command: Command,
+      ) => {
         const globalOpts = command.parent?.opts<{ json: boolean }>();
         const jsonMode = globalOpts?.json ?? false;
 
@@ -24,23 +32,21 @@ export function registerDiscoverCommand(program: Command): void {
         try {
           const entries = await sdk.discover({
             category: opts.category,
-            enableLiveDiscovery: opts.live ?? true,
+            protocol: opts.protocol,
+            minScore: opts.minScore ? parseInt(opts.minScore, 10) : undefined,
+            query: opts.query,
           });
 
           if (entries.length === 0) {
-            const categories = getDirectoryCategories().join(", ");
             if (jsonMode) {
               const output = formatJsonOutput({
                 success: true,
                 data: [],
                 payment: null,
-                metadata: { url: "", status: 0, duration: 0 },
               });
               process.stdout.write(`${output}\n`);
             } else {
-              process.stdout.write(
-                `No matching endpoints found. Available categories: ${categories}\n`,
-              );
+              process.stdout.write("No matching endpoints found.\n");
             }
             return;
           }
@@ -48,9 +54,8 @@ export function registerDiscoverCommand(program: Command): void {
           if (jsonMode) {
             const output = formatJsonOutput({
               success: true,
-              data: entries.map(toDiscoverJson),
+              data: entries,
               payment: null,
-              metadata: { url: "", status: 0, duration: 0 },
             });
             process.stdout.write(`${output}\n`);
           } else {

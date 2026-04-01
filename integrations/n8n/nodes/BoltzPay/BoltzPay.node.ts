@@ -1,7 +1,6 @@
 import type { DiagnoseResult } from "@boltzpay/sdk";
 import {
   BoltzPay as BoltzPaySdk,
-  filterDirectory,
   Money,
   networkToShortName,
 } from "@boltzpay/sdk";
@@ -54,7 +53,7 @@ function formatDiagnoseResult(result: DiagnoseResult): IDataObject {
       scheme: c.scheme,
     }));
   }
-  if (result.timing) output.timing = result.timing as unknown as IDataObject;
+  if (result.timing) output.timing = { ...result.timing };
 
   return output;
 }
@@ -109,14 +108,17 @@ export async function executeOperation(
     }
 
     case "discover": {
-      const entries = filterDirectory(params.category);
+      // n8n UI only exposes category filter; protocol/minScore/query omitted intentionally
+      const entries = await sdk.discover({
+        category: params.category,
+      });
       return entries.map((entry) => ({
         name: entry.name,
         url: entry.url,
-        protocol: entry.protocol,
+        protocol: entry.protocol ?? "unknown",
         category: entry.category,
-        description: entry.description,
-        pricing: entry.pricing,
+        score: entry.score,
+        health: entry.health,
       }));
     }
 
@@ -201,8 +203,8 @@ export async function executeOperation(
           isTestnet: status.isTestnet,
           protocols: status.protocols,
           canPay: status.canPay,
-          credentials: status.credentials as unknown as IDataObject,
-          connection: status.connection as unknown as IDataObject,
+          credentials: { ...status.credentials },
+          connection: { ...status.connection },
           accounts: {
             evm: status.accounts.evm
               ? {

@@ -23,49 +23,40 @@ function createProgram(): Command {
   return program;
 }
 
-const liveEntry: DiscoveredEntry = {
-  name: "Invy — Token Holdings",
-  url: "https://invy.bot/api",
+const healthyEntry: DiscoveredEntry = {
+  slug: "test-api",
+  name: "Test API",
+  url: "https://api.test.com/v1/data",
   protocol: "x402",
+  score: 85,
+  health: "healthy",
   category: "crypto-data",
-  description: "Token holdings lookup",
-  pricing: "$0.05",
-  live: {
-    status: "live",
-    livePrice: "$0.05",
-    protocol: "x402",
-    network: "eip155:8453",
-  },
+  isPaid: true,
+  badge: "established",
 };
 
-const freeEntry: DiscoveredEntry = {
-  name: "Free API",
-  url: "https://free.example.com",
-  protocol: "x402",
-  category: "demo",
-  description: "A free endpoint",
-  pricing: "$0.00",
-  live: { status: "free" },
+const degradedEntry: DiscoveredEntry = {
+  slug: "degraded-api",
+  name: "Degraded API",
+  url: "https://degraded.example.com",
+  protocol: "l402",
+  score: 55,
+  health: "degraded",
+  category: "ai",
+  isPaid: true,
+  badge: null,
 };
 
-const offlineEntry: DiscoveredEntry = {
-  name: "Offline API",
-  url: "https://offline.example.com",
-  protocol: "x402",
+const deadEntry: DiscoveredEntry = {
+  slug: "dead-api",
+  name: "Dead API",
+  url: "https://dead.example.com",
+  protocol: "mpp",
+  score: 15,
+  health: "dead",
   category: "utilities",
-  description: "Offline endpoint",
-  pricing: "$0.01",
-  live: { status: "offline", reason: "Timeout" },
-};
-
-const errorEntry: DiscoveredEntry = {
-  name: "Error API",
-  url: "https://error.example.com",
-  protocol: "x402",
-  category: "utilities",
-  description: "Error endpoint",
-  pricing: "$0.02",
-  live: { status: "error", reason: "Unknown failure" },
+  isPaid: true,
+  badge: "new",
 };
 
 describe("discover command", () => {
@@ -80,89 +71,101 @@ describe("discover command", () => {
     vi.restoreAllMocks();
   });
 
-  it("should display enriched entries with status badges in human mode", async () => {
-    mockDiscover.mockResolvedValue([liveEntry, offlineEntry, errorEntry, freeEntry]);
+  it("passes --protocol to discover options", async () => {
+    mockDiscover.mockResolvedValue([healthyEntry]);
+    const program = createProgram();
+    await program.parseAsync(["node", "boltzpay", "discover", "-p", "x402"]);
+
+    expect(mockDiscover).toHaveBeenCalledWith(
+      expect.objectContaining({ protocol: "x402" }),
+    );
+  });
+
+  it("passes --min-score to discover options as number", async () => {
+    mockDiscover.mockResolvedValue([healthyEntry]);
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "boltzpay",
+      "discover",
+      "--min-score",
+      "70",
+    ]);
+
+    expect(mockDiscover).toHaveBeenCalledWith(
+      expect.objectContaining({ minScore: 70 }),
+    );
+  });
+
+  it("passes --query to discover options", async () => {
+    mockDiscover.mockResolvedValue([healthyEntry]);
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "boltzpay",
+      "discover",
+      "-q",
+      "weather",
+    ]);
+
+    expect(mockDiscover).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "weather" }),
+    );
+  });
+
+  it("passes --category to discover options", async () => {
+    mockDiscover.mockResolvedValue([healthyEntry]);
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "boltzpay",
+      "discover",
+      "-c",
+      "crypto-data",
+    ]);
+
+    expect(mockDiscover).toHaveBeenCalledWith(
+      expect.objectContaining({ category: "crypto-data" }),
+    );
+  });
+
+  it("outputs formatted table with score, health, protocol in text mode", async () => {
+    mockDiscover.mockResolvedValue([healthyEntry, degradedEntry, deadEntry]);
     const program = createProgram();
     await program.parseAsync(["node", "boltzpay", "discover"]);
 
     const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
-    expect(output).toContain("Compatible Paid API Endpoints");
-    expect(output).toContain("LIVE");
-    expect(output).toContain("Invy");
-    expect(output).toContain("$0.05");
-    expect(output).toContain("FREE");
-    expect(output).toContain("OFFLINE");
-    expect(output).toContain("ERROR");
-    expect(output).toContain("total");
+    expect(output).toContain("Registry Endpoints");
+    expect(output).toContain("Test API");
+    expect(output).toContain("85");
+    expect(output).toContain("healthy");
+    expect(output).toContain("x402");
+    expect(output).toContain("degraded");
+    expect(output).toContain("dead");
+    expect(output).toContain("endpoints total");
   });
 
-  it("should pass category to sdk.discover()", async () => {
-    mockDiscover.mockResolvedValue([liveEntry]);
-    const program = createProgram();
-    await program.parseAsync(["node", "boltzpay", "discover", "-c", "crypto-data"]);
-
-    expect(mockDiscover).toHaveBeenCalledWith({
-      category: "crypto-data",
-      enableLiveDiscovery: true,
-    });
-  });
-
-  it("should show no results for empty response", async () => {
-    mockDiscover.mockResolvedValue([]);
-    const program = createProgram();
-    await program.parseAsync(["node", "boltzpay", "discover", "-c", "nonexistent"]);
-
-    const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
-    expect(output).toContain("No matching endpoints found");
-    expect(output).toContain("Available categories");
-  });
-
-  it("should produce enriched JSON output", async () => {
-    mockDiscover.mockResolvedValue([liveEntry, freeEntry, offlineEntry]);
+  it("outputs flat JSON array in json mode", async () => {
+    mockDiscover.mockResolvedValue([healthyEntry, degradedEntry]);
     const program = createProgram();
     await program.parseAsync(["node", "boltzpay", "--json", "discover"]);
 
     const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(output.trim());
     expect(parsed.success).toBe(true);
-    expect(parsed.data).toHaveLength(3);
-
-    const live = parsed.data[0];
-    expect(live.status).toBe("live");
-    expect(live.price).toBe("$0.05");
-    expect(live.isPriceVerified).toBe(true);
-    expect(live.detectedProtocol).toBe("x402");
-
-    const free = parsed.data[1];
-    expect(free.status).toBe("free");
-    expect(free.price).toBe("Free");
-    expect(free.isPriceVerified).toBe(true);
-
-    const offline = parsed.data[2];
-    expect(offline.status).toBe("offline");
-    expect(offline.isPriceVerified).toBe(false);
+    expect(parsed.data).toHaveLength(2);
+    expect(parsed.data[0].slug).toBe("test-api");
+    expect(parsed.data[0].score).toBe(85);
+    expect(parsed.data[0].health).toBe("healthy");
+    expect(parsed.data[1].protocol).toBe("l402");
   });
 
-  it("should produce empty JSON array for no results", async () => {
+  it("shows empty message when no results", async () => {
     mockDiscover.mockResolvedValue([]);
-    const program = createProgram();
-    await program.parseAsync(["node", "boltzpay", "--json", "discover", "-c", "nonexistent"]);
-
-    const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
-    const parsed = JSON.parse(output.trim());
-    expect(parsed.success).toBe(true);
-    expect(parsed.data).toEqual([]);
-  });
-
-  it("should display summary counts", async () => {
-    mockDiscover.mockResolvedValue([liveEntry, liveEntry, offlineEntry, freeEntry]);
     const program = createProgram();
     await program.parseAsync(["node", "boltzpay", "discover"]);
 
     const output = stdoutSpy.mock.calls.map((c) => c[0]).join("");
-    expect(output).toContain("2 live");
-    expect(output).toContain("1 offline");
-    expect(output).toContain("1 free");
-    expect(output).toContain("4 total");
+    expect(output).toContain("No matching endpoints found");
   });
 });

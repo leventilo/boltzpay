@@ -1,52 +1,51 @@
 import type { BoltzPay } from "@boltzpay/sdk";
-import { getDirectoryCategories, toDiscoverJson } from "@boltzpay/sdk";
 import { tool } from "ai";
 import { z } from "zod";
 
 export function createDiscoverTool(sdk: BoltzPay) {
-  const categories = getDirectoryCategories();
-  const categoriesList = categories.join(", ");
-
   return tool({
-    description: `Browse a directory of known compatible paid API endpoints with live status checks. Each endpoint is probed in real-time to verify availability and current pricing. Filter by category to find relevant data sources. Categories: ${categoriesList}.`,
+    description:
+      "Browse paid API endpoints from the BoltzPay registry with filtering by protocol, score, and category.",
     inputSchema: z.object({
-      category: z
+      category: z.string().optional().describe("Filter by category"),
+      protocol: z
         .string()
         .optional()
-        .describe(`Filter by category (e.g. ${categoriesList})`),
-      enableLiveDiscovery: z
-        .boolean()
+        .describe("Filter by protocol (x402, l402, mpp)"),
+      minScore: z
+        .number()
         .optional()
-        .describe(
-          "Fetch live endpoints from Bazaar Discovery API (default: true)",
-        ),
+        .describe("Minimum trust score 0-100"),
+      query: z
+        .string()
+        .optional()
+        .describe("Search endpoints by name or URL"),
     }),
-    execute: async ({ category, enableLiveDiscovery }, { abortSignal }) => {
+    execute: async (
+      { category, protocol, minScore, query },
+      { abortSignal },
+    ) => {
       abortSignal?.throwIfAborted();
 
       const entries = await sdk.discover({
         category,
+        protocol,
+        minScore,
+        query,
         signal: abortSignal,
-        enableLiveDiscovery: enableLiveDiscovery ?? true,
       });
 
       if (entries.length === 0) {
         return {
-          categories,
           count: 0,
           entries: [],
-          message: category
-            ? `No APIs found for category "${category}". Available categories: ${categoriesList}`
-            : "No APIs found.",
+          message: "No APIs found matching the given filters.",
         };
       }
 
-      const formatted = entries.map(toDiscoverJson);
-
       return {
-        categories,
-        count: formatted.length,
-        entries: formatted,
+        count: entries.length,
+        entries,
       };
     },
   });

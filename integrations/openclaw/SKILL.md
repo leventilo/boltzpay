@@ -1,12 +1,12 @@
 ---
 name: boltzpay
-description: Pay for API data automatically — multi-protocol (x402 + L402), multi-chain
-metadata: {"openclaw": {"emoji": "\u26a1", "requires": {"bins": ["npx"]}, "install": [{"id": "boltzpay-cli", "kind": "node", "label": "BoltzPay CLI"}]}}
+description: Pay for API data automatically — multi-protocol (x402 + L402 + MPP), multi-chain
+metadata: {"openclaw": {"emoji": "\u26a1", "requires": {"bins": ["npx"], "env": ["COINBASE_API_KEY_ID", "COINBASE_API_KEY_SECRET", "COINBASE_WALLET_SECRET"]}, "install": [{"id": "boltzpay-cli", "kind": "node", "label": "BoltzPay CLI"}]}}
 ---
 
 # BoltzPay — Paid API Access for AI Agents
 
-BoltzPay lets AI agents pay for API data automatically. It supports multiple payment protocols (x402 and L402) and multiple blockchains (Base and Solana), paying with USDC or Bitcoin Lightning. Agents can discover, evaluate, and purchase API data in a single workflow.
+BoltzPay lets AI agents pay for API data automatically. It supports multiple payment protocols (x402, L402, and MPP) and multiple blockchains (Base, Solana, and Tempo), paying with USDC, Bitcoin Lightning, or Stripe. Agents can discover, evaluate, and purchase API data in a single workflow.
 
 ## Quick Start
 

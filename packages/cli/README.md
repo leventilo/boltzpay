@@ -34,7 +34,7 @@ boltzpay fetch https://invy.bot/api
 
 ## Features
 
-- **9 commands** — fetch, quote, diagnose, discover, budget, history, wallet, demo, verify-directory
+- **8 commands** — fetch, quote, diagnose, discover, budget, history, wallet, demo
 - **JSON output** — `--json` flag for scripting and automation
 - **Python bridge** — LangChain and CrewAI integrations use `npx @boltzpay/cli` under the hood
 - **Interactive demo** — `boltzpay demo` walks through wallet, discovery, quote, and fetch
@@ -52,7 +52,6 @@ boltzpay fetch https://invy.bot/api
 | `boltzpay history` | Show payment history | No |
 | `boltzpay wallet` | Show wallet info and balances | No |
 | `boltzpay demo` | Interactive demo walkthrough | No |
-| `boltzpay verify-directory` | Verify all directory endpoints | No |
 
 ## Global Flags
 

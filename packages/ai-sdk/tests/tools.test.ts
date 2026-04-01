@@ -12,6 +12,13 @@ const TOOL_KEYS = [
   "boltzpay_wallet",
 ] as const;
 
+// AI SDK v6 ToolExecutionOptions requires abortSignal: AbortSignal, but it is
+// unused in unit tests. This helper provides the required shape with a single
+// justified cast, avoiding repetition across every test call site.
+function testContext(id: string) {
+  return { toolCallId: id, messages: [], abortSignal: undefined as never };
+}
+
 describe("boltzpayTools factory", () => {
   it("returns an object with all 7 tool keys", () => {
     const tools = boltzpayTools();
@@ -57,69 +64,65 @@ describe("tool shapes", () => {
 
 const MOCK_DISCOVERED: DiscoveredEntry[] = [
   {
+    slug: "test-api-price",
     name: "Test API — Price",
     url: "https://test-api.example.com/price",
     protocol: "x402",
+    score: 85,
+    health: "healthy",
     category: "crypto-data",
-    description: "Test price endpoint",
-    pricing: "$0.01",
-    live: {
-      status: "live",
-      livePrice: "$0.01",
-      protocol: "x402",
-      network: "base-sepolia",
-    },
+    isPaid: true,
+    badge: "established",
   },
   {
+    slug: "test-api-signal",
     name: "Test API — Signal",
     url: "https://test-api.example.com/signal",
     protocol: "x402",
+    score: 55,
+    health: "degraded",
     category: "crypto-data",
-    description: "Test signal endpoint",
-    pricing: "$0.05",
-    live: { status: "offline", reason: "Timeout" },
+    isPaid: true,
+    badge: null,
   },
 ];
 
 describe("boltzpay_discover", () => {
-  it("returns live-probed entries with no filter", async () => {
+  it("returns registry entries with no filter", async () => {
     const sdk = new BoltzPay({});
     vi.spyOn(sdk, "discover").mockResolvedValueOnce(MOCK_DISCOVERED);
     const tools = boltzpayTools(sdk);
     const result = await tools.boltzpay_discover.execute(
       {},
-      { toolCallId: "test-1", messages: [], abortSignal: undefined as never },
+      testContext("test-1"),
     );
     expect(result.count).toBe(2);
     expect(result.entries).toBeInstanceOf(Array);
-    expect(result.categories).toBeInstanceOf(Array);
     expect(result.entries[0]).toHaveProperty("name");
     expect(result.entries[0]).toHaveProperty("url");
     expect(result.entries[0]).toHaveProperty("protocol");
     expect(result.entries[0]).toHaveProperty("category");
-    expect(result.entries[0]).toHaveProperty("status");
-    expect(result.entries[0]).toHaveProperty("price");
-    expect(result.entries[0]).toHaveProperty("isPriceVerified");
-    expect(result.entries[0].status).toBe("live");
-    expect(result.entries[0].isPriceVerified).toBe(true);
-    expect(result.entries[1].status).toBe("offline");
-    expect(result.entries[1].isPriceVerified).toBe(false);
+    expect(result.entries[0]).toHaveProperty("score");
+    expect(result.entries[0]).toHaveProperty("health");
+    expect(result.entries[0].score).toBe(85);
+    expect(result.entries[0].health).toBe("healthy");
+    expect(result.entries[1].health).toBe("degraded");
   });
 
-  it("passes category and enableLiveDiscovery to sdk.discover", async () => {
+  it("passes category and protocol to sdk.discover", async () => {
     const sdk = new BoltzPay({});
     const spy = vi
       .spyOn(sdk, "discover")
       .mockResolvedValueOnce([MOCK_DISCOVERED[0]]);
     const tools = boltzpayTools(sdk);
     const result = await tools.boltzpay_discover.execute(
-      { category: "crypto-data", enableLiveDiscovery: false },
-      { toolCallId: "test-2", messages: [], abortSignal: undefined as never },
+      { category: "crypto-data", protocol: "x402" },
+      testContext("test-2"),
     );
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({
         category: "crypto-data",
-        enableLiveDiscovery: false,
+        protocol: "x402",
       }),
     );
     expect(result.count).toBe(1);
@@ -134,11 +137,11 @@ describe("boltzpay_discover", () => {
     const tools = boltzpayTools(sdk);
     const result = await tools.boltzpay_discover.execute(
       { category: "nonexistent" },
-      { toolCallId: "test-3", messages: [], abortSignal: undefined as never },
+      testContext("test-3"),
     );
     expect(result.count).toBe(0);
     expect(result.entries).toEqual([]);
-    expect(result.message).toContain("nonexistent");
+    expect(result.message).toContain("No APIs found");
   });
 });
 
@@ -147,7 +150,7 @@ describe("boltzpay_history", () => {
     const tools = boltzpayTools();
     const result = await tools.boltzpay_history.execute(
       {},
-      { toolCallId: "test-4", messages: [], abortSignal: undefined as never },
+      testContext("test-4"),
     );
     expect(result.count).toBe(0);
     expect(result.payments).toEqual([]);
@@ -159,7 +162,7 @@ describe("boltzpay_budget", () => {
     const tools = boltzpayTools({ budget: { daily: "10.00" } });
     const result = await tools.boltzpay_budget.execute(
       { action: "get" },
-      { toolCallId: "test-5", messages: [], abortSignal: undefined as never },
+      testContext("test-5"),
     );
     expect(result).toHaveProperty("dailyLimit");
     expect(result).toHaveProperty("dailySpent");
@@ -172,7 +175,7 @@ describe("boltzpay_budget", () => {
     const tools = boltzpayTools();
     const result = await tools.boltzpay_budget.execute(
       { action: "set" },
-      { toolCallId: "test-6", messages: [], abortSignal: undefined as never },
+      testContext("test-6"),
     );
     expect(result).toHaveProperty("error");
     expect(result).toHaveProperty("guidance");
@@ -184,7 +187,7 @@ describe("boltzpay_wallet", () => {
     const tools = boltzpayTools();
     const result = await tools.boltzpay_wallet.execute(
       {},
-      { toolCallId: "test-8", messages: [], abortSignal: undefined as never },
+      testContext("test-8"),
     );
     expect(result).toHaveProperty("network");
     expect(result).toHaveProperty("protocols");

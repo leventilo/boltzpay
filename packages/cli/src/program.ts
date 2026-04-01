@@ -7,7 +7,6 @@ import { registerDiscoverCommand } from "./commands/discover.js";
 import { registerFetchCommand } from "./commands/fetch.js";
 import { registerHistoryCommand } from "./commands/history.js";
 import { registerQuoteCommand } from "./commands/quote.js";
-import { registerVerifyDirectoryCommand } from "./commands/verify-directory.js";
 import { registerWalletCommand } from "./commands/wallet.js";
 
 export const program = new Command();
@@ -27,5 +26,4 @@ registerHistoryCommand(program);
 registerDiscoverCommand(program);
 registerWalletCommand(program);
 registerDiagnoseCommand(program);
-registerVerifyDirectoryCommand(program);
 registerDemoCommand(program);

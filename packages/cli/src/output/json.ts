@@ -15,7 +15,7 @@ export interface CliJsonOutput {
   readonly success: boolean;
   readonly data: unknown;
   readonly payment: PaymentInfo | null;
-  readonly metadata: RequestMetadata;
+  readonly metadata?: RequestMetadata;
 }
 
 export interface CliJsonDeliveryAttempt {

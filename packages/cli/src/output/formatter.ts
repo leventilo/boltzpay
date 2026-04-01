@@ -3,7 +3,6 @@ import type {
   BudgetState,
   DiagnoseResult,
   DiscoveredEntry,
-  EndpointHealth,
   LightningStatus,
   PaymentRecord,
   WalletStatus,
@@ -34,7 +33,6 @@ const ZERO_AMOUNT_DISPLAY = "$0.00";
 const BUDGET_BAR_WIDTH = 25;
 const SUMMARY_BAR_WIDTH = 30;
 const NAME_TRUNCATE_LENGTH = 34;
-const NAME_COLUMN_MAX = 30;
 const HTTP_SUCCESS_MIN = 200;
 const HTTP_SUCCESS_MAX = 300;
 const HTTP_CLIENT_ERROR_MIN = 400;
@@ -174,8 +172,10 @@ export function formatBudgetResult(budget: BudgetState): string {
     const remaining = budget.dailyRemaining
       ? budget.dailyRemaining.toDisplayString()
       : ZERO_AMOUNT_DISPLAY;
+    // Display-only: bigint ratio converted to number for progress bar rendering
     const dailyRatio =
-      Number(budget.dailySpent.cents) / Number(budget.dailyLimit.cents);
+      Number((budget.dailySpent.cents * 1000n) / budget.dailyLimit.cents) /
+      1000;
     lines.push(`  ${BRAND("Daily")}`);
     lines.push(
       `    ${renderBar(dailyRatio, BUDGET_BAR_WIDTH)}  ${chalk.white(spent)} / ${chalk.white(limit)}`,
@@ -190,8 +190,10 @@ export function formatBudgetResult(budget: BudgetState): string {
     const remaining = budget.monthlyRemaining
       ? budget.monthlyRemaining.toDisplayString()
       : ZERO_AMOUNT_DISPLAY;
+    // Display-only: bigint ratio converted to number for progress bar rendering
     const monthlyRatio =
-      Number(budget.monthlySpent.cents) / Number(budget.monthlyLimit.cents);
+      Number((budget.monthlySpent.cents * 1000n) / budget.monthlyLimit.cents) /
+      1000;
     lines.push(`  ${BRAND("Monthly")}`);
     lines.push(
       `    ${renderBar(monthlyRatio, BUDGET_BAR_WIDTH)}  ${chalk.white(spent)} / ${chalk.white(limit)}`,
@@ -247,6 +249,7 @@ export function formatHistoryResult(records: readonly PaymentRecord[]): string {
 
   lines.push(table.toString());
 
+  // Display-only: bigint cents converted to number for sparkline char rendering
   const amounts = records.map((r) => Number(r.amount.cents));
   const sparkline = renderSparkline(amounts);
   if (sparkline) {
@@ -269,6 +272,34 @@ export function formatHistoryResult(records: readonly PaymentRecord[]): string {
   return lines.join("\n");
 }
 
+const SCORE_HIGH_THRESHOLD = 70;
+const SCORE_MED_THRESHOLD = 40;
+
+const KNOWN_HEALTH_VALUES = ["healthy", "degraded", "dead"] as const;
+type KnownHealth = (typeof KNOWN_HEALTH_VALUES)[number];
+
+function isKnownHealth(value: string): value is KnownHealth {
+  return (KNOWN_HEALTH_VALUES as readonly string[]).includes(value);
+}
+
+interface HealthDisplay {
+  readonly icon: string;
+  readonly label: string;
+}
+
+function formatHealthDisplay(health: string): HealthDisplay {
+  switch (health) {
+    case "healthy":
+      return { icon: chalk.green("\u25CF"), label: chalk.green("healthy") };
+    case "degraded":
+      return { icon: chalk.yellow("\u25CF"), label: chalk.yellow("degraded") };
+    case "dead":
+      return { icon: chalk.red("\u25CF"), label: chalk.red("dead") };
+    default:
+      return { icon: MUTED("\u25CF"), label: MUTED(health) };
+  }
+}
+
 export function formatDiscoverResult(
   entries: readonly DiscoveredEntry[],
 ): string {
@@ -276,94 +307,54 @@ export function formatDiscoverResult(
     return renderEmptyState(
       ACCENT("\u25CB"),
       "No matching endpoints found",
-      "Check your network connection or try again later.",
+      "Try different filters or check your network connection.",
     );
   }
 
-  const counts = { live: 0, free: 0, offline: 0, error: 0 };
+  const sorted = [...entries].sort((a, b) => b.score - a.score);
+
   const lines: string[] = [];
-  lines.push(renderHeader("Compatible Paid API Endpoints"));
+  lines.push(renderHeader("Registry Endpoints"));
   lines.push("");
 
   const table = new Table({
-    head: ["Name", "Status", "Price", "Category"],
+    head: ["Name", "Score", "Health", "Protocol", "Category", "URL"],
     style: TABLE_STYLE,
-    colWidths: [36, 16, 12, 14],
+    colWidths: [36, 8, 12, 10, 14, 42],
     wordWrap: true,
   });
 
-  for (const entry of entries) {
-    counts[entry.live.status]++;
-    const badge = formatStatusBadge(entry);
-    const price = formatStatusPrice(entry);
+  const healthCounts = { healthy: 0, degraded: 0, dead: 0 };
+
+  for (const entry of sorted) {
+    if (isKnownHealth(entry.health)) {
+      healthCounts[entry.health]++;
+    }
+    const hd = formatHealthDisplay(entry.health);
     table.push([
       chalk.white(truncateUrl(entry.name, NAME_TRUNCATE_LENGTH)),
-      badge,
-      price,
+      formatScore(entry.score),
+      `${hd.icon} ${hd.label}`,
+      chalk.white(entry.protocol ?? "unknown"),
       MUTED(entry.category),
+      ACCENT(truncateUrl(entry.url, MAX_URL_DISPLAY_LENGTH)),
     ]);
   }
 
   lines.push(table.toString());
   lines.push("");
 
-  const total = entries.length;
-  const liveRatio = counts.live / total;
-  const freeRatio = counts.free / total;
-
-  const liveW = Math.round(liveRatio * SUMMARY_BAR_WIDTH);
-  const freeW = Math.round(freeRatio * SUMMARY_BAR_WIDTH);
-  const offW = SUMMARY_BAR_WIDTH - liveW - freeW;
-  const summaryBar =
-    chalk.green("█".repeat(liveW)) +
-    chalk.blue("█".repeat(freeW)) +
-    chalk.red("█".repeat(Math.max(0, offW)));
-
-  lines.push(`  ${summaryBar}`);
-
-  const parts: string[] = [];
-  if (counts.live > 0) parts.push(chalk.green(`■ ${counts.live} live`));
-  if (counts.free > 0) parts.push(chalk.blue(`■ ${counts.free} free`));
-  if (counts.offline > 0)
-    parts.push(chalk.yellow(`■ ${counts.offline} offline`));
-  if (counts.error > 0) parts.push(chalk.red(`■ ${counts.error} error`));
-  lines.push(`  ${parts.join("  ")}  ${MUTED(`(${total} total)`)}`);
+  lines.push(renderHealthBar(healthCounts, SUMMARY_BAR_WIDTH));
+  lines.push("");
+  lines.push(`  ${chalk.white(String(sorted.length))} endpoints total`);
 
   return lines.join("\n");
 }
 
-function formatStatusBadge(entry: DiscoveredEntry): string {
-  switch (entry.live.status) {
-    case "live":
-      return chalk.green(`\u25CF LIVE`) + MUTED(` ${entry.live.protocol}`);
-    case "free":
-      return chalk.blue("\u25CF FREE");
-    case "offline":
-      return chalk.yellow("\u25CF OFFLINE");
-    case "error":
-      return chalk.red("\u25CF ERROR");
-    default: {
-      const _exhaustive: never = entry.live;
-      return _exhaustive;
-    }
-  }
-}
-
-function formatStatusPrice(entry: DiscoveredEntry): string {
-  switch (entry.live.status) {
-    case "live":
-      return chalk.yellow(entry.live.livePrice);
-    case "free":
-      return chalk.blue("Free");
-    case "offline":
-      return chalk.yellow(entry.pricing);
-    case "error":
-      return chalk.yellow(entry.pricing);
-    default: {
-      const _exhaustive: never = entry.live;
-      return _exhaustive;
-    }
-  }
+function formatScore(score: number): string {
+  if (score >= SCORE_HIGH_THRESHOLD) return chalk.green(String(score));
+  if (score >= SCORE_MED_THRESHOLD) return chalk.yellow(String(score));
+  return chalk.red(String(score));
 }
 
 function formatConfigurationSection(status: WalletStatus): string[] {
@@ -532,27 +523,6 @@ export function formatWalletStatus(status: WalletStatus): string {
   return lines.join("\n");
 }
 
-function healthEmoji(health: EndpointHealth): string {
-  switch (health) {
-    case "healthy":
-      return chalk.green("\u25CF");
-    case "degraded":
-      return chalk.yellow("\u25CF");
-    case "dead":
-      return chalk.red("\u25CF");
-  }
-}
-
-function healthLabel(health: EndpointHealth): string {
-  switch (health) {
-    case "healthy":
-      return chalk.green("healthy");
-    case "degraded":
-      return chalk.yellow("degraded");
-    case "dead":
-      return chalk.red("dead");
-  }
-}
 
 export function formatDiagnoseResult(result: DiagnoseResult): string {
   switch (result.classification) {
@@ -570,7 +540,7 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
         renderBox([
           `URL:       ${chalk.white(result.url)}`,
           `Status:    ${chalk.red(result.httpStatus ? `HTTP ${result.httpStatus}` : "Unreachable")}`,
-          `Health:    ${healthLabel("dead")}`,
+          `Health:    ${formatHealthDisplay("dead").label}`,
           `Reason:    ${chalk.red(formatDeathReason(result.deathReason))}`,
           `Latency:   ${renderLatencyIndicator(result.latencyMs)}`,
         ]).trimStart(),
@@ -622,9 +592,8 @@ export function formatDiagnoseResult(result: DiagnoseResult): string {
   }
 
   boxLines.push(``);
-  boxLines.push(
-    `Health:      ${healthEmoji(result.health)} ${healthLabel(result.health)}`,
-  );
+  const hd = formatHealthDisplay(result.health);
+  boxLines.push(`Health:      ${hd.icon} ${hd.label}`);
   boxLines.push(`Latency:     ${renderLatencyIndicator(result.latencyMs)}`);
 
   lines.push(renderBox(boxLines).trimStart());
@@ -661,52 +630,6 @@ function formatDeathReason(reason?: string): string {
   }
 }
 
-interface VerifyDirectoryEntry {
-  readonly name: string;
-  readonly health: EndpointHealth;
-  readonly protocol: string;
-  readonly price: string;
-  readonly url: string;
-}
-
-export function formatVerifyDirectoryResult(
-  entries: readonly VerifyDirectoryEntry[],
-): string {
-  if (entries.length === 0) {
-    return renderEmptyState(ACCENT("\u25CB"), "No directory entries found");
-  }
-
-  const lines: string[] = [];
-  lines.push(renderHeader("Directory Health Report"));
-  lines.push("");
-
-  const table = new Table({
-    head: ["Name", "Status", "Protocol", "Price"],
-    style: TABLE_STYLE,
-    colWidths: [32, 14, 10, 12],
-  });
-
-  const counts = { healthy: 0, degraded: 0, dead: 0 };
-  for (const entry of entries) {
-    counts[entry.health]++;
-    const statusText = `${healthEmoji(entry.health)} ${entry.health}`;
-    table.push([
-      chalk.white(entry.name.slice(0, NAME_COLUMN_MAX)),
-      statusText,
-      chalk.white(entry.protocol),
-      chalk.yellow(entry.price),
-    ]);
-  }
-
-  lines.push(table.toString());
-  lines.push("");
-
-  lines.push(renderHealthBar(counts, SUMMARY_BAR_WIDTH));
-  lines.push("");
-  lines.push(`  ${chalk.white(String(entries.length))} endpoints total`);
-
-  return lines.join("\n");
-}
 
 interface CheckResultData {
   readonly isPaid: boolean;

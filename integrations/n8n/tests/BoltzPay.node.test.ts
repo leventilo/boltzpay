@@ -1,4 +1,4 @@
-import { API_DIRECTORY, BoltzPay as BoltzPaySdk, Money } from "@boltzpay/sdk";
+import { BoltzPay as BoltzPaySdk, Money } from "@boltzpay/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { BoltzPayApi } from "../credentials/BoltzPayApi.credentials.js";
 import {
@@ -41,7 +41,7 @@ function createMockSdk(
       }),
     getHistory: overrides.getHistory ?? vi.fn().mockReturnValue([]),
     getWalletStatus: overrides.getWalletStatus ?? vi.fn(),
-    discover: vi.fn(),
+    discover: vi.fn().mockResolvedValue([]),
     getCapabilities: vi.fn(),
     getBalances: vi.fn(),
     on: vi.fn(),
@@ -141,33 +141,43 @@ describe("BoltzPay n8n node", () => {
   });
 
   describe("executeOperation — discover", () => {
-    it("returns all directory entries when no category", async () => {
+    it("returns registry entries when no category", async () => {
       const sdk = createMockSdk();
+      const mockEntries = [
+        { slug: "test-api", name: "Test API", url: "https://test.com", protocol: "x402", score: 85, health: "healthy", category: "crypto-data", isPaid: true, badge: null },
+        { slug: "other-api", name: "Other API", url: "https://other.com", protocol: "mpp", score: 72, health: "healthy", category: "ai", isPaid: true, badge: "new" },
+      ];
+      (sdk.discover as ReturnType<typeof vi.fn>).mockResolvedValue(mockEntries);
       const results = await executeOperation(sdk, { operation: "discover" });
-      expect(results.length).toBe(API_DIRECTORY.length);
+      expect(results).toHaveLength(2);
       expect(results[0]).toHaveProperty("name");
       expect(results[0]).toHaveProperty("url");
       expect(results[0]).toHaveProperty("protocol");
       expect(results[0]).toHaveProperty("category");
-      expect(results[0]).toHaveProperty("description");
-      expect(results[0]).toHaveProperty("pricing");
+      expect(results[0]).toHaveProperty("score");
+      expect(results[0]).toHaveProperty("health");
     });
 
-    it("filters entries by category", async () => {
+    it("passes category to sdk.discover", async () => {
       const sdk = createMockSdk();
+      const mockEntries = [
+        { slug: "demo-api", name: "Demo", url: "https://demo.com", protocol: "x402", score: 60, health: "healthy", category: "demo", isPaid: true, badge: null },
+      ];
+      (sdk.discover as ReturnType<typeof vi.fn>).mockResolvedValue(mockEntries);
       const results = await executeOperation(sdk, {
         operation: "discover",
         category: "demo",
       });
-      expect(results.length).toBeGreaterThan(0);
-      for (const entry of results) {
-        expect(entry.category).toBe("demo");
-      }
-      expect(results.length).toBeLessThan(API_DIRECTORY.length);
+      expect(results).toHaveLength(1);
+      expect(results[0].category).toBe("demo");
+      expect(sdk.discover).toHaveBeenCalledWith(
+        expect.objectContaining({ category: "demo" }),
+      );
     });
 
     it("returns empty array for non-existent category", async () => {
       const sdk = createMockSdk();
+      (sdk.discover as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       const results = await executeOperation(sdk, {
         operation: "discover",
         category: "non-existent-category",

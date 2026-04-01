@@ -266,32 +266,30 @@ describe("formatHistoryResult", () => {
 });
 
 describe("formatDiscoverResult", () => {
-  it("should list API entries with name, URL, pricing, and category", () => {
+  it("should list entries with name, score, health, protocol, and category", () => {
     const entries = [
       {
+        slug: "test-api",
         name: "Test API",
         url: "https://api.test.com/v1",
         protocol: "x402",
-        pricing: "$0.01-0.05/query",
+        score: 85,
+        health: "healthy",
         category: "search",
-        description: "A test API endpoint",
-        live: {
-          status: "live" as const,
-          livePrice: "$0.03",
-          protocol: "x402",
-          network: "eip155:8453",
-        },
+        isPaid: true,
+        badge: null,
       },
-    ];
+    ] as const;
 
     const result = formatDiscoverResult(entries);
 
-    expect(result).toContain("Compatible Paid API Endpoints");
+    expect(result).toContain("Registry Endpoints");
     expect(result).toContain("Test API");
-    expect(result).toContain("$0.03");
+    expect(result).toContain("85");
+    expect(result).toContain("healthy");
+    expect(result).toContain("x402");
     expect(result).toContain("search");
-    expect(result).toContain("LIVE");
-    expect(result).toContain("1 live");
+    expect(result).toContain("endpoints total");
   });
 
   it("should show 'No matching endpoints found' when empty", () => {

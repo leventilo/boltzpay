@@ -9,39 +9,28 @@ describe("boltzpay_discover", () => {
   let cleanup: () => Promise<void>;
   const sdk = createMockSdk();
 
-  const liveEntry: DiscoveredEntry = {
-    name: "Invy",
-    url: "https://invy.bot/api",
+  const healthyEntry: DiscoveredEntry = {
+    slug: "test-api",
+    name: "Test API",
+    url: "https://api.test.com/v1/data",
     protocol: "x402",
+    score: 85,
+    health: "healthy",
     category: "crypto-data",
-    description: "Token holdings",
-    pricing: "$0.05",
-    live: {
-      status: "live",
-      livePrice: "$0.05",
-      protocol: "x402",
-      network: "eip155:8453",
-    },
+    isPaid: true,
+    badge: "established",
   };
 
-  const freeEntry: DiscoveredEntry = {
-    name: "Free",
-    url: "https://free.example.com",
-    protocol: "x402",
-    category: "demo",
-    description: "Free endpoint",
-    pricing: "$0.00",
-    live: { status: "free" },
-  };
-
-  const offlineEntry: DiscoveredEntry = {
-    name: "Offline",
-    url: "https://offline.example.com",
-    protocol: "x402",
-    category: "utilities",
-    description: "Offline",
-    pricing: "$0.01",
-    live: { status: "offline", reason: "Timeout" },
+  const mppEntry: DiscoveredEntry = {
+    slug: "mpp-api",
+    name: "MPP Weather",
+    url: "https://weather.mpp.com/api",
+    protocol: "mpp",
+    score: 72,
+    health: "healthy",
+    category: "weather",
+    isPaid: true,
+    badge: "new",
   };
 
   beforeEach(async () => {
@@ -57,8 +46,47 @@ describe("boltzpay_discover", () => {
     sdk.discover.mockReset();
   });
 
-  it("should return enriched entries with live status", async () => {
-    sdk.discover.mockResolvedValue([liveEntry, offlineEntry, freeEntry]);
+  it("passes protocol param to sdk.discover", async () => {
+    sdk.discover.mockResolvedValue([healthyEntry]);
+
+    await client.callTool({
+      name: "boltzpay_discover",
+      arguments: { protocol: "x402" },
+    });
+
+    expect(sdk.discover).toHaveBeenCalledWith(
+      expect.objectContaining({ protocol: "x402" }),
+    );
+  });
+
+  it("passes minScore param to sdk.discover", async () => {
+    sdk.discover.mockResolvedValue([healthyEntry]);
+
+    await client.callTool({
+      name: "boltzpay_discover",
+      arguments: { minScore: 70 },
+    });
+
+    expect(sdk.discover).toHaveBeenCalledWith(
+      expect.objectContaining({ minScore: 70 }),
+    );
+  });
+
+  it("passes query param to sdk.discover", async () => {
+    sdk.discover.mockResolvedValue([healthyEntry]);
+
+    await client.callTool({
+      name: "boltzpay_discover",
+      arguments: { query: "weather" },
+    });
+
+    expect(sdk.discover).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "weather" }),
+    );
+  });
+
+  it("returns entries as JSON text content", async () => {
+    sdk.discover.mockResolvedValue([healthyEntry, mppEntry]);
 
     const result = await client.callTool({
       name: "boltzpay_discover",
@@ -66,53 +94,22 @@ describe("boltzpay_discover", () => {
     });
 
     expect(result.isError).toBeUndefined();
-    const content = result.content as Array<{ type: string; text: string }>;
-    const parsed = JSON.parse(content[0].text);
-    expect(parsed).toHaveLength(3);
-
-    expect(parsed[0].status).toBe("live");
-    expect(parsed[0].price).toBe("$0.05");
-    expect(parsed[0].isPriceVerified).toBe(true);
-    expect(parsed[0].detectedProtocol).toBe("x402");
-
-    expect(parsed[1].status).toBe("offline");
-    expect(parsed[1].isPriceVerified).toBe(false);
-
-    expect(parsed[2].status).toBe("free");
-    expect(parsed[2].price).toBe("Free");
-    expect(parsed[2].isPriceVerified).toBe(true);
+    expect(Array.isArray(result.content)).toBe(true);
+    const content = result.content;
+    if (!Array.isArray(content)) throw new Error("expected array content");
+    const first = content[0];
+    if (!first || !("text" in first)) throw new Error("expected text content");
+    const parsed = JSON.parse(first.text);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].slug).toBe("test-api");
+    expect(parsed[0].score).toBe(85);
+    expect(parsed[0].health).toBe("healthy");
+    expect(parsed[0].protocol).toBe("x402");
+    expect(parsed[1].slug).toBe("mpp-api");
+    expect(parsed[1].protocol).toBe("mpp");
   });
 
-  it("should pass category to sdk.discover()", async () => {
-    sdk.discover.mockResolvedValue([liveEntry]);
-
-    await client.callTool({
-      name: "boltzpay_discover",
-      arguments: { category: "crypto-data" },
-    });
-
-    expect(sdk.discover).toHaveBeenCalledWith({
-      category: "crypto-data",
-      enableLiveDiscovery: true,
-    });
-  });
-
-  it("should return formatted error when sdk.discover() throws", async () => {
-    sdk.discover.mockRejectedValue(new Error("Network timeout"));
-
-    const result = await client.callTool({
-      name: "boltzpay_discover",
-      arguments: {},
-    });
-
-    expect(result.isError).toBe(true);
-    const content = result.content as Array<{ type: string; text: string }>;
-    const parsed = JSON.parse(content[0].text);
-    expect(parsed.error).toBe("INTERNAL_ERROR");
-    expect(parsed.message).toContain("Network timeout");
-  });
-
-  it("should return message for empty results", async () => {
+  it("returns message for empty results", async () => {
     sdk.discover.mockResolvedValue([]);
 
     const result = await client.callTool({
@@ -121,8 +118,30 @@ describe("boltzpay_discover", () => {
     });
 
     expect(result.isError).toBeUndefined();
-    const content = result.content as Array<{ type: string; text: string }>;
-    expect(content[0].text).toContain("No APIs found");
-    expect(content[0].text).toContain("Available categories");
+    expect(Array.isArray(result.content)).toBe(true);
+    const content = result.content;
+    if (!Array.isArray(content)) throw new Error("expected array content");
+    const first = content[0];
+    if (!first || !("text" in first)) throw new Error("expected text content");
+    expect(first.text).toContain("No APIs found");
+  });
+
+  it("returns formatted error when sdk.discover() throws", async () => {
+    sdk.discover.mockRejectedValue(new Error("Network timeout"));
+
+    const result = await client.callTool({
+      name: "boltzpay_discover",
+      arguments: {},
+    });
+
+    expect(result.isError).toBe(true);
+    expect(Array.isArray(result.content)).toBe(true);
+    const content = result.content;
+    if (!Array.isArray(content)) throw new Error("expected array content");
+    const first = content[0];
+    if (!first || !("text" in first)) throw new Error("expected text content");
+    const parsed = JSON.parse(first.text);
+    expect(parsed.error).toBe("INTERNAL_ERROR");
+    expect(parsed.message).toContain("Network timeout");
   });
 });

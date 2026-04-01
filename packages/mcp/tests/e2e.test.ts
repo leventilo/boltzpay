@@ -18,45 +18,109 @@ interface JsonRpcResponse {
   error?: { code: number; message: string };
 }
 
+interface StdioLineReader {
+  waitForResponse(
+    id: number,
+    timeout: number,
+  ): Promise<JsonRpcResponse>;
+}
+
+function createLineReader(proc: ChildProcess): StdioLineReader {
+  const pending = new Map<
+    number,
+    { resolve: (r: JsonRpcResponse) => void; reject: (e: Error) => void }
+  >();
+  let buffer = "";
+
+  proc.stdout?.on("data", (chunk: Buffer) => {
+    buffer += chunk.toString("utf-8");
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex !== -1) {
+      const line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line.length === 0) {
+        newlineIndex = buffer.indexOf("\n");
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(line) as JsonRpcResponse;
+        if (typeof parsed.id === "number") {
+          const handler = pending.get(parsed.id);
+          if (handler) {
+            pending.delete(parsed.id);
+            handler.resolve(parsed);
+          }
+        }
+      } catch (_parseError: unknown) {
+        // Non-JSON output on stdout, ignore
+      }
+      newlineIndex = buffer.indexOf("\n");
+    }
+  });
+
+  return {
+    waitForResponse(id: number, timeout: number): Promise<JsonRpcResponse> {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error(`Timeout waiting for response id=${id}`));
+        }, timeout);
+
+        pending.set(id, {
+          resolve(response: JsonRpcResponse) {
+            clearTimeout(timer);
+            resolve(response);
+          },
+          reject(error: Error) {
+            clearTimeout(timer);
+            reject(error);
+          },
+        });
+      });
+    },
+  };
+}
+
 function sendRequest(
   proc: ChildProcess,
+  reader: StdioLineReader,
   request: JsonRpcRequest,
   timeout = 5000,
 ): Promise<JsonRpcResponse> {
+  if (!proc.stdin) {
+    return Promise.reject(new Error("Process stdin not available"));
+  }
+  const pending = reader.waitForResponse(request.id, timeout);
+  proc.stdin.write(`${JSON.stringify(request)}\n`);
+  return pending;
+}
+
+function waitForServerReady(proc: ChildProcess): Promise<void> {
+  const READY_TIMEOUT = 10_000;
   return new Promise((resolve, reject) => {
-    if (!proc.stdout || !proc.stdin) {
-      reject(new Error("Process stdin/stdout not available"));
-      return;
-    }
+    const timer = setTimeout(() => {
+      reject(new Error("Timeout waiting for MCP server to start"));
+    }, READY_TIMEOUT);
 
-    const stdout = proc.stdout;
-    const stdin = proc.stdin;
+    proc.on("error", (err: Error) => {
+      clearTimeout(timer);
+      reject(new Error(`Server process error: ${err.message}`));
+    });
 
-    const timer = setTimeout(
-      () =>
-        reject(new Error(`Timeout waiting for response to ${request.method}`)),
-      timeout,
-    );
+    proc.on("exit", (code: number | null) => {
+      clearTimeout(timer);
+      reject(new Error(`Server exited during startup with code ${String(code)}`));
+    });
 
-    const onData = (chunk: Buffer) => {
-      const lines = chunk.toString("utf-8").split("\n").filter(Boolean);
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line) as JsonRpcResponse;
-          if (parsed.id === request.id) {
-            clearTimeout(timer);
-            stdout.off("data", onData);
-            resolve(parsed);
-            return;
-          }
-        } catch (_parseError: unknown) {
-          // Partial JSON data from stdout, wait for next chunk
-        }
+    const onStderr = (chunk: Buffer) => {
+      if (chunk.toString("utf-8").includes("MCP server started")) {
+        clearTimeout(timer);
+        proc.stderr?.off("data", onStderr);
+        resolve();
       }
     };
 
-    stdout.on("data", onData);
-    stdin.write(`${JSON.stringify(request)}\n`);
+    proc.stderr?.on("data", onStderr);
   });
 }
 
@@ -72,7 +136,7 @@ describe("MCP Server E2E - stdio", () => {
 
   it(
     "should accept initialize and list 7 tools via JSON-RPC",
-    { timeout: 15000 },
+    { timeout: 15_000 },
     async () => {
       proc = spawn("node", [DIST_PATH], {
         env: {
@@ -84,18 +148,12 @@ describe("MCP Server E2E - stdio", () => {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
-      const stderrChunks: string[] = [];
-      if (proc.stderr) {
-        proc.stderr.on("data", (chunk: Buffer) => {
-          stderrChunks.push(chunk.toString("utf-8"));
-        });
-      }
+      const reader = createLineReader(proc);
 
-      await new Promise((r) => setTimeout(r, 500));
-
+      await waitForServerReady(proc);
       expect(proc.exitCode).toBeNull();
 
-      const initResponse = await sendRequest(proc, {
+      const initResponse = await sendRequest(proc, reader, {
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
@@ -123,9 +181,7 @@ describe("MCP Server E2E - stdio", () => {
         })}\n`,
       );
 
-      await new Promise((r) => setTimeout(r, 100));
-
-      const listResponse = await sendRequest(proc, {
+      const listResponse = await sendRequest(proc, reader, {
         jsonrpc: "2.0",
         id: 2,
         method: "tools/list",
@@ -150,7 +206,7 @@ describe("MCP Server E2E - stdio", () => {
         "boltzpay_wallet",
       ]);
 
-      const callResponse = await sendRequest(proc, {
+      const callResponse = await sendRequest(proc, reader, {
         jsonrpc: "2.0",
         id: 3,
         method: "tools/call",
