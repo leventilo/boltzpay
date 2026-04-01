@@ -70,16 +70,7 @@ for (const rel of pyPaths) {
 	console.log(`  + ${rel}`);
 }
 
-// --- Landing page version badge ---
-
-const headerPath = join(root, "apps/landing/src/components/Header.astro");
-let header = readFileSync(headerPath, "utf-8");
-const badgeRegex = /v[\d.]+\s+is live/;
-if (badgeRegex.test(header)) {
-	header = header.replace(badgeRegex, `v${next} is live`);
-	writeFileSync(headerPath, header);
-	console.log("  + apps/landing/src/components/Header.astro (badge)");
-}
+// --- Landing page version badge (skipped — landing moved to private repo) ---
 
 // --- Source code version strings ---
 
