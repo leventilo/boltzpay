@@ -12,6 +12,7 @@ import {
 import type { NwcWalletManager } from "../nwc/nwc-wallet-manager";
 import {
   decodeBolt11AmountWith,
+  extractBolt11PayeeWith,
   isL402Challenge,
   type L402ParsedChallenge,
   parseL402Challenge,
@@ -25,6 +26,7 @@ export interface AdapterTimeouts {
 
 const DEFAULT_DETECT_MS = 10_000;
 const DEFAULT_QUOTE_MS = 15_000;
+const DEFAULT_PAYMENT_MS = 30_000;
 
 const HTTP_PAYMENT_REQUIRED = 402;
 const HTTP_SUCCESS_MIN = 200;
@@ -41,7 +43,7 @@ type Bolt11Decoder = (invoice: string) => {
 export class L402Adapter implements ProtocolAdapter {
   readonly name = "l402";
   private cachedDecoder: Bolt11Decoder | undefined;
-  private readonly timeouts: { detect: number; quote: number };
+  private readonly timeouts: { detect: number; quote: number; payment: number };
 
   constructor(
     private readonly walletManager: NwcWalletManager | undefined,
@@ -51,6 +53,7 @@ export class L402Adapter implements ProtocolAdapter {
     this.timeouts = {
       detect: timeouts?.detect ?? DEFAULT_DETECT_MS,
       quote: timeouts?.quote ?? DEFAULT_QUOTE_MS,
+      payment: timeouts?.payment ?? DEFAULT_PAYMENT_MS,
     };
   }
 
@@ -92,12 +95,13 @@ export class L402Adapter implements ProtocolAdapter {
 
     const challenge = this.parseChallenge(wwwAuth);
     const sats = await this.decodeInvoiceAmount(challenge.invoice);
+    const payee = await this.extractPayee(challenge.invoice);
 
     return {
       amount: Money.fromSatoshis(sats),
       protocol: SATS_DISPLAY_PROTOCOL,
       network: LIGHTNING_NETWORK,
-      payTo: undefined,
+      payTo: payee,
       scheme: "exact",
     };
   }
@@ -109,11 +113,12 @@ export class L402Adapter implements ProtocolAdapter {
     try {
       const challenge = this.parseChallenge(wwwAuth);
       const sats = await this.decodeInvoiceAmount(challenge.invoice);
+      const payee = await this.extractPayee(challenge.invoice);
       return {
         amount: Money.fromSatoshis(sats),
         protocol: SATS_DISPLAY_PROTOCOL,
         network: LIGHTNING_NETWORK,
-        payTo: undefined,
+        payTo: payee,
         scheme: "exact",
       };
     } catch {
@@ -186,7 +191,7 @@ export class L402Adapter implements ProtocolAdapter {
       headers: request.headers,
       body: request.body ? new Uint8Array(request.body) : undefined,
       redirect: "error",
-      signal: AbortSignal.timeout(this.timeouts.quote),
+      signal: AbortSignal.timeout(this.timeouts.payment),
     });
   }
 
@@ -209,7 +214,7 @@ export class L402Adapter implements ProtocolAdapter {
       },
       body: request.body ? new Uint8Array(request.body) : undefined,
       redirect: "error",
-      signal: AbortSignal.timeout(this.timeouts.quote),
+      signal: AbortSignal.timeout(this.timeouts.payment),
     });
   }
 
@@ -247,7 +252,7 @@ export class L402Adapter implements ProtocolAdapter {
       },
       body: bodyJson,
       redirect: "error",
-      signal: AbortSignal.timeout(this.timeouts.quote),
+      signal: AbortSignal.timeout(this.timeouts.payment),
     });
   }
 
@@ -286,6 +291,15 @@ export class L402Adapter implements ProtocolAdapter {
       if (err instanceof L402QuoteError) throw err;
       const msg = err instanceof Error ? err.message : "Decode error";
       throw new L402QuoteError(`Failed to decode BOLT11 invoice: ${msg}`);
+    }
+  }
+
+  private async extractPayee(invoice: string): Promise<string | undefined> {
+    try {
+      const decode = await this.getDecoder();
+      return extractBolt11PayeeWith(decode, invoice);
+    } catch {
+      return undefined;
     }
   }
 

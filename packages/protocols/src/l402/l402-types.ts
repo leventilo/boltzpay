@@ -19,9 +19,6 @@ export type L402ParsedChallenge =
   | L402StandardChallenge
   | L402InvoiceOnlyChallenge;
 
-/** @deprecated Use L402ParsedChallenge instead. Kept for backward compat. */
-export type L402Challenge = L402StandardChallenge;
-
 const L402_STANDARD_REGEX =
   /(?:L402|LSAT)\s+macaroon="([^"]+)"\s*,\s*invoice="([^"]+)"/i;
 
@@ -100,18 +97,6 @@ interface Bolt11DecodeResult {
 }
 
 /**
- * Decode a BOLT11 invoice and extract the amount in satoshis.
- * Returns the amount as bigint sats.
- *
- * @throws Error if the invoice has no amount or the amount is invalid.
- */
-export function decodeBolt11Amount(_invoice: string): bigint {
-  throw new Error(
-    "decodeBolt11Amount requires a decoder — use decodeBolt11AmountWith(decode, invoice) instead",
-  );
-}
-
-/**
  * Decode a BOLT11 invoice amount using the provided decoder function.
  * The decoder is `decode` from `light-bolt11-decoder`.
  *
@@ -137,4 +122,20 @@ export function decodeBolt11AmountWith(
     throw new Error("BOLT11 invoice amount must be positive");
   }
   return (msats + MILLISATS_PER_SAT - 1n) / MILLISATS_PER_SAT;
+}
+
+export function extractBolt11PayeeWith(
+  decode: (invoice: string) => Bolt11DecodeResult,
+  invoice: string,
+): string | undefined {
+  try {
+    const result = decode(invoice);
+    const payeeSection = result.sections.find((s) => s.name === "payee");
+    if (payeeSection === undefined || typeof payeeSection.value !== "string") {
+      return undefined;
+    }
+    return payeeSection.value;
+  } catch {
+    return undefined;
+  }
 }

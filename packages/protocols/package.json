@@ -58,19 +58,29 @@
   "dependencies": {
     "@boltzpay/core": "workspace:*",
     "@coinbase/cdp-sdk": "^1.44.1",
+    "@getalby/sdk": "^7.0.0",
     "@solana/kit": "^6.1.0",
     "@x402/core": "^2.6.0",
     "@x402/evm": "^2.6.0",
     "@x402/fetch": "^2.6.0",
     "@x402/svm": "^2.6.0",
     "async-mutex": "^0.5.0",
-    "@getalby/sdk": "^7.0.0",
     "light-bolt11-decoder": "^3.2.0"
+  },
+  "peerDependencies": {
+    "mppx": ">=0.4.7",
+    "viem": ">=2.46.2"
+  },
+  "peerDependenciesMeta": {
+    "mppx": { "optional": true },
+    "viem": { "optional": true }
   },
   "devDependencies": {
     "@boltzpay/config": "workspace:*",
+    "mppx": "0.4.7",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
+    "viem": "^2.46.2",
     "vitest": "^4.0.18"
   }
 }

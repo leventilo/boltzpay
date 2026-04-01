@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ["@coinbase/cdp-sdk", "@solana/kit", "@x402/core", "@x402/evm", "@x402/fetch", "@x402/svm"],
+  external: ["@coinbase/cdp-sdk", "@solana/kit", "@x402/core", "@x402/evm", "@x402/fetch", "@x402/svm", "mppx", "mppx/client", "viem", "viem/accounts"],
 });

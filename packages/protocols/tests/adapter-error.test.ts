@@ -5,6 +5,8 @@ import {
   L402CredentialsMissingError,
   L402PaymentError,
   L402QuoteError,
+  MppPaymentError,
+  MppQuoteError,
   X402PaymentError,
   X402QuoteError,
 } from "../src/adapter-error";
@@ -48,6 +50,24 @@ describe("AdapterError subclasses", () => {
     expect(error.cause).toBe(originalError);
   });
 
+  it('MppQuoteError should have code "mpp_quote_failed"', () => {
+    const error = new MppQuoteError("no charge challenges");
+    expect(error.code).toBe("mpp_quote_failed");
+    expect(error.message).toBe("no charge challenges");
+  });
+
+  it('MppPaymentError should have code "mpp_payment_failed"', () => {
+    const error = new MppPaymentError("payment rejected");
+    expect(error.code).toBe("mpp_payment_failed");
+    expect(error.message).toBe("payment rejected");
+  });
+
+  it("MppPaymentError should preserve cause via ErrorOptions", () => {
+    const cause = new Error("upstream failure");
+    const error = new MppPaymentError("payment rejected", { cause });
+    expect(error.cause).toBe(cause);
+  });
+
   it("All subclasses should be instanceof AdapterError", () => {
     const errors: AdapterError[] = [
       new X402PaymentError("test"),
@@ -56,6 +76,8 @@ describe("AdapterError subclasses", () => {
       new L402QuoteError("test"),
       new L402PaymentError("test"),
       new L402CredentialsMissingError(),
+      new MppQuoteError("test"),
+      new MppPaymentError("test"),
     ];
 
     for (const error of errors) {
@@ -72,6 +94,8 @@ describe("AdapterError subclasses", () => {
       new L402QuoteError("test"),
       new L402PaymentError("test"),
       new L402CredentialsMissingError(),
+      new MppQuoteError("test"),
+      new MppPaymentError("test"),
     ];
 
     for (const error of errors) {
