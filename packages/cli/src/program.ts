@@ -13,7 +13,7 @@ export const program = new Command();
 
 program
   .name("boltzpay")
-  .version("0.3.0")
+  .version("0.3.1")
   .description("BoltzPay CLI — pay for API data from the terminal")
   .option("-j, --json", "Output as JSON envelope", false)
   .option("-v, --verbose", "Show protocol and timing details", false)
