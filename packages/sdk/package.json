@@ -66,7 +66,7 @@
   },
   "peerDependencies": {
     "@coinbase/cdp-sdk": "^1.44.1",
-    "mppx": ">=0.4.7"
+    "mppx": ">=0.4.11"
   },
   "peerDependenciesMeta": {
     "@coinbase/cdp-sdk": {
@@ -85,7 +85,7 @@
     "@x402/evm": "^2.6.0",
     "@x402/hono": "^2.6.0",
     "hono": "^4.11.9",
-    "mppx": "0.4.7",
+    "mppx": "0.5.1",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18"

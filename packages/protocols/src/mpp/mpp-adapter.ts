@@ -1,11 +1,16 @@
-import { type Money, type ProtocolQuote, type ProtocolResult, DomainError } from "@boltzpay/core";
+import {
+  DomainError,
+  type Money,
+  type ProtocolQuote,
+  type ProtocolResult,
+} from "@boltzpay/core";
 import { Receipt } from "mppx";
 import { AdapterError, MppPaymentError, MppQuoteError } from "../adapter-error";
 import type { ResponseAwareAdapter } from "../router/protocol-router";
 import type { AdapterTimeouts } from "../x402/x402-adapter";
-import type { MppMethodSelector } from "./mpp-method-selector";
-import { createMppMethod } from "./mpp-method-factory";
 import type { MppWalletConfig } from "./mpp-method-factory";
+import { createMppMethod } from "./mpp-method-factory";
+import type { MppMethodSelector } from "./mpp-method-selector";
 import { hasMppScheme, parseMppChallenges } from "./mpp-parsing";
 import { buildMppQuote } from "./mpp-quote-builder";
 
@@ -174,9 +179,7 @@ export class MppAdapter implements ResponseAwareAdapter {
       throw new MppQuoteError(`Cannot reach endpoint: ${msg}`);
     }
     if (response.status !== HTTP_PAYMENT_REQUIRED) {
-      throw new MppQuoteError(
-        `Expected 402 status, got ${response.status}`,
-      );
+      throw new MppQuoteError(`Expected 402 status, got ${response.status}`);
     }
     return response;
   }
@@ -184,9 +187,7 @@ export class MppAdapter implements ResponseAwareAdapter {
   private extractQuote(response: Response): ProtocolQuote {
     const wwwAuth = response.headers.get("www-authenticate");
     if (!wwwAuth || !hasMppScheme(wwwAuth)) {
-      throw new MppQuoteError(
-        "No MPP payment information in 402 response",
-      );
+      throw new MppQuoteError("No MPP payment information in 402 response");
     }
     const { challenges } = parseMppChallenges(wwwAuth);
     if (challenges.length === 0) {

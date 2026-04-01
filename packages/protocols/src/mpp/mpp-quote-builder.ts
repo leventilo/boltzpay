@@ -1,7 +1,10 @@
 import { Money, type MppMethodQuote, type ProtocolQuote } from "@boltzpay/core";
 import { MppQuoteError } from "../adapter-error";
 import { usdcAtomicToCents } from "../x402/usdc-conversion";
-import type { MppMethodSelector, MppResolvedMethod } from "./mpp-method-selector";
+import type {
+  MppMethodSelector,
+  MppResolvedMethod,
+} from "./mpp-method-selector";
 import type { MppChallenge } from "./mpp-types";
 
 function challengeToMethod(challenge: MppChallenge): MppResolvedMethod {

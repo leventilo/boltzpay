@@ -1,18 +1,4 @@
 export type { DeliveryAttemptResult } from "./adapter-error";
-export { hasMppScheme, parseMppChallenges } from "./mpp/mpp-parsing";
-export { MppMethodSelector } from "./mpp/mpp-method-selector";
-export type { MppResolvedMethod } from "./mpp/mpp-method-selector";
-export { MppAdapter } from "./mpp/mpp-adapter";
-export { createMppMethod } from "./mpp/mpp-method-factory";
-export type { MppWalletConfig } from "./mpp/mpp-method-factory";
-export { MppSessionManager, isStreamableSession } from "./mpp/mpp-session-adapter";
-export type { ChannelUpdateEntry, MppStreamEvent, StreamableSession } from "./mpp/mpp-session-adapter";
-export { buildMppQuote } from "./mpp/mpp-quote-builder";
-export type {
-  MppChallenge,
-  MppParseResult,
-  MppRequest,
-} from "./mpp/mpp-types";
 export {
   AdapterError,
   AggregatePaymentError,
@@ -43,6 +29,27 @@ export type {
   L402ParsedChallenge,
   L402StandardChallenge,
 } from "./l402/l402-types";
+export { MppAdapter } from "./mpp/mpp-adapter";
+export type { MppWalletConfig } from "./mpp/mpp-method-factory";
+export { createMppMethod } from "./mpp/mpp-method-factory";
+export type { MppResolvedMethod } from "./mpp/mpp-method-selector";
+export { MppMethodSelector } from "./mpp/mpp-method-selector";
+export { hasMppScheme, parseMppChallenges } from "./mpp/mpp-parsing";
+export { buildMppQuote } from "./mpp/mpp-quote-builder";
+export type {
+  ChannelUpdateEntry,
+  MppStreamEvent,
+  StreamableSession,
+} from "./mpp/mpp-session-adapter";
+export {
+  isStreamableSession,
+  MppSessionManager,
+} from "./mpp/mpp-session-adapter";
+export type {
+  MppChallenge,
+  MppParseResult,
+  MppRequest,
+} from "./mpp/mpp-types";
 export { NwcWalletManager } from "./nwc/nwc-wallet-manager";
 export type {
   ProbeResult,

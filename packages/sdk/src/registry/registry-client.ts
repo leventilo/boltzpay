@@ -1,5 +1,8 @@
 import { NetworkError } from "../errors/network-error";
-import type { RegistryFetchOptions, RegistryListResponse } from "./registry-types";
+import type {
+  RegistryFetchOptions,
+  RegistryListResponse,
+} from "./registry-types";
 
 const REGISTRY_FETCH_TIMEOUT_MS = 10_000;
 const DEFAULT_REGISTRY_LIMIT = 200;
@@ -35,8 +38,7 @@ export async function fetchRegistryEndpoints(
   let response: Response;
   try {
     response = await fetch(url.toString(), {
-      signal:
-        options?.signal ?? AbortSignal.timeout(REGISTRY_FETCH_TIMEOUT_MS),
+      signal: options?.signal ?? AbortSignal.timeout(REGISTRY_FETCH_TIMEOUT_MS),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Network error";

@@ -523,7 +523,6 @@ export function formatWalletStatus(status: WalletStatus): string {
   return lines.join("\n");
 }
 
-
 export function formatDiagnoseResult(result: DiagnoseResult): string {
   switch (result.classification) {
     case "free_confirmed":
@@ -629,7 +628,6 @@ function formatDeathReason(reason?: string): string {
       return "Unreachable";
   }
 }
-
 
 interface CheckResultData {
   readonly isPaid: boolean;

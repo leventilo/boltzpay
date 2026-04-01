@@ -1,5 +1,5 @@
 import type { Method } from "mppx";
-import { tempo, stripe } from "mppx/client";
+import { stripe, tempo } from "mppx/client";
 import { privateKeyToAccount } from "viem/accounts";
 import { MppPaymentError } from "../adapter-error";
 
@@ -33,13 +33,9 @@ export function createMppMethod(
       return createStripeMethod(walletConfig);
     case "nwc":
     case "visa-mpp":
-      throw new MppPaymentError(
-        `MPP method '${walletType}' not yet supported`,
-      );
+      throw new MppPaymentError(`MPP method '${walletType}' not yet supported`);
     default:
-      throw new MppPaymentError(
-        `Unknown MPP wallet type: ${walletType}`,
-      );
+      throw new MppPaymentError(`Unknown MPP wallet type: ${walletType}`);
   }
 }
 
@@ -62,7 +58,14 @@ function createStripeMethod(config: MppWalletConfig): Method.AnyClient {
   }
   const secretKey = config.stripeSecretKey;
   return stripe.charge({
-    createToken: async ({ amount, currency, networkId, expiresAt, metadata, paymentMethod }) => {
+    createToken: async ({
+      amount,
+      currency,
+      networkId,
+      expiresAt,
+      metadata,
+      paymentMethod,
+    }) => {
       const response = await globalThis.fetch(
         "https://api.stripe.com/v1/tokens/single_payment",
         {

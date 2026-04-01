@@ -74,8 +74,5 @@ export interface SessionCloseResult {
 
 export interface SessionAdapter {
   readonly name: string;
-  openSession(
-    url: string,
-    options: SessionOptions,
-  ): Promise<ManagedSession>;
+  openSession(url: string, options: SessionOptions): Promise<ManagedSession>;
 }

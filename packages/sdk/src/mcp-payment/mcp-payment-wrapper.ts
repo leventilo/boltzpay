@@ -1,7 +1,8 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Money } from "@boltzpay/core";
 import type { Method } from "mppx";
-import { McpClient } from "mppx/mcp-sdk/client";
 import { Mcp } from "mppx";
+import { McpClient } from "mppx/mcp-sdk/client";
 import { BUDGET_EXCEEDED_CODES } from "../budget/budget-exceeded-codes";
 import type { BudgetManager } from "../budget/budget-manager";
 import { BudgetExceededError } from "../errors/budget-exceeded-error";
@@ -54,7 +55,7 @@ function wrapMethodsWithBudgetCheck(
   budgetManager: BudgetManager,
   convertToUsd: (amount: Money) => Money,
   paymentAmounts: Map<string, Money>,
-  activeCallId: () => string | undefined,
+  callIdStorage: AsyncLocalStorage<string>,
 ): Method.AnyClient[] {
   return methods.map((method) => {
     const originalCreateCredential = method.createCredential;
@@ -70,15 +71,14 @@ function wrapMethodsWithBudgetCheck(
           const amountStr = String(rawAmount);
           const amountCents = parseChallengeAmount(amountStr);
           const usdAmount = convertToUsd(amountCents);
-          const callId = activeCallId();
+          const callId = callIdStorage.getStore();
           if (callId) {
             paymentAmounts.set(callId, usdAmount);
           }
           const budgetCheck = budgetManager.checkTransaction(usdAmount);
 
           if (budgetCheck.exceeded) {
-            const code =
-              BUDGET_EXCEEDED_CODES[budgetCheck.period];
+            const code = BUDGET_EXCEEDED_CODES[budgetCheck.period];
             throw new BudgetExceededError(code, usdAmount, budgetCheck.limit);
           }
         }
@@ -139,9 +139,7 @@ function extractReceipt(
     };
   }
 
-  const rawReceipt = meta[Mcp.receiptMetaKey] as
-    | McpPaymentReceipt
-    | undefined;
+  const rawReceipt = meta[Mcp.receiptMetaKey] as McpPaymentReceipt | undefined;
   if (
     !rawReceipt ||
     typeof rawReceipt !== "object" ||
@@ -170,14 +168,14 @@ export function createMcpPaymentWrapper(
     params;
 
   const paymentAmounts = new Map<string, Money>();
-  let currentCallId: string | undefined;
+  const callIdStorage = new AsyncLocalStorage<string>();
 
   const budgetWrappedMethods = wrapMethodsWithBudgetCheck(
     methods,
     budgetManager,
     convertToUsd,
     paymentAmounts,
-    () => currentCallId,
+    callIdStorage,
   );
 
   const mppxWrapped = McpClient.wrap(
@@ -191,14 +189,14 @@ export function createMcpPaymentWrapper(
       options?: unknown,
     ): Promise<WrappedCallToolResult> {
       const callId = crypto.randomUUID();
-      currentCallId = callId;
 
-      const result = await mppxWrapped.callTool(
-        callParams,
-        options as Parameters<typeof mppxWrapped.callTool>[1],
+      const result = await callIdStorage.run(callId, () =>
+        mppxWrapped.callTool(
+          callParams,
+          options as Parameters<typeof mppxWrapped.callTool>[1],
+        ),
       );
 
-      currentCallId = undefined;
       const resultObj = result as Record<string, unknown>;
       const receipt = extractReceipt(resultObj);
 
@@ -220,7 +218,9 @@ export function createMcpPaymentWrapper(
       return {
         content: resultObj.content,
         isError: resultObj.isError as boolean | undefined,
-        _meta: filterMeta(resultObj._meta as Record<string, unknown> | undefined),
+        _meta: filterMeta(
+          resultObj._meta as Record<string, unknown> | undefined,
+        ),
         receipt,
       };
     },

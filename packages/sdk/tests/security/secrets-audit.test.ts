@@ -900,7 +900,7 @@ describe("Logger LogEntry sanitization", () => {
         stripeSecretKey: FAKE_STRIPE_SECRET_KEY,
         coinbaseApiKeySecret: FAKE_COINBASE_API_KEY_SECRET,
         coinbaseWalletSecret: FAKE_COINBASE_WALLET_SECRET,
-        nwcConnectionString: "safe-because-no-sensitive-keyword-in-key",
+        nwcConnectionString: FAKE_NWC_CONNECTION_STRING,
         nested: {
           privateKey: "nested-secret-value",
           safeField: "visible",
@@ -911,13 +911,13 @@ describe("Logger LogEntry sanitization", () => {
       assertNoSecrets(output, "JSON logger with wallet-like entry");
       expect(output).not.toContain("nested-secret-value");
       expect(output).toContain("visible");
-      expect(output).toContain("safe-because-no-sensitive-keyword-in-key");
 
       const parsed = JSON.parse(output);
       expect(parsed.tempoPrivateKey).toBe("[REDACTED]");
       expect(parsed.stripeSecretKey).toBe("[REDACTED]");
       expect(parsed.coinbaseApiKeySecret).toBe("[REDACTED]");
       expect(parsed.coinbaseWalletSecret).toBe("[REDACTED]");
+      expect(parsed.nwcConnectionString).toBe("[REDACTED]");
       expect(parsed.nested.privateKey).toBe("[REDACTED]");
       expect(parsed.nested.safeField).toBe("visible");
     } finally {

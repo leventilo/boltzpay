@@ -1,8 +1,8 @@
 export { BoltzPayError } from "./boltzpay-error";
-export { MppSessionBudgetError, MppSessionError } from "./mpp-session-error";
 export { BudgetExceededError } from "./budget-exceeded-error";
 export { ConfigurationError } from "./configuration-error";
 export { InsufficientFundsError } from "./insufficient-funds-error";
+export { MppSessionBudgetError, MppSessionError } from "./mpp-session-error";
 export { NetworkError } from "./network-error";
 export { NoWalletError } from "./no-wallet-error";
 export { PaymentUncertainError } from "./payment-uncertain-error";

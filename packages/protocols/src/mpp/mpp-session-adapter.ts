@@ -1,4 +1,9 @@
-import type { ManagedSession, SessionAdapter, SessionCloseResult, SessionOptions } from "@boltzpay/core";
+import type {
+  ManagedSession,
+  SessionAdapter,
+  SessionCloseResult,
+  SessionOptions,
+} from "@boltzpay/core";
 import { MppPaymentError } from "../adapter-error";
 import { validateHexPrivateKey } from "./mpp-method-factory";
 
@@ -33,7 +38,12 @@ export interface ChannelUpdateEntry {
 
 export type MppStreamEvent =
   | { readonly type: "data"; readonly payload: string }
-  | { readonly type: "payment"; readonly channelId: string; readonly cumulativeAmount: bigint; readonly index: number };
+  | {
+      readonly type: "payment";
+      readonly channelId: string;
+      readonly cumulativeAmount: bigint;
+      readonly index: number;
+    };
 
 interface MppxLike {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
@@ -69,10 +79,7 @@ class MppManagedSession implements ManagedSession {
     this.mppx = mppx;
   }
 
-  async fetch(
-    url: string,
-    init?: Record<string, unknown>,
-  ): Promise<Response> {
+  async fetch(url: string, init?: Record<string, unknown>): Promise<Response> {
     // Adapter boundary: ManagedSession uses generic Record, mppx expects RequestInit
     return this.mppx.fetch(url, init as RequestInit);
   }
@@ -150,7 +157,8 @@ class MppManagedSession implements ManagedSession {
         const channelChanged =
           this.channelEntry !== undefined &&
           this.channelEntry !== snapshotBefore &&
-          this.channelEntry.cumulativeAmount !== (snapshotBefore?.cumulativeAmount ?? 0n);
+          this.channelEntry.cumulativeAmount !==
+            (snapshotBefore?.cumulativeAmount ?? 0n);
 
         if (channelChanged && this.channelEntry) {
           voucherIndex++;
@@ -230,7 +238,9 @@ export class MppSessionManager implements SessionAdapter {
   ): Promise<ManagedSession> {
     try {
       const { privateKeyToAccount } = await import("viem/accounts");
-      const validatedKey = validateHexPrivateKey(this.walletConfig.tempoPrivateKey);
+      const validatedKey = validateHexPrivateKey(
+        this.walletConfig.tempoPrivateKey,
+      );
       const account = privateKeyToAccount(validatedKey);
 
       const maxDepositHuman = options.maxDeposit
@@ -282,9 +292,17 @@ export class MppSessionManager implements SessionAdapter {
 }
 
 export interface StreamableSession extends ManagedSession {
-  stream(url: string, init?: Record<string, unknown>): AsyncIterable<MppStreamEvent>;
+  stream(
+    url: string,
+    init?: Record<string, unknown>,
+  ): AsyncIterable<MppStreamEvent>;
 }
 
-export function isStreamableSession(session: ManagedSession): session is StreamableSession {
-  return typeof (session as unknown as Record<string, unknown>)["stream"] === "function";
+export function isStreamableSession(
+  session: ManagedSession,
+): session is StreamableSession {
+  return (
+    typeof (session as unknown as Record<string, unknown>)["stream"] ===
+    "function"
+  );
 }

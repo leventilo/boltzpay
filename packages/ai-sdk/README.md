@@ -2,7 +2,7 @@
 
 # @boltzpay/ai-sdk
 
-Vercel AI SDK tools for BoltzPay — 7 tools that give your AI agent the ability to discover, quote, and pay for APIs.
+Vercel AI SDK tools for BoltzPay -- 7 tools that give your AI agent the ability to discover, quote, and pay for APIs across x402, L402, and MPP.
 
 ## Install
 
@@ -21,17 +21,11 @@ const { text } = await generateText({
   model: openai("gpt-4.1"),
   tools: boltzpayTools(),
   maxSteps: 5,
-  prompt: "Discover available paid APIs and check prices",
+  prompt: "Discover paid APIs with a trust score above 80",
 });
 ```
 
-## Features
-
-- **7 AI tools** — fetch, quote, discover, budget, history, wallet, diagnose
-- **Drop-in integration** — Works with `generateText`, `streamText`, and agent loops
-- **Explore mode** — Discover, diagnose, and quote without credentials
-- **Payment mode** — Pass Coinbase CDP credentials for automatic payments
-- **Pre-built SDK instance** — Use your own `BoltzPay` instance for full control
+No credentials needed for discovery, quotes, and diagnostics.
 
 ## With Credentials
 
@@ -45,46 +39,85 @@ const { text } = await generateText({
     budget: { daily: "5.00", perTransaction: "1.00" },
   }),
   maxSteps: 5,
-  prompt: "Fetch the latest crypto data from https://invy.bot/api",
+  prompt: "Fetch the latest data from https://invy.bot/api",
 });
 ```
+
+### Multi-Wallet
+
+v0.3 supports multiple wallet types via the `wallets` array. Mix crypto and traditional rails:
+
+```ts
+const tools = boltzpayTools({
+  wallets: [
+    {
+      type: "coinbase",
+      name: "main",
+      coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+      coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+      coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+    },
+    {
+      type: "stripe-mpp",
+      name: "stripe",
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY!,
+    },
+  ],
+  budget: { daily: "20.00", perTransaction: "2.00" },
+});
+```
+
+Wallet types: `coinbase`, `nwc` (Lightning/NWC), `stripe-mpp`, `tempo`, `visa-mpp`.
 
 ## With Pre-built SDK Instance
 
 ```ts
 import { BoltzPay } from "@boltzpay/sdk";
 
-const sdk = new BoltzPay({ /* config */ });
+const sdk = new BoltzPay({ /* full config */ });
 const tools = boltzpayTools(sdk);
 ```
 
-## Tools Reference
+## Tools
 
-| Tool | Description | Requires Credentials |
-|------|-------------|:--------------------:|
-| `boltzpay_fetch` | Fetch data from a paid API, auto-detect and pay | Yes |
-| `boltzpay_quote` | Get a detailed price quote with multi-chain options | No |
-| `boltzpay_discover` | Browse the directory of compatible paid APIs | No |
-| `boltzpay_budget` | View current budget limits and spending | No |
-| `boltzpay_history` | View payment history for this session | No |
-| `boltzpay_wallet` | View wallet info, chains, and balances | No |
-| `boltzpay_diagnose` | Full endpoint diagnostic — DNS, protocol detection (x402/L402), format version, pricing, health, latency. No credentials required. | No |
+| Tool | Description | Credentials |
+|------|-------------|:-----------:|
+| `boltzpay_fetch` | Fetch from a paid API -- auto-detect protocol, pay, return response | Required |
+| `boltzpay_quote` | Price quote with multi-chain options | -- |
+| `boltzpay_discover` | Query the live BoltzPay registry (protocol, minScore, query filters) | -- |
+| `boltzpay_budget` | Current budget limits and spend | -- |
+| `boltzpay_history` | Payment history for this session | -- |
+| `boltzpay_wallet` | Wallet info, chains, balances | -- |
+| `boltzpay_diagnose` | Full endpoint diagnostic -- DNS, protocol detection, pricing, health, latency | -- |
 
-## Protocols & Chains
+### boltzpay_discover
 
-- **x402** — HTTP 402 payment protocol (Base, Solana)
-- **L402** — Lightning Network payment protocol by Lightning Labs
+Queries the [BoltzPay registry](https://status.boltzpay.ai) (6,900+ endpoints, 400+ providers). Accepts:
+
+- `protocol` -- `"x402"`, `"l402"`, or `"mpp"`
+- `minScore` -- minimum trust score (0--100, EWMA-based)
+- `query` -- free-text search on endpoint name/URL
+- `category` -- filter by category
+
+## Protocols
+
+| Protocol | Networks | Payment |
+|----------|----------|---------|
+| **x402** | Base, Solana | USDC on-chain via HTTP 402 |
+| **L402** | Lightning | Sats via LSAT/L402 macaroon |
+| **MPP** | Stripe, Tempo, Visa | Managed payment protocols (card rails, stablecoin, Visa Direct) |
 
 ## Links
 
 - [Documentation](https://docs.boltzpay.ai)
+- [Registry](https://status.boltzpay.ai)
 - [GitHub](https://github.com/leventilo/boltzpay)
 - [SDK](https://www.npmjs.com/package/@boltzpay/sdk)
 - [Vercel AI SDK](https://ai-sdk.dev)
 
 ## Part of BoltzPay
 
-This package is part of the [BoltzPay](https://github.com/leventilo/boltzpay) open-source SDK — giving AI agents the ability to pay for APIs automatically.
+This package is part of [BoltzPay](https://github.com/leventilo/boltzpay) -- the open-source SDK giving AI agents a `fetch()` that pays.
 
 ## License
 

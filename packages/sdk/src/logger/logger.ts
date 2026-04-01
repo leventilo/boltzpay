@@ -7,7 +7,7 @@ const LOG_LEVELS = {
 } as const;
 
 const SENSITIVE_PATTERNS =
-  /key|secret|private|password|token|jwe|credential|mnemonic/i;
+  /key|secret|private|password|token|jwe|credential|mnemonic|connection|nwc|wallet/i;
 
 function sanitizeLogEntry(
   entry: Record<string, unknown>,

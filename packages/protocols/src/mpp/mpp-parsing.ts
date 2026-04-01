@@ -44,7 +44,12 @@ function splitChallenges(header: string): string[] {
     const end = starts[j + 1];
     const raw =
       end !== undefined ? header.slice(start, end) : header.slice(start);
-    results.push(raw.replace(/,\s*Payment\s*$/i, "").replace(/,\s*$/, "").trim());
+    results.push(
+      raw
+        .replace(/,\s*Payment\s*$/i, "")
+        .replace(/,\s*$/, "")
+        .trim(),
+    );
   }
   return results;
 }

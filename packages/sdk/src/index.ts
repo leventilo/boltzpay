@@ -8,8 +8,6 @@ export type {
 export { Money } from "@boltzpay/core";
 export type { FetchOptions, QuoteResult } from "./boltzpay";
 export { BoltzPay } from "./boltzpay";
-export { BoltzPaySession } from "./session/boltzpay-session";
-export type { BoltzPaySessionParams } from "./session/boltzpay-session";
 export type { BudgetLimits, BudgetState } from "./budget/budget-manager";
 export type {
   BoltzPayConfig,
@@ -18,7 +16,6 @@ export type {
   ValidatedConfig,
   WalletConfig,
 } from "./config/types";
-export { diagnoseEndpoint } from "./diagnostics/diagnose";
 export type {
   ChainInfo,
   DeathReason,
@@ -30,21 +27,11 @@ export type {
   FormatVersion,
   MppMethodDetail,
 } from "./diagnostics/diagnose";
+export { diagnoseEndpoint } from "./diagnostics/diagnose";
 export type {
   DryRunFailureReason,
   DryRunResult,
 } from "./diagnostics/dry-run";
-export {
-  DEFAULT_REGISTRY_URL,
-  fetchRegistryEndpoints,
-} from "./registry/registry-client";
-export type {
-  DiscoveredEntry,
-  DiscoverOptions,
-  RegistryEndpoint,
-  RegistryFetchOptions,
-  RegistryListResponse,
-} from "./registry/registry-types";
 export type {
   DeliveryDiagnosis,
   DiagnosisDeliveryAttempt,
@@ -88,18 +75,31 @@ export type {
   WrappedCallToolResult,
   WrappedMcpClient,
 } from "./mcp-payment/mcp-payment-wrapper";
+export type { PaymentMetrics } from "./metrics/metrics";
+export { isTestnet, networkToShortName } from "./network-utils";
+export { FileAdapter } from "./persistence/file-adapter";
+export { MemoryAdapter } from "./persistence/memory-adapter";
+export type { StorageAdapter } from "./persistence/storage-adapter";
+export {
+  DEFAULT_REGISTRY_URL,
+  fetchRegistryEndpoints,
+} from "./registry/registry-client";
+export type {
+  DiscoveredEntry,
+  DiscoverOptions,
+  RegistryEndpoint,
+  RegistryFetchOptions,
+  RegistryListResponse,
+} from "./registry/registry-types";
+export { BoltzPayResponse } from "./response/boltzpay-response";
+export type { BoltzPaySessionParams } from "./session/boltzpay-session";
+export { BoltzPaySession } from "./session/boltzpay-session";
 export type {
   BoltzPaySessionOptions,
   SessionEvent,
   SessionReceipt,
   VoucherInfo,
 } from "./session/session-types";
-export type { PaymentMetrics } from "./metrics/metrics";
-export { isTestnet, networkToShortName } from "./network-utils";
-export { FileAdapter } from "./persistence/file-adapter";
-export { MemoryAdapter } from "./persistence/memory-adapter";
-export type { StorageAdapter } from "./persistence/storage-adapter";
-export { BoltzPayResponse } from "./response/boltzpay-response";
 export type {
   AccountStatus,
   ConnectionStatus,

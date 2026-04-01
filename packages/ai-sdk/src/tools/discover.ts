@@ -12,14 +12,8 @@ export function createDiscoverTool(sdk: BoltzPay) {
         .string()
         .optional()
         .describe("Filter by protocol (x402, l402, mpp)"),
-      minScore: z
-        .number()
-        .optional()
-        .describe("Minimum trust score 0-100"),
-      query: z
-        .string()
-        .optional()
-        .describe("Search endpoints by name or URL"),
+      minScore: z.number().optional().describe("Minimum trust score 0-100"),
+      query: z.string().optional().describe("Search endpoints by name or URL"),
     }),
     execute: async (
       { category, protocol, minScore, query },

@@ -9,10 +9,7 @@ export function registerDiscoverCommand(program: Command): void {
     .command("discover")
     .description("Browse paid API endpoints from the BoltzPay registry")
     .option("-c, --category <category>", "Filter by category")
-    .option(
-      "-p, --protocol <protocol>",
-      "Filter by protocol (x402, l402, mpp)",
-    )
+    .option("-p, --protocol <protocol>", "Filter by protocol (x402, l402, mpp)")
     .option("--min-score <score>", "Minimum trust score (0-100)")
     .option("-q, --query <query>", "Search by name, URL, or description")
     .action(

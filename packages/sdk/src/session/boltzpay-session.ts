@@ -1,13 +1,20 @@
-import { Money } from "@boltzpay/core";
 import type { ManagedSession, SessionCloseResult } from "@boltzpay/core";
+import { Money } from "@boltzpay/core";
 import { isStreamableSession } from "@boltzpay/protocols";
 import type { BudgetManager } from "../budget/budget-manager";
-import { MppSessionBudgetError, MppSessionError } from "../errors/mpp-session-error";
+import {
+  MppSessionBudgetError,
+  MppSessionError,
+} from "../errors/mpp-session-error";
 import { ProtocolError } from "../errors/protocol-error";
 import type { TypedEventEmitter } from "../events/event-emitter";
 import type { PaymentHistory } from "../history/payment-history";
 import type { PaymentRecord } from "../history/types";
-import type { SessionEvent, SessionReceipt, VoucherInfo } from "./session-types";
+import type {
+  SessionEvent,
+  SessionReceipt,
+  VoucherInfo,
+} from "./session-types";
 
 export interface BoltzPaySessionParams {
   readonly session: ManagedSession;
@@ -57,7 +64,10 @@ export class BoltzPaySession {
   async fetch(url: string, init?: RequestInit): Promise<Response> {
     // Cast justified: init is narrowed from RequestInit to the generic Record
     // expected by ManagedSession.fetch, which is implemented by mppx externally
-    const response = await this.session.fetch(url, init as Record<string, unknown>);
+    const response = await this.session.fetch(
+      url,
+      init as Record<string, unknown>,
+    );
 
     // Runtime check: mppx is external — verify the returned value is Response-shaped
     this.assertValidResponse(response);

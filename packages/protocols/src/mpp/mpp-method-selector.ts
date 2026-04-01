@@ -31,10 +31,7 @@ function buildMethodToWalletMap(): ReadonlyMap<string, readonly string[]> {
 
 const METHOD_TO_WALLET = buildMethodToWalletMap();
 
-function sortByCheapest(
-  a: MppResolvedMethod,
-  b: MppResolvedMethod,
-): number {
+function sortByCheapest(a: MppResolvedMethod, b: MppResolvedMethod): number {
   const aZero = a.amount.isZero();
   const bZero = b.amount.isZero();
   if (aZero && !bZero) return 1;

@@ -238,10 +238,13 @@ function parseWwwAuthenticate(
   if (x402Index === -1) return null;
   const content = headerValue.slice(x402Index + X402_SCHEME_PREFIX.length);
   const params: Record<string, string> = {};
-  for (const match of content.matchAll(/(\w+)\s*=\s*(?:"([^"]*)"|([^\s,]+))/g)) {
+  for (const match of content.matchAll(
+    /(\w+)\s*=\s*(?:"([^"]*)"|([^\s,]+))/g,
+  )) {
     const key = match[1];
     const value = match[2] ?? match[3];
-    if (key !== undefined && value !== undefined) params[key.toLowerCase()] = value;
+    if (key !== undefined && value !== undefined)
+      params[key.toLowerCase()] = value;
   }
   const address = params.address;
   const rawAmount = params.amount;

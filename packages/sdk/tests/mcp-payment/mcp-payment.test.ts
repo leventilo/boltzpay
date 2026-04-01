@@ -480,6 +480,118 @@ describe("MCP Payment Wrapper", () => {
       expect(result._meta).not.toHaveProperty("random.data");
     });
 
+    it("captures correct payment amount for concurrent callTool invocations", async () => {
+      const receipt = makeMockReceipt();
+      const firstAmountAtomic = "1000000";
+      const secondAmountAtomic = "5000000";
+      const expectedFirstCents = 100n;
+      const expectedSecondCents = 500n;
+
+      const firstMethod = createMockMethod({ challengeAmount: firstAmountAtomic });
+      const secondMethod = createMockMethod({ challengeAmount: secondAmountAtomic });
+
+      let firstCallResolve: (() => void) | undefined;
+      const firstCallGate = new Promise<void>((resolve) => {
+        firstCallResolve = resolve;
+      });
+
+      const callSequence: string[] = [];
+      let callCount = 0;
+      const client = {
+        callTool: vi.fn().mockImplementation(
+          async (params: { name: string }) => {
+            callCount++;
+            const thisCall = callCount;
+            callSequence.push(`start:${params.name}`);
+
+            if (thisCall === 1) {
+              // First call waits for the second to start and set its callId
+              await firstCallGate;
+            }
+
+            if (thisCall <= 2) {
+              // First two calls are the initial calls that trigger -32042
+              const challengeAmount =
+                params.name === "tool_cheap"
+                  ? firstAmountAtomic
+                  : secondAmountAtomic;
+              const error = Object.assign(
+                new Error("Payment Required"),
+                {
+                  code: -32042,
+                  data: {
+                    challenges: [
+                      {
+                        id: `challenge-${thisCall}`,
+                        realm: "test.example.com",
+                        method: "tempo",
+                        intent: "charge",
+                        request: {
+                          amount: challengeAmount,
+                          currency: "0xUSDC",
+                          recipient: "0xRecipient",
+                        },
+                      },
+                    ],
+                  },
+                },
+              );
+              throw error;
+            }
+
+            callSequence.push(`resolve:${params.name}`);
+            return {
+              content: [{ type: "text", text: `result-${params.name}` }],
+              _meta: { [RECEIPT_META_KEY]: receipt },
+            };
+          },
+        ),
+      };
+
+      const wrapped = createMcpPaymentWrapper({
+        client,
+        methods: [firstMethod, secondMethod],
+        budgetManager,
+        emitter,
+        history,
+        convertToUsd: (amount: Money) => amount,
+      });
+
+      // Launch both calls concurrently
+      const firstPromise = wrapped.callTool({
+        name: "tool_cheap",
+        arguments: {},
+      });
+
+      // Let the second call start before the first resolves
+      const secondPromise = wrapped.callTool({
+        name: "tool_expensive",
+        arguments: {},
+      });
+
+      // Release the first call after the second has started
+      firstCallResolve?.();
+
+      const [firstResult, secondResult] = await Promise.all([
+        firstPromise,
+        secondPromise,
+      ]);
+
+      expect(firstResult.receipt).toBeDefined();
+      expect(secondResult.receipt).toBeDefined();
+
+      // Verify each call recorded its own correct amount
+      const recordedAmounts = (
+        budgetManager.recordSpending as ReturnType<typeof vi.fn>
+      ).mock.calls.map(
+        (call: unknown[]) => (call[0] as Money).cents,
+      );
+
+      expect(recordedAmounts).toContain(expectedFirstCents);
+      expect(recordedAmounts).toContain(expectedSecondCents);
+      expect(recordedAmounts).not.toContain(1n);
+    });
+
     it("returns undefined _meta when no safe keys present", async () => {
       const resultWithOnlyUnsafeMeta = {
         content: [{ type: "text", text: "result" }],

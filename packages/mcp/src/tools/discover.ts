@@ -17,17 +17,19 @@ export function registerDiscover(server: McpServer, sdk: BoltzPay): void {
           .string()
           .optional()
           .describe("Filter by protocol (x402, l402, mpp)"),
-        minScore: z
-          .number()
-          .optional()
-          .describe("Minimum trust score 0-100"),
+        minScore: z.number().optional().describe("Minimum trust score 0-100"),
         query: z
           .string()
           .optional()
           .describe("Search endpoints by name or URL"),
       },
     },
-    async ({ category, protocol, minScore, query }): Promise<CallToolResult> => {
+    async ({
+      category,
+      protocol,
+      minScore,
+      query,
+    }): Promise<CallToolResult> => {
       try {
         const entries = await sdk.discover({
           category,

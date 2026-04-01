@@ -403,7 +403,7 @@ describe("Config Validation", () => {
           {
             type: "stripe-mpp",
             name: "stripe-prod",
-            stripeSecretKey: "sk_live_abc123",
+            stripeSecretKey: "sk_test_fake_abc123",
           },
         ],
       });
@@ -507,7 +507,7 @@ describe("Config Validation", () => {
           {
             type: "stripe-mpp",
             name: "stripe",
-            stripeSecretKey: "sk_live_abc",
+            stripeSecretKey: "sk_test_fake_abc",
             networks: ["base"],
           },
         ],

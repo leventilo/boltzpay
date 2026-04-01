@@ -20,6 +20,7 @@ import {
   AggregatePaymentError,
   type CdpMultiChainClient,
   CdpWalletManager,
+  createMppMethod,
   L402Adapter,
   MppAdapter,
   MppMethodSelector,
@@ -29,34 +30,19 @@ import {
   ProtocolRouter,
   X402Adapter,
   X402PaymentError,
-  createMppMethod,
 } from "@boltzpay/protocols";
-import {
-  createMcpPaymentWrapper,
-  type WrappedMcpClient,
-} from "./mcp-payment/mcp-payment-wrapper";
+import { toBudgetExceededCode } from "./budget/budget-exceeded-codes";
 import type { BudgetLimits, BudgetState } from "./budget/budget-manager";
 import { BudgetManager } from "./budget/budget-manager";
-import { toBudgetExceededCode } from "./budget/budget-exceeded-codes";
 import { hasCoinbaseCredentials, validateConfig } from "./config/schema";
 import type { BoltzPayConfig, ValidatedConfig } from "./config/types";
 import type { DiagnoseResult } from "./diagnostics/diagnose";
 import { diagnoseEndpoint } from "./diagnostics/diagnose";
 import type { DryRunResult } from "./diagnostics/dry-run";
-import {
-  DEFAULT_REGISTRY_URL,
-  fetchRegistryEndpoints,
-} from "./registry/registry-client";
-import type {
-  DiscoveredEntry,
-  DiscoverOptions,
-} from "./registry/registry-types";
-import { BoltzPaySession } from "./session/boltzpay-session";
-import type { BoltzPaySessionOptions, SessionReceipt } from "./session/session-types";
-import { MppSessionBudgetError } from "./errors/mpp-session-error";
 import { BoltzPayError } from "./errors/boltzpay-error";
 import { BudgetExceededError } from "./errors/budget-exceeded-error";
 import { ConfigurationError } from "./errors/configuration-error";
+import { MppSessionBudgetError } from "./errors/mpp-session-error";
 import { NetworkError } from "./errors/network-error";
 import { NoWalletError } from "./errors/no-wallet-error";
 import { PaymentUncertainError } from "./errors/payment-uncertain-error";
@@ -71,16 +57,33 @@ import { PaymentHistory } from "./history/payment-history";
 import type { PaymentDetails, PaymentRecord } from "./history/types";
 import type { Logger } from "./logger/logger";
 import { createLogger } from "./logger/logger";
+import {
+  createMcpPaymentWrapper,
+  type WrappedMcpClient,
+} from "./mcp-payment/mcp-payment-wrapper";
 import type { PaymentMetrics } from "./metrics/metrics";
 import { computeMetrics } from "./metrics/metrics";
 import { isTestnet } from "./network-utils";
 import { FileAdapter } from "./persistence/file-adapter";
 import { MemoryAdapter } from "./persistence/memory-adapter";
 import type { StorageAdapter } from "./persistence/storage-adapter";
+import {
+  DEFAULT_REGISTRY_URL,
+  fetchRegistryEndpoints,
+} from "./registry/registry-client";
+import type {
+  DiscoveredEntry,
+  DiscoverOptions,
+} from "./registry/registry-types";
 import { BoltzPayResponse } from "./response/boltzpay-response";
 import type { RateLimitStrategy } from "./retry/retry-config";
 import type { RetryOptions } from "./retry/retry-engine";
 import { withRetry } from "./retry/retry-engine";
+import { BoltzPaySession } from "./session/boltzpay-session";
+import type {
+  BoltzPaySessionOptions,
+  SessionReceipt,
+} from "./session/session-types";
 import type { LightningStatus, WalletStatus } from "./wallet-status";
 
 export interface FetchOptions {
@@ -297,7 +300,13 @@ const MPP_METHOD_TO_WALLET: Readonly<Record<string, string>> = {
   card: "visa-mpp",
 };
 
-const RESOLVED_WALLET_TYPES = ["coinbase", "nwc", "stripe-mpp", "tempo", "visa-mpp"] as const;
+const RESOLVED_WALLET_TYPES = [
+  "coinbase",
+  "nwc",
+  "stripe-mpp",
+  "tempo",
+  "visa-mpp",
+] as const;
 type ResolvedWalletType = (typeof RESOLVED_WALLET_TYPES)[number];
 
 interface MppRawConfig {
@@ -829,9 +838,7 @@ export class BoltzPay {
     }
   }
 
-  private computeSessionDeposit(
-    userMaxDeposit?: number | string,
-  ): Money {
+  private computeSessionDeposit(userMaxDeposit?: number | string): Money {
     const candidates: Money[] = [];
 
     const available = this.budgetManager.availableForReservation();
@@ -846,16 +853,15 @@ export class BoltzPay {
     }
 
     if (candidates.length === 0) return Money.fromDollars("10.00");
-    return candidates.reduce((min, c) =>
-      c.greaterThan(min) ? min : c,
-    );
+    return candidates.reduce((min, c) => (c.greaterThan(min) ? min : c));
   }
 
   private reserveSessionBudget(amount: Money): string {
     try {
       return this.budgetManager.reserve(amount);
     } catch {
-      const available = this.budgetManager.availableForReservation() ?? Money.zero();
+      const available =
+        this.budgetManager.availableForReservation() ?? Money.zero();
       throw new MppSessionBudgetError(amount, available);
     }
   }
@@ -1825,10 +1831,7 @@ export class BoltzPay {
     for (const wallet of this.wallets) {
       if (wallet.type === "tempo" || wallet.type === "stripe-mpp") {
         try {
-          const method = createMppMethod(
-            wallet.type,
-            wallet.rawConfig ?? {},
-          );
+          const method = createMppMethod(wallet.type, wallet.rawConfig ?? {});
           methods.push(method);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);

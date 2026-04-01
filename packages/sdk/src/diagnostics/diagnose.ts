@@ -1,12 +1,16 @@
 import { resolve as dnsResolve } from "node:dns/promises";
-import type { AcceptOption, EndpointInputHints, MppMethodQuote } from "@boltzpay/core";
+import type {
+  AcceptOption,
+  EndpointInputHints,
+  MppMethodQuote,
+} from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
 import type { MppChallenge, NegotiatedPayment } from "@boltzpay/protocols";
 import {
   hasMppScheme,
   negotiatePayment,
-  parseMppChallenges,
   type ProtocolRouter,
+  parseMppChallenges,
   usdcAtomicToCents,
 } from "@boltzpay/protocols";
 
@@ -26,7 +30,11 @@ export type DeathReason =
   | "timeout"
   | "tls_error";
 
-export type FormatVersion = "V1 body" | "V2 header" | "www-authenticate" | "mpp";
+export type FormatVersion =
+  | "V1 body"
+  | "V2 header"
+  | "www-authenticate"
+  | "mpp";
 
 export interface ChainInfo {
   readonly namespace: string;
@@ -95,7 +103,11 @@ export function classifyHealth(
   price?: Money,
 ): EndpointHealth {
   if (scheme && scheme !== "exact") return "degraded";
-  if (price && price.currency === "USD" && price.greaterThan(SUSPICIOUS_PRICE_THRESHOLD)) {
+  if (
+    price &&
+    price.currency === "USD" &&
+    price.greaterThan(SUSPICIOUS_PRICE_THRESHOLD)
+  ) {
     return "degraded";
   }
   const isStellar = network?.startsWith("stellar") ?? false;
@@ -281,11 +293,7 @@ export async function diagnoseEndpoint(
     let response: Response;
 
     try {
-      response = await fetchFollowingRedirects(
-        url,
-        remainingBudget(),
-        signal,
-      );
+      response = await fetchFollowingRedirects(url, remainingBudget(), signal);
     } catch (error) {
       return buildDeadResult(
         url,
@@ -309,7 +317,12 @@ export async function diagnoseEndpoint(
 
     if (status === 404 || status === 405 || status === 410) {
       const postProbe = await tryPostProbe(
-        url, totalStart, detectStart, remainingBudget, signal, router,
+        url,
+        totalStart,
+        detectStart,
+        remainingBudget,
+        signal,
+        router,
       );
       if (postProbe.kind === "paid") return postProbe.result;
       const deathReason: DeathReason = status === 405 ? "http_405" : "http_404";
@@ -333,18 +346,19 @@ export async function diagnoseEndpoint(
       }
 
       const postProbe = await tryPostProbe(
-        url, totalStart, detectStart, remainingBudget, signal, router,
+        url,
+        totalStart,
+        detectStart,
+        remainingBudget,
+        signal,
+        router,
       );
       if (postProbe.kind === "paid") return postProbe.result;
       if (postProbe.kind === "failed") {
         return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
       }
 
-      return buildNonPaidResult(
-        url,
-        Date.now() - totalStart,
-        "free_confirmed",
-      );
+      return buildNonPaidResult(url, Date.now() - totalStart, "free_confirmed");
     }
 
     return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
@@ -478,13 +492,10 @@ async function buildPaidResult(
     const mpp = tryDetectMpp(response.clone());
     if (mpp) {
       const latencyMs = Date.now() - totalStart;
-      return buildMppDiagnoseResult(
-        url,
-        latencyMs,
-        mpp,
-        postOnly,
-        { detectMs, quoteMs },
-      );
+      return buildMppDiagnoseResult(url, latencyMs, mpp, postOnly, {
+        detectMs,
+        quoteMs,
+      });
     }
     const latencyMs = Date.now() - totalStart;
     const hasValidFormat = formatVersion !== undefined;
@@ -520,13 +531,20 @@ async function buildPaidResult(
     price: quote.amount,
     facilitator: quote.payTo ? truncateAddress(quote.payTo) : undefined,
     payTo: quote.payTo,
-    health: classifyHealth(latencyMs, quote.scheme, quote.network, quote.amount),
+    health: classifyHealth(
+      latencyMs,
+      quote.scheme,
+      quote.network,
+      quote.amount,
+    ),
     latencyMs,
     postOnly,
     chains: buildChains(quote.allAccepts),
     rawAccepts: quote.allAccepts,
     ...(quote.inputHints ? { inputHints: quote.inputHints } : {}),
-    ...(quote.allMethods ? { mppMethods: quoteMppMethodsToDetails(quote.allMethods) } : {}),
+    ...(quote.allMethods
+      ? { mppMethods: quoteMppMethodsToDetails(quote.allMethods) }
+      : {}),
     timing: { detectMs, quoteMs },
   };
 }
@@ -555,9 +573,7 @@ function buildMppDiagnoseResult(
   const price = tryExtractMppPrice(mpp.primary);
   const network = deriveMppNetwork(mpp.primary);
   const mppRecipient = mpp.primary.request?.recipient;
-  const facilitator = mppRecipient
-    ? truncateAddress(mppRecipient)
-    : undefined;
+  const facilitator = mppRecipient ? truncateAddress(mppRecipient) : undefined;
   return {
     url,
     classification: "paid",
