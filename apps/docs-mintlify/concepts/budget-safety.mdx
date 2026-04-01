@@ -13,10 +13,10 @@ flowchart TD
     Quote --> PerTx{"Price exceeds<br/>per-transaction limit?"}
 
     PerTx -- Yes --> Reject["BudgetExceededError<br/>No payment sent"]
-    PerTx -- No --> Daily{"Cumulative today +<br/>price exceeds daily limit?"}
+    PerTx -- No --> Daily{"Today + reservations +<br/>price exceeds daily?"}
 
     Daily -- Yes --> Reject
-    Daily -- No --> Monthly{"Cumulative this month +<br/>price exceeds monthly limit?"}
+    Daily -- No --> Monthly{"Month + reservations +<br/>price exceeds monthly?"}
 
     Monthly -- Yes --> Reject
     Monthly -- No --> Pay["Sign & deliver payment"]
@@ -49,6 +49,56 @@ If the payment fails or the server returns an error after payment, the amount is
 ### Warning events at 80%
 
 When cumulative spending crosses 80% of any configured limit, the SDK emits a `budget:warning` event. You can listen for these to alert your agent or operator before hitting a hard stop.
+
+## Session Budget (Reserve / Release)
+
+Sessions use a reservation pattern to prevent budget overcommitment when multiple sessions run concurrently.
+
+### How it works
+
+1. **Reserve** -- When `openSession()` is called, the SDK reserves the deposit amount from the available budget. This atomically decrements available capacity.
+2. **Per-voucher check** -- During streaming, each voucher's cumulative amount is checked against the reserved deposit. If it exceeds the deposit, the session is force-closed and a `MppSessionBudgetError` is thrown.
+3. **Release** -- When `session.close()` is called, unused deposit (deposit minus actual spent) is released back to the budget.
+
+```typescript
+// Budget: $10 daily, $5 spent already
+// Available for reservation: $5
+
+const session1 = await agent.openSession(url, { maxDeposit: "3.00" });
+// Reserved: $3, available: $2
+
+const session2 = await agent.openSession(url, { maxDeposit: "2.00" });
+// Reserved: $2, available: $0
+
+// session2 spends $0.50, then closes
+const receipt = await session2.close();
+// Released: $1.50 unused, available: $1.50
+
+// session1 is still open, budget correctly reflects both
+```
+
+### Orphan detection
+
+Sessions write two history entries: one at `open` (with `sessionStatus: "open"`) and one at `close` (with `sessionStatus: "closed"`). If a session opens but never closes (crash, timeout), the open entry without a matching close entry is detectable in payment history.
+
+## MCP Budget Enforcement
+
+When using `wrapMcpClient()`, the SDK intercepts payment challenges before credential creation. The challenge includes an `amount` field — the SDK converts it to USD and runs the standard budget check (per-transaction, daily, monthly) before allowing the credential to be created.
+
+If the budget check fails, a `BudgetExceededError` is thrown and the MCP call returns an error. No payment is made.
+
+```typescript
+const wrapped = agent.wrapMcpClient(mcpClient);
+
+// Budget check happens automatically before payment
+try {
+  await wrapped.callTool({ name: "expensive_tool" });
+} catch (err) {
+  if (err instanceof BudgetExceededError) {
+    console.log("MCP payment blocked by budget");
+  }
+}
+```
 
 ## Configuration
 
@@ -102,4 +152,5 @@ If you create a `BoltzPay` instance without a `budget` config, **no spending lim
 ## Next Steps
 
 - [How It Works](/concepts/how-it-works) -- the full payment flow, including where budget checks fit in
+- [Sessions](/concepts/sessions) -- reservation lifecycle, streaming vouchers, and session receipts
 - [Configuration](/getting-started/configuration) -- all constructor options and environment variables

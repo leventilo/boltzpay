@@ -1,0 +1,149 @@
+---
+title: "Registry"
+description: "Live API endpoint registry at status.boltzpay.ai"
+---
+
+The BoltzPay Registry is a live index of paid API endpoints across x402, L402, and MPP protocols. It scans, scores, and indexes every endpoint every 6 hours using EWMA-weighted health scoring.
+
+## Overview
+
+| Metric | Value |
+|--------|-------|
+| Endpoints | 5,700+ |
+| Providers | 400+ |
+| Protocols | x402, L402, MPP |
+| Scan frequency | Every 6 hours |
+| Scoring | EWMA health-weighted (0-100) |
+
+Browse the registry at [status.boltzpay.ai](https://status.boltzpay.ai).
+
+## SDK Integration
+
+`discover()` queries the registry API. No static directory is bundled with the SDK.
+
+```typescript
+const entries = await agent.discover();
+
+for (const entry of entries) {
+  console.log(`${entry.name} — score: ${entry.score}, health: ${entry.health}`);
+  console.log(`  ${entry.url} (${entry.protocol ?? "unknown"})`);
+}
+```
+
+### Filters
+
+All filters are server-side — the registry handles filtering and pagination.
+
+```typescript
+// Filter by protocol
+const mppEndpoints = await agent.discover({ protocol: "mpp" });
+
+// Minimum trust score
+const trusted = await agent.discover({ minScore: 80 });
+
+// Search by name or URL
+const weather = await agent.discover({ query: "weather" });
+
+// Filter by category
+const crypto = await agent.discover({ category: "crypto-data" });
+
+// Combine filters
+const results = await agent.discover({
+  protocol: "x402",
+  minScore: 70,
+  category: "finance",
+  query: "stock",
+  limit: 50,
+});
+```
+
+### DiscoverOptions
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `protocol` | `string` | — | Filter by protocol: `"x402"`, `"l402"`, `"mpp"` |
+| `minScore` | `number` | — | Minimum trust score (0-100) |
+| `category` | `string` | — | Filter by category |
+| `query` | `string` | — | Free-text search (name, URL, description) |
+| `limit` | `number` | `200` | Max results per page |
+| `offset` | `number` | `0` | Pagination offset |
+| `signal` | `AbortSignal` | — | Abort signal for cancellation |
+
+### DiscoveredEntry
+
+Each entry returned by `discover()`:
+
+```typescript
+interface DiscoveredEntry {
+  readonly slug: string;
+  readonly name: string;
+  readonly url: string;
+  readonly protocol: string | undefined;
+  readonly score: number;       // 0-100, EWMA health-weighted
+  readonly health: string;      // "healthy", "degraded", "dead"
+  readonly category: string;
+  readonly isPaid: boolean;
+  readonly badge: "new" | "established" | null;
+}
+```
+
+## CLI
+
+```bash
+# Browse all endpoints
+boltzpay discover
+
+# Filter by protocol and minimum score
+boltzpay discover --protocol mpp --min-score 70
+
+# Search
+boltzpay discover --query "weather"
+
+# JSON output
+boltzpay --json discover --protocol x402 --category crypto-data
+```
+
+## MCP Tool
+
+The `boltzpay_discover` MCP tool exposes the same filters:
+
+```json
+{
+  "name": "boltzpay_discover",
+  "arguments": {
+    "protocol": "x402",
+    "minScore": 70,
+    "query": "crypto"
+  }
+}
+```
+
+## Custom Registry URL
+
+Point the SDK at a self-hosted or staging registry:
+
+```typescript
+const agent = new BoltzPay({
+  registryUrl: "https://my-registry.example.com",
+});
+```
+
+Default: `https://status.boltzpay.ai`
+
+## Scoring
+
+Each endpoint receives a trust score from 0 to 100 based on:
+
+- **Availability** -- uptime over the last 30 days (EWMA-weighted)
+- **Response time** -- latency consistency
+- **Protocol compliance** -- correct 402 response format
+- **Price stability** -- consistent pricing across scans
+- **Multi-source verification** -- confirmation from multiple independent sources (capped bonus)
+
+Dead endpoints with no history score 0. New endpoints start with an optimistic cold-start score that converges as data accumulates.
+
+## Next Steps
+
+- [Configuration](/getting-started/configuration#registry-url) -- custom registry URL
+- [SDK API Reference](/reference/sdk-api) -- `discover()` method signature
+- [CLI](/guides/cli) -- `discover` command flags

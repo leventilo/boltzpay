@@ -15,7 +15,7 @@ const agent = new BoltzPay({});
 // Check what this instance can do
 const caps = agent.getCapabilities();
 console.log("Can pay:", caps.canPay);     // false (no keys)
-console.log("Protocols:", caps.protocols); // ["x402"]
+console.log("Protocols:", caps.protocols); // ["x402", "mpp"]
 ```
 
 ### Get a price quote
@@ -41,19 +41,27 @@ if (quote.allAccepts && quote.allAccepts.length > 1) {
 }
 ```
 
-### Discover compatible APIs
+### Discover APIs from the registry
 
-Browse the built-in directory of verified endpoints:
+Browse scored and indexed endpoints from the BoltzPay registry:
 
 ```typescript
 const entries = await agent.discover();
 
 for (const entry of entries) {
-  console.log(`${entry.name} — ${entry.url}`);
-  if (entry.live.status === "live") {
-    console.log(`  Price: ${entry.live.livePrice} via ${entry.live.protocol}`);
-  }
+  console.log(`${entry.name} (score: ${entry.score})`);
+  console.log(`  ${entry.url} — ${entry.protocol ?? "unknown"}`);
 }
+```
+
+Filter by protocol, minimum score, or keyword:
+
+```typescript
+const mppApis = await agent.discover({
+  protocol: "mpp",
+  minScore: 70,
+  query: "weather",
+});
 ```
 
 ## Step 2: Payment Mode (x402 — USDC)
@@ -97,6 +105,10 @@ console.log("Paid:", response.payment?.amount.toDisplayString()); // "3 sats"
 
 <Tip>
   Get your NWC connection string for free from [Coinos](https://coinos.io), [Primal](https://primal.net), or any [NWC-compatible wallet](https://nwc.dev). See [Installation](/getting-started/installation#nwc-optional-for-l402-protocol) for details.
+</Tip>
+
+<Tip>
+  For MPP wallets (Tempo, Stripe), see [Configuration](/getting-started/configuration#wallets).
 </Tip>
 
 ## Step 3: Read the Response
@@ -172,5 +184,7 @@ npx @boltzpay/cli quote https://invy.bot/api
 ## Next Steps
 
 - [Configuration](/getting-started/configuration) - all constructor options, budget settings, environment variables
+- [Registry](/concepts/registry) - how the registry scores and indexes paid APIs
+- [Sessions](/concepts/sessions) - persistent payment sessions and channels
 - [Claude Desktop](/guides/mcp-claude-desktop) - give Claude the ability to pay for APIs
 - [CLI Reference](/guides/cli) - terminal commands and Python bridge

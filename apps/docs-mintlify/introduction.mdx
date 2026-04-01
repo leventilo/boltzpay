@@ -1,16 +1,22 @@
 ---
 title: BoltzPay
-description: Open-source SDK that gives AI agents a fetch() that pays.
+description: "Open-source SDK that gives AI agents a fetch() that pays — x402, L402, and MPP."
 ---
 
-BoltzPay is an open-source TypeScript SDK that lets AI agents pay for API data automatically. One `fetch()` call handles protocol detection, payment signing, and settlement. Your agent gets the data, the server gets paid.
+BoltzPay is an open-source TypeScript SDK that lets AI agents pay for API data automatically. One `fetch()` call handles detection of three protocols — x402, L402, and MPP — signs the payment, and returns data. Your agent gets the response, the server gets paid. Browse thousands of scored endpoints on the [BoltzPay Registry](https://status.boltzpay.ai).
 
 <CardGroup cols={2}>
   <Card title="SDK" icon="code" href="/getting-started/installation">
-    Drop-in `fetch()` replacement. Detects paid endpoints, signs transactions, returns data.
+    Drop-in `fetch()` replacement. Detects x402, L402, and MPP endpoints, signs payments, returns data.
+  </Card>
+  <Card title="Sessions" icon="arrows-rotate" href="/concepts/sessions">
+    `openSession()` for streaming MPP endpoints with payment channels. Per-voucher budget enforcement.
   </Card>
   <Card title="Claude Desktop" icon="message-bot" href="/guides/mcp-claude-desktop">
-    7 MCP tools for discovering, quoting, diagnosing, and paying for APIs, through natural language.
+    MCP tools for discovering, quoting, diagnosing, and paying for APIs through natural language.
+  </Card>
+  <Card title="Registry" icon="chart-bar" href="/concepts/registry">
+    Browse 5,700+ scored endpoints from status.boltzpay.ai. Filter by protocol, score, category.
   </Card>
   <Card title="CLI & Python" icon="terminal" href="/guides/cli">
     Check prices, discover APIs, and fetch paid data from your terminal or Python code.
@@ -19,6 +25,6 @@ BoltzPay is an open-source TypeScript SDK that lets AI agents pay for API data a
     Vercel AI SDK, LangChain, CrewAI, n8n. Add BoltzPay tools in a few lines.
   </Card>
   <Card title="Your Keys" icon="key">
-    Non-custodial. Your Coinbase or NWC credentials stay on your machine. No middleman.
+    Non-custodial. Coinbase, NWC, Tempo, or Stripe credentials stay on your machine.
   </Card>
 </CardGroup>

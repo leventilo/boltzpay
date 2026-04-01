@@ -52,7 +52,7 @@ The BoltzPay MCP server gives Claude 7 tools for discovering, quoting, diagnosin
 
 ## Enable Payments
 
-To let Claude actually pay for API data, add your Coinbase Developer Platform keys:
+To let Claude actually pay for API data, add your credentials:
 
 ```json
 {
@@ -64,6 +64,7 @@ To let Claude actually pay for API data, add your Coinbase Developer Platform ke
         "COINBASE_API_KEY_ID": "your-key-id",
         "COINBASE_API_KEY_SECRET": "your-key-secret",
         "COINBASE_WALLET_SECRET": "your-wallet-secret",
+        "TEMPO_PRIVATE_KEY": "0x...",
         "BOLTZPAY_DAILY_BUDGET": "5.00"
       }
     }
@@ -83,15 +84,15 @@ To let Claude actually pay for API data, add your Coinbase Developer Platform ke
 
 Not every tool needs keys. Only `boltzpay_fetch` requires credentials to make payments:
 
-| Tool | Coinbase keys | NWC string |
-|------|:---:|:---:|
-| `boltzpay_fetch` | Required (x402) | For L402 only |
-| `boltzpay_quote` | — | — |
-| `boltzpay_discover` | — | — |
-| `boltzpay_budget` | — | — |
-| `boltzpay_history` | — | — |
-| `boltzpay_wallet` | — | — |
-| `boltzpay_diagnose` | — | — |
+| Tool | Coinbase keys | NWC string | Tempo/Stripe key |
+|------|:---:|:---:|:---:|
+| `boltzpay_fetch` | For x402 | For L402 | For MPP |
+| `boltzpay_quote` | — | — | — |
+| `boltzpay_discover` | — | — | — |
+| `boltzpay_budget` | — | — | — |
+| `boltzpay_history` | — | — | — |
+| `boltzpay_wallet` | — | — | — |
+| `boltzpay_diagnose` | — | — | — |
 
 ## Budget Control
 
@@ -109,7 +110,7 @@ See [Configuration](/getting-started/configuration) for all environment variable
 
 ### boltzpay_fetch
 
-Fetch data from a paid API. Automatically detects the payment protocol (x402 or L402), pays the required amount, and returns the response.
+Fetch data from a paid API. Automatically detects the payment protocol (x402, L402, or MPP), pays the required amount, and returns the response.
 
 | Parameter | Type | Required | Description |
 |-----------|------|:---:|-------------|
@@ -169,34 +170,30 @@ Free endpoints return a plain text response: `This endpoint does not require pay
 
 ### boltzpay_discover
 
-Browse a directory of known paid API endpoints. Each endpoint is probed in real-time to verify availability and current pricing.
+Browse paid API endpoints from the BoltzPay registry with filtering by protocol, score, and category.
 
 | Parameter | Type | Required | Description |
 |-----------|------|:---:|-------------|
-| `category` | `string` | No | Filter: `crypto-data`, `finance`, `research`, `utilities`, `dev-tools`, `ai-tools`, `social`, `demo`, `media` |
+| `category` | `string` | No | Filter by category |
+| `protocol` | `string` | No | Filter by protocol (`x402`, `l402`, `mpp`) |
+| `minScore` | `number` | No | Minimum trust score (0-100) |
+| `query` | `string` | No | Search by name or URL |
 
 ```json title="Output"
 [
   {
+    "slug": "invy-token-holdings",
     "name": "Invy — Token Holdings",
     "url": "https://invy.bot/api",
+    "protocol": "x402",
+    "score": 85,
+    "health": "healthy",
     "category": "crypto-data",
-    "status": "live",
-    "price": "$0.05",
-    "detectedProtocol": "x402",
-    "network": "eip155:8453"
+    "isPaid": true,
+    "badge": "established"
   }
 ]
 ```
-
-Each entry has one of four statuses:
-
-| Status | Meaning |
-|--------|---------|
-| `live` | Online, price verified |
-| `free` | Online, no payment protocol detected |
-| `offline` | Unreachable or timed out |
-| `error` | Probing encountered an unexpected error |
 
 ---
 
@@ -330,11 +327,17 @@ All tools return structured errors with `isError: true`. The format is consisten
 | `COINBASE_API_KEY_SECRET` | CDP API key secret | — |
 | `COINBASE_WALLET_SECRET` | CDP wallet secret | — |
 | `NWC_CONNECTION_STRING` | Enables L402 protocol (Lightning) | — |
+| `TEMPO_PRIVATE_KEY` | Tempo wallet private key (enables MPP) | — |
+| `STRIPE_SECRET_KEY` | Stripe secret key (enables Stripe MPP) | — |
 | `BOLTZPAY_DAILY_BUDGET` | Daily spending cap in USD | No limit |
 | `BOLTZPAY_MONTHLY_BUDGET` | Monthly spending cap in USD | No limit |
 | `BOLTZPAY_PER_TRANSACTION` | Per-request spending cap in USD | No limit |
 | `BOLTZPAY_NETWORK` | `base` or `base-sepolia` | `base` |
 | `BOLTZPAY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` | `warn` |
+
+## MCP Transport (Outgoing Payments)
+
+To pay **other** MCP servers that require payment, use `wrapMcpClient()` in your code. This is separate from the BoltzPay MCP server. See the [MCP Transport guide](/guides/mcp-transport).
 
 ## Troubleshooting
 

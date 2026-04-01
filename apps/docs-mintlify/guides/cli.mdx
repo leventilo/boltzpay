@@ -137,7 +137,7 @@ Prints `This endpoint is free (no payment required)` for free endpoints.
 
 ### `discover`
 
-Browse compatible paid API endpoints. Each entry is probed in real-time for live status.
+Browse paid API endpoints from the BoltzPay registry. Supports filtering by protocol, score, category, and free-text search.
 
 ```bash
 boltzpay discover [options]
@@ -146,23 +146,23 @@ boltzpay discover [options]
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--category <category>` | `-c` | `string` | Filter by category |
-
-Available categories: `crypto-data`, `finance`, `research`, `utilities`, `dev-tools`, `ai-tools`, `social`, `demo`, `media`.
+| `--protocol <protocol>` | `-p` | `string` | Filter by protocol (`x402`, `l402`, `mpp`) |
+| `--min-score <score>` | | `number` | Minimum trust score (0-100) |
+| `--query <query>` | `-q` | `string` | Search by name, URL, or description |
 
 **Human output:**
 
 ```
-$ boltzpay discover -c crypto-data
+$ boltzpay discover --protocol x402 --min-score 70
 
-Compatible Paid API Endpoints
+BoltzPay Registry — Paid API Endpoints
 
-  Invy — Token Holdings [LIVE] (x402)
+  Invy — Token Holdings (score: 85)
     Token holdings lookup across Base, Ethereum, and Solana
     URL:   https://invy.bot/api
-    Price: $0.05
-    Category: crypto-data
+    Protocol: x402 | Category: crypto-data
 
-4 endpoint(s): 3 live, 1 offline
+12 endpoint(s) matching filters
 ```
 
 **JSON output** (`data` is an array of entries):
@@ -170,14 +170,15 @@ Compatible Paid API Endpoints
 ```json
 [
   {
+    "slug": "invy-token-holdings",
     "name": "Invy — Token Holdings",
     "url": "https://invy.bot/api",
     "protocol": "x402",
+    "score": 85,
+    "health": "healthy",
     "category": "crypto-data",
-    "status": "live",
-    "price": "$0.05",
-    "isPriceVerified": true,
-    "network": "eip155:8453"
+    "isPaid": true,
+    "badge": "established"
   }
 ]
 ```
@@ -485,6 +486,8 @@ The CLI reads configuration from environment variables. A `.env` file in your wo
 | `BOLTZPAY_DAILY_BUDGET` | No | Daily spending limit in USD |
 | `BOLTZPAY_MONTHLY_BUDGET` | No | Monthly spending limit in USD |
 | `BOLTZPAY_PER_TRANSACTION` | No | Per-transaction limit in USD |
+| `TEMPO_PRIVATE_KEY` | No | Tempo wallet private key (enables MPP) |
+| `STRIPE_SECRET_KEY` | No | Stripe secret key (enables Stripe MPP) |
 
 <Info>
   Read-only commands (`quote`, `discover`, `diagnose`, `budget`, `history`, `wallet`) work without Coinbase credentials. Only `fetch` requires them. See [Configuration](/getting-started/configuration) for constructor options, `.env` examples, and budget details.

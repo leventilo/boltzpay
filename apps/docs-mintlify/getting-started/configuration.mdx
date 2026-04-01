@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Constructor options, budget, events, chains, and environment variables.
+description: Constructor options, wallets, budget, events, sessions, chains, and environment variables.
 ---
 
 ## Constructor Options
@@ -21,11 +21,23 @@ All options are optional. An empty `{}` creates a read-only instance (explore mo
 | `coinbaseApiKeySecret` | `string` | — | Coinbase CDP API key secret. Required for payments. |
 | `coinbaseWalletSecret` | `string` | — | Coinbase CDP wallet secret. Required for payments. |
 | `nwcConnectionString` | `string` | — | NWC connection string (`nostr+walletconnect://...`). Enables L402 protocol. |
+| `wallets` | `WalletConfig[]` | — | Multi-wallet configuration. See [Wallets](#wallets). |
+| `mppPreferredMethods` | `string[]` | — | Preferred MPP method order (e.g. `["tempo", "stripe"]`). |
+| `registryUrl` | `string` | `"https://status.boltzpay.ai"` | Registry API base URL. |
+| `sessionMaxDeposit` | `string \| number` | — | Max deposit per session in USD. |
 | `network` | `"base" \| "base-sepolia"` | `"base"` | Blockchain network. Use `base-sepolia` for testing. |
 | `preferredChains` | `("evm" \| "svm")[]` | — | Chain preference when endpoint accepts multiple chains. |
 | `budget` | `BudgetConfig` | — | Spending limits. See [Budget](#budget). |
 | `persistence` | `{ enabled?: boolean; directory?: string; historyMaxRecords?: number }` | — | Persist budget and history to disk. See [Budget](#budget). |
+| `storage` | `"file" \| "memory" \| StorageAdapter` | — | Storage backend for budget and history. |
 | `logLevel` | `"debug" \| "info" \| "warn" \| "error" \| "silent"` | `"warn"` | SDK log verbosity. |
+| `logFormat` | `"text" \| "json"` | `"text"` | Log output format. JSON sanitizes sensitive fields. |
+| `maxAmountPerRequest` | `string \| number` | — | Global per-request payment cap. |
+| `allowlist` | `string[]` | — | Only pay endpoints matching these URL patterns. |
+| `blocklist` | `string[]` | — | Never pay endpoints matching these URL patterns. |
+| `retry` | `RetryConfig` | — | Retry policy for transient failures. |
+| `rateLimit` | `RateLimitConfig` | — | Rate limiting for outgoing requests. |
+| `timeouts` | `TimeoutConfig` | See below | Per-phase timeouts. |
 
 ## Credentials
 
@@ -59,6 +71,78 @@ const agent = new BoltzPay({
 <Info>
   The NWC connection string must start with `nostr+walletconnect://`. Get one for free from [Coinos](https://coinos.io), [Primal](https://primal.net), or any wallet listed on [nwc.dev](https://nwc.dev). See [Installation](/getting-started/installation#nwc-optional-for-l402-protocol) for step-by-step instructions.
 </Info>
+
+## Wallets
+
+The `wallets` array configures multiple payment methods. Each wallet targets a specific protocol. The SDK selects the appropriate wallet based on endpoint protocol detection.
+
+```typescript
+const agent = new BoltzPay({
+  wallets: [
+    {
+      type: "coinbase",
+      name: "main",
+      coinbaseApiKeyId: process.env.COINBASE_API_KEY_ID!,
+      coinbaseApiKeySecret: process.env.COINBASE_API_KEY_SECRET!,
+      coinbaseWalletSecret: process.env.COINBASE_WALLET_SECRET!,
+    },
+    {
+      type: "nwc",
+      name: "lightning",
+      nwcConnectionString: process.env.NWC_CONNECTION_STRING!,
+    },
+    {
+      type: "tempo",
+      name: "tempo-main",
+      tempoPrivateKey: process.env.TEMPO_PRIVATE_KEY!,
+    },
+    {
+      type: "stripe-mpp",
+      name: "stripe",
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY!,
+    },
+    {
+      type: "visa-mpp",
+      name: "visa",
+      visaJwe: process.env.VISA_JWE!,
+    },
+  ],
+});
+```
+
+| Type | Protocol | Required field | Description |
+|------|----------|---------------|-------------|
+| `coinbase` | x402 | `coinbaseApiKeyId`, `coinbaseApiKeySecret`, `coinbaseWalletSecret` | USDC on Base via Coinbase CDP |
+| `nwc` | L402 | `nwcConnectionString` | Bitcoin Lightning via NWC |
+| `tempo` | MPP | `tempoPrivateKey` | Payment channels via Tempo network |
+| `stripe-mpp` | MPP | `stripeSecretKey` | MPP via Stripe |
+| `visa-mpp` | MPP | `visaJwe` | MPP via Visa |
+
+<Note>
+  Legacy flat credentials (`coinbaseApiKeyId`, `nwcConnectionString` at root level) still work for backward compatibility. The `wallets` array is preferred for new integrations.
+</Note>
+
+## Registry URL
+
+The registry is the source of truth for `discover()`. Points to the BoltzPay registry by default.
+
+```typescript
+const agent = new BoltzPay({
+  registryUrl: "https://my-registry.example.com", // default: https://status.boltzpay.ai
+});
+```
+
+## Session Deposit
+
+Cap the maximum deposit per payment session. Useful for controlling exposure on long-running agents.
+
+```typescript
+const agent = new BoltzPay({
+  sessionMaxDeposit: "5.00", // Cap session deposits at $5
+});
+```
+
+Actual deposit = `min(available budget, sessionMaxDeposit, user-provided maxDeposit)`. Defaults to $10 if no constraints are set.
 
 ## Budget
 
@@ -157,7 +241,7 @@ Resets the daily counter to zero. The monthly counter is not affected. Useful if
 
 ## Events
 
-Subscribe with `agent.on(event, listener)`. Four event types are available.
+Subscribe with `agent.on(event, listener)`. Nine event types are available.
 
 ### `payment`
 
@@ -213,6 +297,56 @@ Emitted on any error during payment (budget exceeded, protocol error, network er
 ```typescript
 agent.on("error", (error) => {
   console.log(error.name, error.message);
+});
+```
+
+### `session:open`
+
+Emitted when a payment session channel is opened.
+
+```typescript
+agent.on("session:open", (event) => {
+  console.log(`Session opened: channel ${event.channelId}, deposit ${event.depositAmount.toDisplayString()}`);
+});
+```
+
+### `session:voucher`
+
+Emitted when a voucher is issued within a session.
+
+```typescript
+agent.on("session:voucher", (event) => {
+  console.log(`Voucher #${event.index}: ${event.cumulativeAmount} (channel ${event.channelId})`);
+});
+```
+
+### `session:close`
+
+Emitted when a session is closed and the channel is settled.
+
+```typescript
+agent.on("session:close", (event) => {
+  console.log(`Session closed: spent ${event.totalSpent}, refunded ${event.refunded}`);
+});
+```
+
+### `session:error`
+
+Emitted on session-level errors (channel failures, deposit errors).
+
+```typescript
+agent.on("session:error", (event) => {
+  console.error(`Session error: ${event.error.message}`);
+});
+```
+
+### `mcp:payment`
+
+Emitted when a payment is triggered by an MCP tool call.
+
+```typescript
+agent.on("mcp:payment", (event) => {
+  console.log(`MCP payment: tool ${event.toolName}, amount ${event.amount.toDisplayString()}`);
 });
 ```
 
@@ -326,6 +460,26 @@ const agent = new BoltzPay({
 | `"error"` | Only errors. |
 | `"silent"` | No output. |
 
+## Timeouts
+
+Configure per-phase timeouts for protocol detection, quoting, and payment execution.
+
+```typescript
+const agent = new BoltzPay({
+  timeouts: {
+    detect: 10_000,  // Protocol detection (ms)
+    quote: 15_000,   // Price quote (ms)
+    payment: 30_000, // Payment execution (ms)
+  },
+});
+```
+
+| Phase | Default | Description |
+|-------|---------|-------------|
+| `detect` | `10000` | Protocol detection timeout in milliseconds. |
+| `quote` | `15000` | Price quote timeout in milliseconds. |
+| `payment` | `30000` | Payment execution timeout in milliseconds. |
+
 ## Environment Variables
 
 The CLI and MCP server read configuration from environment variables. The SDK constructor does not read env vars automatically. You pass them explicitly.
@@ -336,6 +490,8 @@ The CLI and MCP server read configuration from environment variables. The SDK co
 | `COINBASE_API_KEY_SECRET` | CLI, MCP | Coinbase CDP API key secret. |
 | `COINBASE_WALLET_SECRET` | CLI, MCP | Coinbase CDP wallet secret. |
 | `NWC_CONNECTION_STRING` | CLI, MCP | NWC connection string. Enables L402 protocol. |
+| `TEMPO_PRIVATE_KEY` | CLI, MCP | Tempo wallet private key (hex). Enables MPP. |
+| `STRIPE_SECRET_KEY` | CLI, MCP | Stripe secret key. Enables Stripe MPP. |
 | `BOLTZPAY_NETWORK` | CLI, MCP | Network selection: `base` or `base-sepolia`. |
 | `BOLTZPAY_LOG_LEVEL` | CLI, MCP | Log level: `debug`, `info`, `warn`, `error`, `silent`. |
 | `BOLTZPAY_DAILY_BUDGET` | CLI, MCP | Daily spending limit in USD (e.g., `5.00`). |
@@ -352,6 +508,11 @@ COINBASE_WALLET_SECRET=your-wallet-secret
 
 # Optional — enables L402 (Lightning) protocol
 NWC_CONNECTION_STRING=nostr+walletconnect://...
+
+# Optional — enables MPP protocols
+TEMPO_PRIVATE_KEY=your-tempo-private-key
+STRIPE_SECRET_KEY=sk_live_...
+
 BOLTZPAY_NETWORK=base
 BOLTZPAY_LOG_LEVEL=warn
 BOLTZPAY_DAILY_BUDGET=5.00

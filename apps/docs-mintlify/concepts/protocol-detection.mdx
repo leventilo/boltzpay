@@ -1,9 +1,9 @@
 ---
 title: "Protocol Detection"
-description: "How BoltzPay detects x402, L402, and hybrid payment formats"
+description: "How BoltzPay detects MPP, x402, L402, and hybrid payment formats"
 ---
 
-When a server returns `402 Payment Required`, it can encode payment information in several different ways. BoltzPay runs two protocol adapters **in parallel** (`Promise.allSettled`): X402Adapter and L402Adapter. Each adapter has its own detection logic, and the first successful match is used.
+When a server returns `402 Payment Required`, it can encode payment information in several different ways. BoltzPay runs three protocol adapters **in parallel** (`Promise.allSettled`): MppAdapter, X402Adapter, and L402Adapter. Adapter priority: MPP > x402 > L402. When multiple protocols are detected, the SDK prefers MPP (IETF track), then x402 (USDC on-chain), then L402 (Lightning). If the preferred protocol's wallet is not configured, the SDK falls back silently to the next available protocol.
 
 ## Parallel Detection
 
@@ -11,8 +11,13 @@ When a server returns `402 Payment Required`, it can encode payment information 
 flowchart TD
     Start["Response: 402 Payment Required"] --> Par["Parallel detection<br/>(Promise.allSettled)"]
 
+    Par --> MPP["MppAdapter.detect()"]
     Par --> X402["X402Adapter.detect()"]
     Par --> L402A["L402Adapter.detect()"]
+
+    MPP --> MPPWWW{"WWW-Authenticate<br/>contains MPP scheme?"}
+    MPPWWW -- Yes --> MPPDone["MPP detected<br/>(payment channels)"]
+    MPPWWW -- No --> MPPFail["No MPP found"]
 
     X402 --> H1{"PAYMENT-REQUIRED<br/>header present?"}
 
@@ -36,11 +41,13 @@ flowchart TD
     L402WWW -- Yes --> L402Done["L402 detected<br/>(macaroon + invoice)"]
     L402WWW -- No --> L402Fail["No L402 found"]
 
+    MPPFail --> Pass
     X402Fail --> Pass
     L402Fail --> Pass
-    Pass{"Both adapters<br/>failed?"}
+    Pass{"All adapters<br/>failed?"}
     Pass -- Yes --> Passthrough["Passthrough<br/>(regular 402)"]
 
+    style MPPDone fill:#365314,stroke:#84cc16,color:#fff
     style Done fill:#365314,stroke:#84cc16,color:#fff
     style Hybrid fill:#365314,stroke:#84cc16,color:#fff
     style WWWx402 fill:#365314,stroke:#84cc16,color:#fff
@@ -51,7 +58,17 @@ flowchart TD
 
 ## How It Works
 
-The SDK launches both adapters in parallel via `Promise.allSettled()` in the protocol router. Each adapter independently probes the URL, inspects the 402 response, and reports whether it can handle it.
+The SDK launches all three adapters in parallel via `Promise.allSettled()` in the protocol router. Each adapter independently probes the URL, inspects the 402 response, and reports whether it can handle it.
+
+### MppAdapter Detection
+
+The MppAdapter checks the `WWW-Authenticate` header for an MPP scheme. MPP uses challenge-response authentication with payment methods (Tempo, Stripe, Visa).
+
+```
+WWW-Authenticate: MPP method="tempo" amount="1000000" ...  --> MPP
+```
+
+The adapter parses all MPP challenges and selects the best method based on configured wallets and the `mppPreferredMethods` config.
 
 ### X402Adapter Detection
 
@@ -87,12 +104,13 @@ WWW-Authenticate: LSAT macaroon="..." invoice="lnbc.." --> LSAT (legacy)
 
 ### Passthrough
 
-If neither adapter detects a supported protocol, the SDK treats the response as a regular HTTP 402. No payment is attempted, and the original response is returned to the caller.
+If no adapter detects a supported protocol, the SDK treats the response as a regular HTTP 402. No payment is attempted, and the original response is returned to the caller.
 
 ## Supported Formats
 
 | Format | Adapter | Location | Example Server |
 |--------|---------|----------|----------------|
+| MPP | MppAdapter | `WWW-Authenticate` header | mpp.dev endpoints |
 | x402 V2 | X402Adapter | `PAYMENT-REQUIRED` header | invy.bot, polymarket |
 | x402 V1-in-V2 | X402Adapter | `PAYMENT-REQUIRED` header (V1 payload inside) | emc2ai |
 | x402 via WWW-Auth | X402Adapter | `WWW-Authenticate` header | 402payment-test |
@@ -101,7 +119,21 @@ If neither adapter detects a supported protocol, the SDK treats the response as 
 
 ## Why Parallel?
 
-The x402 ecosystem is young. Servers implement different spec versions and sometimes mix formats. By running both adapters in parallel, BoltzPay maximizes compatibility and speed without requiring any configuration from the user. Your agent calls `fetch()` and the SDK figures out the rest.
+The x402 ecosystem is young. Servers implement different spec versions and sometimes mix formats. By running all three adapters in parallel, BoltzPay maximizes compatibility and speed without requiring any configuration from the user. Your agent calls `fetch()` and the SDK figures out the rest.
+
+## Wallet-Aware Fallback
+
+After detection, the SDK sorts results by priority (MPP > x402 > L402) and filters by configured wallets. If an endpoint supports both MPP and x402:
+
+- With a Tempo wallet configured: MPP is used
+- With only Coinbase credentials: x402 is used
+- With both: MPP is preferred (higher priority)
+- With neither: an actionable error lists detected protocols and required wallet types
+
+```
+Endpoint supports MPP (tempo, stripe) and x402 (coinbase).
+Configure at least one wallet.
+```
 
 ## Next Steps
 

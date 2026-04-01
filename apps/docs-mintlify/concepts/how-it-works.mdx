@@ -3,7 +3,7 @@ title: "How It Works"
 description: "The payment flow behind agent.fetch()"
 ---
 
-BoltzPay turns a single `fetch()` call into a complete payment flow. Your agent never touches wallets, protocols, or transaction signing directly. The SDK handles everything behind the scenes.
+BoltzPay turns a single `fetch()` call into a complete payment flow across x402, L402, and MPP protocols. Your agent never touches wallets, protocols, or transaction signing directly. The SDK handles everything behind the scenes.
 
 ## The Payment Flow
 
@@ -20,7 +20,7 @@ sequenceDiagram
     SDK->>Server: GET request (probe)
     Server-->>SDK: 402 Payment Required + payment info
 
-    Note over SDK: Detect protocol (x402 / L402 in parallel)
+    Note over SDK: Detect protocol (MPP / x402 / L402 in parallel)
     Note over SDK: Quote the price
     Note over SDK: Validate budget limits
 
@@ -39,7 +39,7 @@ sequenceDiagram
 
 1. **Probe** -- The SDK sends a regular GET request to the endpoint. If the server returns `200`, the response passes through as-is. No payment needed.
 
-2. **402 Detection** -- If the server returns `402 Payment Required`, the SDK runs X402Adapter and L402Adapter in parallel (`Promise.allSettled`) to determine which payment protocol is in use.
+2. **402 Detection** -- If the server returns `402 Payment Required`, the SDK runs MppAdapter, X402Adapter, and L402Adapter in parallel (`Promise.allSettled`) to determine which payment protocol is in use.
 
 3. **Quote** -- The SDK extracts the price, currency, network, and facilitator address from the 402 response. This is the same information you get from `agent.quote(url)`.
 
@@ -70,8 +70,88 @@ if (response.payment) {
 
 Free endpoints work identically. The SDK probes, sees a `200`, and returns the response. `response.payment` is `null`.
 
+## Session Flow
+
+For MPP endpoints that support streaming, use `openSession()` instead of `fetch()`. Sessions open a payment channel with a capped deposit, then let you make multiple requests and stream data with per-voucher micropayments.
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant SDK as BoltzPay SDK
+    participant Server as MPP Endpoint
+    participant Channel as Payment Channel
+
+    Agent->>SDK: openSession(url)
+    Note over SDK: Reserve deposit from budget
+    SDK->>Server: GET (triggers 402 challenge)
+    SDK->>Channel: Open channel (deposit)
+    Channel-->>SDK: Channel ID
+    SDK-->>Agent: BoltzPaySession
+
+    Agent->>SDK: session.stream(url)
+    SDK->>Server: GET (with session credential)
+    Server-->>SDK: SSE stream + voucher requests
+
+    loop Per data chunk
+        SDK-->>Agent: { type: "data", payload }
+    end
+    loop Per voucher
+        Channel-->>SDK: Voucher signed
+        SDK-->>Agent: { type: "payment", voucher }
+        Note over SDK: Check voucher against deposit cap
+    end
+
+    Agent->>SDK: session.close()
+    SDK->>Channel: Close channel
+    Note over SDK: Release unused deposit to budget
+    SDK-->>Agent: SessionReceipt
+```
+
+### Code Example
+
+```typescript
+const session = await agent.openSession("https://api.example.com/stream", {
+  maxDeposit: "2.00",
+});
+
+// Stream data with automatic micropayments
+for await (const event of session.stream("https://api.example.com/stream")) {
+  if (event.type === "data") {
+    console.log("Data:", event.payload);
+  } else {
+    console.log(`Voucher #${event.voucher.index}: ${event.voucher.cumulativeAmount}`);
+  }
+}
+
+const receipt = await session.close();
+console.log(`Total spent: ${receipt.totalSpent}, refunded: ${receipt.refunded}`);
+```
+
+## MCP Transport
+
+For AI agents that call third-party MCP servers requiring payment (error code `-32042`), use `wrapMcpClient()`. The wrapper intercepts payment challenges, checks budget, creates credentials, and retries the call automatically.
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+
+const mcpClient = new Client({ name: "my-agent", version: "1.0" });
+// ... connect to MCP server ...
+
+const wrapped = agent.wrapMcpClient(mcpClient);
+
+// Calls that require payment are handled transparently
+const result = await wrapped.callTool({ name: "expensive_tool", arguments: { query: "data" } });
+console.log(result.content);
+
+if (result.receipt) {
+  console.log(`Paid: ${result.receipt.method}:${result.receipt.reference}`);
+}
+```
+
 ## Next Steps
 
 - [Architecture](/concepts/architecture) -- how the SDK packages fit together
 - [Protocol Detection](/concepts/protocol-detection) -- how adapters identify x402, L402, and hybrid formats in parallel
 - [Budget & Safety](/concepts/budget-safety) -- spending limits and safety guarantees
+- [Sessions](/concepts/sessions) -- payment channels and streaming micropayments
+- [MCP Transport](/guides/mcp-transport) -- transparent payments for MCP tool calls

@@ -1,0 +1,162 @@
+---
+title: Registry API
+description: REST API reference for the BoltzPay endpoint registry.
+---
+
+The BoltzPay Registry provides a REST API for discovering and querying paid API endpoints. The SDK's `discover()` method is a thin client for this API.
+
+Base URL: `https://status.boltzpay.ai`
+
+---
+
+## List Endpoints
+
+```
+GET /api/endpoints
+```
+
+Returns a paginated list of scored endpoints.
+
+### Query Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `protocol` | `string` | — | Filter by protocol: `x402`, `l402`, `mpp` |
+| `min_score` | `number` | — | Minimum trust score (0-100) |
+| `category` | `string` | — | Filter by category |
+| `q` | `string` | — | Free-text search (name, URL, description) |
+| `limit` | `number` | `200` | Results per page (max 200) |
+| `offset` | `number` | `0` | Pagination offset |
+
+### Response
+
+```json
+{
+  "data": [
+    {
+      "slug": "invy-token-holdings",
+      "name": "Invy — Token Holdings",
+      "url": "https://invy.bot/api",
+      "protocol": "x402",
+      "score": 85,
+      "health": "healthy",
+      "category": "crypto-data",
+      "isPaid": true,
+      "badge": "established"
+    }
+  ],
+  "total": 5700,
+  "offset": 0,
+  "limit": 200,
+  "hasMore": true
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | `RegistryEndpoint[]` | Array of endpoint entries |
+| `total` | `number` | Total matching endpoints |
+| `offset` | `number` | Current offset |
+| `limit` | `number` | Page size |
+| `hasMore` | `boolean` | Whether more pages exist |
+
+### RegistryEndpoint
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `slug` | `string` | URL-safe unique identifier |
+| `name` | `string` | Human-readable endpoint name |
+| `url` | `string` | Endpoint URL |
+| `protocol` | `string \| undefined` | Detected protocol: `"x402"`, `"l402"`, `"mpp"` |
+| `score` | `number` | Trust score (0-100), EWMA health-weighted |
+| `health` | `string` | `"healthy"`, `"degraded"`, or `"dead"` |
+| `category` | `string` | Endpoint category |
+| `isPaid` | `boolean` | Whether payment is required |
+| `badge` | `"new" \| "established" \| null` | Trust badge |
+
+### Examples
+
+```bash
+# All endpoints
+curl https://status.boltzpay.ai/api/endpoints
+
+# MPP endpoints with score >= 70
+curl "https://status.boltzpay.ai/api/endpoints?protocol=mpp&min_score=70"
+
+# Search for weather APIs
+curl "https://status.boltzpay.ai/api/endpoints?q=weather"
+
+# Paginate
+curl "https://status.boltzpay.ai/api/endpoints?limit=50&offset=100"
+```
+
+---
+
+## SDK Usage
+
+The SDK wraps this API via `discover()`:
+
+```typescript
+import { BoltzPay } from "@boltzpay/sdk";
+
+const agent = new BoltzPay({});
+
+// All endpoints
+const all = await agent.discover();
+
+// With filters (maps to query params)
+const results = await agent.discover({
+  protocol: "x402",
+  minScore: 70,
+  category: "crypto-data",
+  query: "token",
+  limit: 50,
+});
+
+for (const entry of results) {
+  console.log(`${entry.name} — ${entry.url}`);
+  console.log(`  Score: ${entry.score}, Health: ${entry.health}`);
+}
+```
+
+### CLI
+
+```bash
+boltzpay discover --protocol mpp --min-score 70 --query weather
+boltzpay --json discover --category finance
+```
+
+### MCP
+
+```json
+{
+  "name": "boltzpay_discover",
+  "arguments": {
+    "protocol": "x402",
+    "minScore": 70,
+    "query": "crypto"
+  }
+}
+```
+
+---
+
+## Custom Registry
+
+Point the SDK at a different registry instance:
+
+```typescript
+const agent = new BoltzPay({
+  registryUrl: "https://my-registry.example.com",
+});
+```
+
+The API contract is the same. Default: `https://status.boltzpay.ai`.
+
+---
+
+## Browse
+
+Visit [status.boltzpay.ai](https://status.boltzpay.ai) to browse the registry with a web UI. Filter by protocol, category, and score. Each endpoint page shows detailed scoring breakdown, price history, and health timeline.

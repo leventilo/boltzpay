@@ -224,7 +224,7 @@ if (status.lightning?.balance) {
 
 #### `discover(options?)`
 
-Browse the built-in API directory with real-time endpoint probing. Each endpoint is checked live to verify availability and current pricing. Optionally merges live endpoints from the Bazaar Discovery API.
+Query the BoltzPay registry for paid API endpoints. Returns scored entries with health and protocol metadata. All filtering is server-side.
 
 ```ts
 async discover(options?: DiscoverOptions): Promise<readonly DiscoveredEntry[]>
@@ -232,7 +232,64 @@ async discover(options?: DiscoverOptions): Promise<readonly DiscoveredEntry[]>
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `options` | [`DiscoverOptions`](#discoveroptions) | No | Filter by category, toggle live discovery, pass an AbortSignal |
+| `options` | [`DiscoverOptions`](#discoveroptions) | No | Filter by protocol, score, category, query. See [DiscoverOptions](#discoveroptions). |
+
+---
+
+#### `openSession(url, options?)`
+
+Opens a streaming MPP session with a payment channel. Requires a Tempo wallet.
+
+```ts
+async openSession(url: string, options?: BoltzPaySessionOptions): Promise<BoltzPaySession>
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `url` | `string` | Yes | URL of the MPP endpoint |
+| `options` | [`BoltzPaySessionOptions`](#boltzpaysessionoptions) | No | Session options |
+
+**Returns:** [`BoltzPaySession`](#boltzpaysession)
+
+**Throws:** [`ProtocolError`](#protocolerror), `MppSessionBudgetError`, [`ConfigurationError`](#configurationerror)
+
+```ts
+const session = await sdk.openSession("https://api.example.com/stream", {
+  maxDeposit: "2.00",
+});
+
+for await (const event of session.stream("https://api.example.com/stream")) {
+  if (event.type === "data") console.log(event.payload);
+}
+
+const receipt = await session.close();
+```
+
+---
+
+#### `wrapMcpClient(client)`
+
+Wraps a standard MCP Client with automatic MPP payment handling for -32042 errors. Requires at least one MPP wallet (tempo or stripe-mpp).
+
+```ts
+wrapMcpClient(client: McpClientLike): WrappedMcpClient
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `client` | `McpClientLike` | Yes | MCP Client with `callTool()` method |
+
+**Returns:** [`WrappedMcpClient`](#wrappedmcpclient)
+
+**Throws:** [`ConfigurationError`](#configurationerror) if no MPP wallet is configured
+
+```ts
+const wrapped = sdk.wrapMcpClient(mcpClient);
+const result = await wrapped.callTool({ name: "tool", arguments: { q: "data" } });
+if (result.receipt) {
+  console.log(`Paid via ${result.receipt.method}`);
+}
+```
 
 ---
 
@@ -328,6 +385,18 @@ interface BoltzPayConfig {
     historyMaxRecords?: number;       // Default: 500
   };
   logLevel?: "debug" | "info" | "warn" | "error" | "silent"; // Default: "warn"
+  wallets?: WalletConfig[];
+  mppPreferredMethods?: string[];
+  registryUrl?: string;                // Default: "https://status.boltzpay.ai"
+  sessionMaxDeposit?: string | number;
+  storage?: "file" | "memory" | StorageAdapter;
+  logFormat?: "text" | "json";         // Default: "text"
+  maxAmountPerRequest?: string | number;
+  allowlist?: string[];
+  blocklist?: string[];
+  retry?: RetryConfig;
+  rateLimit?: RateLimitConfig;
+  timeouts?: TimeoutConfig;
 }
 ```
 
@@ -342,6 +411,18 @@ interface BoltzPayConfig {
 | `budget` | `BudgetConfig` | — | Spending limits |
 | `persistence` | `PersistenceConfig` | — | Enable history and budget persistence to disk |
 | `logLevel` | `string` | `"warn"` | Logging verbosity |
+| `wallets` | [`WalletConfig[]`](#walletconfig) | — | Wallet configurations for payments |
+| `mppPreferredMethods` | `string[]` | — | Preferred MPP payment methods |
+| `registryUrl` | `string` | `"https://status.boltzpay.ai"` | BoltzPay registry URL |
+| `sessionMaxDeposit` | `string \| number` | — | Default max deposit for MPP sessions |
+| `storage` | `"file" \| "memory" \| StorageAdapter` | — | Storage backend for persistence |
+| `logFormat` | `"text" \| "json"` | `"text"` | Log output format |
+| `maxAmountPerRequest` | `string \| number` | — | Global per-request spending cap |
+| `allowlist` | `string[]` | — | Only allow payments to these URLs |
+| `blocklist` | `string[]` | — | Block payments to these URLs |
+| `retry` | `RetryConfig` | — | Retry configuration for failed requests |
+| `rateLimit` | `RateLimitConfig` | — | Rate limiting configuration |
+| `timeouts` | `TimeoutConfig` | — | Timeout configuration |
 
 ### BudgetConfig
 
@@ -358,6 +439,29 @@ interface BudgetConfig {
 Budget amounts accept both string (`"10.50"`) and number (`10.50`) for convenience. Strings must match the pattern `^\d+(\.\d{1,2})?$`. The `warningThreshold` controls when the `budget:warning` event fires (e.g. `0.8` = 80% of the limit).
 
 The `satToUsdRate` converts L402 satoshi payments to USD for budget accounting. At the default rate of `0.001` (1 sat = $0.001, ~$100K/BTC), a 100-sat payment counts as $0.10 in the budget.
+
+---
+
+### WalletConfig
+
+```ts
+type WalletConfig =
+  | { type: "coinbase"; name: string; coinbaseApiKeyId: string; coinbaseApiKeySecret: string; coinbaseWalletSecret: string; networks?: string[] }
+  | { type: "nwc"; name: string; nwcConnectionString: string; networks?: string[] }
+  | { type: "tempo"; name: string; tempoPrivateKey: string; networks?: string[] }
+  | { type: "stripe-mpp"; name: string; stripeSecretKey: string; networks?: string[] }
+  | { type: "visa-mpp"; name: string; visaJwe: string; networks?: string[] };
+```
+
+| Type | Required Fields | Description |
+|------|----------------|-------------|
+| `"coinbase"` | `name`, `coinbaseApiKeyId`, `coinbaseApiKeySecret`, `coinbaseWalletSecret` | Coinbase CDP wallet for x402 payments |
+| `"nwc"` | `name`, `nwcConnectionString` | Nostr Wallet Connect for L402 payments |
+| `"tempo"` | `name`, `tempoPrivateKey` | Tempo wallet for MPP sessions |
+| `"stripe-mpp"` | `name`, `stripeSecretKey` | Stripe MPP wallet |
+| `"visa-mpp"` | `name`, `visaJwe` | Visa MPP wallet |
+
+All wallet types accept an optional `networks` array to restrict which networks they can be used on.
 
 ---
 
@@ -470,6 +574,9 @@ interface PaymentRecord {
   readonly txHash: string | undefined;
   readonly network: string | undefined;
   readonly durationMs?: number;       // Payment round-trip time
+  readonly sessionId?: string;        // Session ID for session payments
+  readonly sessionStatus?: string;    // "open" | "closed"
+  readonly transport?: string;        // "mcp" for MCP transport payments
 }
 ```
 
@@ -579,36 +686,148 @@ When no budget is configured, limits and remaining values are `undefined` and sp
 
 ```ts
 interface DiscoverOptions {
+  readonly protocol?: string;    // "x402", "l402", "mpp"
+  readonly minScore?: number;    // 0-100
   readonly category?: string;
+  readonly query?: string;       // Free-text search
+  readonly limit?: number;       // Default: 200
+  readonly offset?: number;      // Pagination offset
   readonly signal?: AbortSignal;
-  readonly enableLiveDiscovery?: boolean; // Default: true
 }
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `protocol` | `string` | — | Filter by protocol (`"x402"`, `"l402"`, `"mpp"`) |
+| `minScore` | `number` | — | Minimum score threshold (0-100) |
 | `category` | `string` | — | Filter by category (e.g. `"crypto-data"`, `"utilities"`) |
+| `query` | `string` | — | Free-text search |
+| `limit` | `number` | `200` | Maximum number of results |
+| `offset` | `number` | — | Pagination offset |
 | `signal` | `AbortSignal` | — | Abort signal for cancellation |
-| `enableLiveDiscovery` | `boolean` | `true` | Fetch live endpoints from Bazaar Discovery API and merge with static directory |
 
 ---
 
 ### DiscoveredEntry
 
 ```ts
-interface DiscoveredEntry extends ApiDirectoryEntry {
-  readonly live: DiscoverEntryStatus;
+interface DiscoveredEntry {
+  readonly slug: string;
+  readonly name: string;
+  readonly url: string;
+  readonly protocol: string | undefined;
+  readonly score: number;       // 0-100
+  readonly health: string;      // "healthy", "degraded", "dead"
+  readonly category: string;
+  readonly isPaid: boolean;
+  readonly badge: "new" | "established" | null;
 }
 ```
 
-Where `DiscoverEntryStatus` is:
+---
+
+### BoltzPaySession
 
 ```ts
-type DiscoverEntryStatus =
-  | { status: "live"; livePrice: string; protocol: string; network: string | undefined }
-  | { status: "free" }
-  | { status: "offline"; reason: string }
-  | { status: "error"; reason: string };
+class BoltzPaySession {
+  readonly channelId: string;
+  readonly spent: bigint;
+
+  async fetch(url: string, init?: RequestInit): Promise<Response>;
+  async *stream(url: string, init?: Record<string, unknown>): AsyncIterable<SessionEvent>;
+  async close(): Promise<SessionReceipt>;
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `fetch(url)` | Make a single request within the session |
+| `stream(url)` | Stream SSE data with per-voucher micropayments |
+| `close()` | Close the channel and release unused deposit |
+
+---
+
+### SessionEvent
+
+```ts
+type SessionEvent =
+  | { type: "data"; payload: string }
+  | { type: "payment"; voucher: VoucherInfo };
+```
+
+---
+
+### VoucherInfo
+
+```ts
+interface VoucherInfo {
+  channelId: string;
+  cumulativeAmount: bigint;
+  index: number;
+}
+```
+
+---
+
+### SessionReceipt
+
+```ts
+interface SessionReceipt {
+  channelId: string;
+  totalSpent: bigint;
+  refunded: bigint;
+  voucherCount: number;
+}
+```
+
+---
+
+### BoltzPaySessionOptions
+
+```ts
+interface BoltzPaySessionOptions {
+  maxDeposit?: number | string;  // Max deposit in USD
+  signal?: AbortSignal;
+}
+```
+
+---
+
+### WrappedMcpClient
+
+```ts
+interface WrappedMcpClient {
+  callTool(
+    params: { name: string; arguments?: Record<string, unknown> },
+    options?: unknown,
+  ): Promise<WrappedCallToolResult>;
+}
+```
+
+---
+
+### WrappedCallToolResult
+
+```ts
+interface WrappedCallToolResult {
+  content: unknown;
+  isError?: boolean;
+  _meta?: Record<string, unknown>;
+  receipt?: McpPaymentReceipt;
+}
+```
+
+---
+
+### McpPaymentReceipt
+
+```ts
+interface McpPaymentReceipt {
+  method: string;
+  status: string;
+  reference: string;
+  timestamp: string;
+}
 ```
 
 ---
@@ -683,6 +902,17 @@ interface BoltzPayEvents {
   "budget:warning": [BudgetWarningEvent];
   "budget:exceeded": [BudgetExceededEvent];
   error: [Error];
+  "retry:attempt": [RetryAttemptEvent];
+  "retry:exhausted": [RetryExhaustedEvent];
+  "payment:uncertain": [PaymentUncertainEvent];
+  "protocol:unsupported-scheme": [UnsupportedSchemeEvent];
+  "protocol:unsupported-network": [UnsupportedNetworkEvent];
+  "wallet:selected": [WalletSelectedEvent];
+  "session:open": [SessionOpenEvent];
+  "session:voucher": [SessionVoucherEvent];
+  "session:close": [SessionCloseEvent];
+  "session:error": [SessionErrorEvent];
+  "mcp:payment": [McpPaymentEvent];
 }
 ```
 
@@ -692,6 +922,15 @@ interface BoltzPayEvents {
 | `budget:warning` | [`BudgetWarningEvent`](#budgetwarningevent) | When spending crosses the warning threshold |
 | `budget:exceeded` | [`BudgetExceededEvent`](#budgetexceededevent) | When a transaction is rejected for exceeding a budget limit |
 | `error` | `Error` | On any SDK error (protocol, budget, network) |
+| `session:open` | `SessionOpenEvent` | Session opened |
+| `session:voucher` | `SessionVoucherEvent` | Voucher received during stream |
+| `session:close` | `SessionCloseEvent` | Session closed |
+| `session:error` | `SessionErrorEvent` | Session error |
+| `mcp:payment` | `McpPaymentEvent` | MCP tool payment completed |
+| `wallet:selected` | `WalletSelectedEvent` | Wallet chosen for payment |
+| `retry:attempt` | `RetryAttemptEvent` | Retry attempt started |
+| `retry:exhausted` | `RetryExhaustedEvent` | All retries exhausted |
+| `payment:uncertain` | `PaymentUncertainEvent` | Payment outcome uncertain |
 
 #### BudgetWarningEvent
 
@@ -770,43 +1009,6 @@ interface AcceptOption {
 
 ```ts
 export type { ProtocolType, WalletInfo } from '@boltzpay/core';
-```
-
----
-
-## API Directory exports
-
-The SDK exports the static API directory for programmatic access:
-
-```ts
-import {
-  API_DIRECTORY,
-  getDirectoryCategories,
-  filterDirectory,
-  toDiscoverJson,
-} from '@boltzpay/sdk';
-```
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `API_DIRECTORY` | `readonly ApiDirectoryEntry[]` | Full directory of verified endpoints |
-| `getDirectoryCategories()` | `() => string[]` | Get all distinct categories |
-| `filterDirectory(category?)` | `(category?: string) => readonly ApiDirectoryEntry[]` | Filter directory by category |
-| `toDiscoverJson(entry)` | `(entry: DiscoveredEntry) => DiscoverJsonEntry` | Convert a discovered entry to a JSON-serializable format |
-
-### ApiDirectoryEntry
-
-```ts
-interface ApiDirectoryEntry {
-  readonly name: string;
-  readonly url: string;
-  readonly protocol: string;
-  readonly category: string;
-  readonly description: string;
-  readonly pricing: string;
-  readonly chain?: string;
-  readonly status?: "live" | "testnet";
-}
 ```
 
 ---
@@ -933,5 +1135,5 @@ try {
 ## Constants
 
 ```ts
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 ```

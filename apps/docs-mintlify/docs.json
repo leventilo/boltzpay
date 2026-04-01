@@ -48,6 +48,10 @@
     {
       "source": "/",
       "destination": "/introduction"
+    },
+    {
+      "source": "/reference/api-directory",
+      "destination": "/reference/registry"
     }
   ],
   "navigation": {
@@ -70,6 +74,8 @@
               "concepts/how-it-works",
               "concepts/architecture",
               "concepts/protocol-detection",
+              "concepts/registry",
+              "concepts/sessions",
               "concepts/budget-safety"
             ]
           },
@@ -77,7 +83,8 @@
             "group": "Guides",
             "pages": [
               "guides/cli",
-              "guides/mcp-claude-desktop"
+              "guides/mcp-claude-desktop",
+              "guides/mcp-transport"
             ]
           },
           {
@@ -104,7 +111,7 @@
             "group": "API Reference",
             "pages": [
               "reference/sdk-api",
-              "reference/api-directory"
+              "reference/registry"
             ]
           }
         ]
@@ -127,7 +134,7 @@
   },
   "topbar": {
     "announcement": {
-      "content": "BoltzPay v0.2 is live — [Star us on GitHub](https://github.com/leventilo/boltzpay)",
+      "content": "BoltzPay v0.3 is live — MPP, Sessions, Registry — [Star us on GitHub](https://github.com/leventilo/boltzpay)",
       "dismissible": true,
       "background": "decorative"
     }
@@ -161,8 +168,8 @@
             "href": "/reference/sdk-api"
           },
           {
-            "label": "API Directory",
-            "href": "/reference/api-directory"
+            "label": "Registry",
+            "href": "/reference/registry"
           }
         ]
       },

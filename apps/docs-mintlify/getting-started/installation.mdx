@@ -77,7 +77,7 @@ Add it to your Claude Desktop config (`~/Library/Application Support/Claude/clau
 }
 ```
 
-This gives Claude 7 tools: `fetch`, `quote`, `diagnose`, `budget`, `history`, `discover`, and `wallet`.
+This gives Claude 7 tools: `fetch`, `quote`, `diagnose`, `budget`, `history`, `discover`, and `wallet`. The `discover` tool now supports protocol, score, and query filters to narrow results.
 
 ## CLI
 
@@ -106,7 +106,7 @@ Then use the `boltzpay` command directly:
 
 ```bash
 boltzpay quote https://invy.bot/api
-boltzpay discover
+boltzpay discover --protocol mpp --min-score 70
 boltzpay fetch https://invy.bot/api --json
 ```
 
@@ -138,6 +138,32 @@ BoltzPay uses Coinbase CDP to sign on-chain transactions (USDC on Base). You nee
 <Warning>
   Keep your secrets out of source code. Use a `.env` file or your platform's secret management.
 </Warning>
+
+### Tempo (MPP protocol)
+
+For MPP endpoints using the Tempo payment channel network. You need a private key (hex-encoded).
+
+```bash
+export TEMPO_PRIVATE_KEY="0x..."
+```
+
+Or in the SDK constructor via the `wallets` array:
+
+```typescript
+const agent = new BoltzPay({
+  wallets: [
+    {
+      type: "tempo",
+      name: "main",
+      tempoPrivateKey: process.env.TEMPO_PRIVATE_KEY!,
+    },
+  ],
+});
+```
+
+<Info>
+  Tempo wallets enable both one-shot MPP payments and streaming sessions via payment channels. See [Sessions](/concepts/sessions) for the streaming API.
+</Info>
 
 For the MCP server, pass credentials via the `env` block in your Claude Desktop config:
 
