@@ -124,7 +124,7 @@ All values are in USD. L402 payments in satoshis are converted to USD via `satTo
 ```typescript
 const budget = agent.getBudget();
 
-console.log("Per-tx limit:", budget.perTransaction?.toDisplayString());
+console.log("Per-tx limit:", budget.perTransactionLimit?.toDisplayString());
 console.log("Daily spent:", budget.dailySpent?.toDisplayString());
 console.log("Daily remaining:", budget.dailyRemaining?.toDisplayString());
 console.log("Monthly spent:", budget.monthlySpent?.toDisplayString());

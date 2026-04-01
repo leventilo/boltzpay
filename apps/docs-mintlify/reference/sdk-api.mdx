@@ -513,7 +513,7 @@ class BoltzPayResponse {
 | `status` | `number` | HTTP status code |
 | `headers` | `Record<string, string>` | Response headers |
 | `payment` | `PaymentDetails \| undefined` | Payment metadata, or `undefined` for free endpoints |
-| `protocol` | `string \| undefined` | Protocol used (`"x402"`, `"l402"`, or `undefined`) |
+| `protocol` | `string \| undefined` | Protocol used (`"x402"`, `"l402"`, `"mpp"`, or `undefined`) |
 | `json<T>()` | `Promise<T>` | Parse body as JSON |
 | `text()` | `Promise<string>` | Decode body as UTF-8 string |
 | `body` | `ReadableStream<Uint8Array> \| null` | Raw body as a ReadableStream |
@@ -632,7 +632,7 @@ interface DryRunResult {
   };
   readonly wallet?: {
     readonly name: string;
-    readonly type: "coinbase" | "nwc";
+    readonly type: string;  // "coinbase", "nwc", "tempo", "stripe-mpp", "visa-mpp"
   };
   readonly endpoint?: {
     readonly health: EndpointHealth;

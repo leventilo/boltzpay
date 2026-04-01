@@ -15,7 +15,7 @@ const agent = new BoltzPay({});
 // Check what this instance can do
 const caps = agent.getCapabilities();
 console.log("Can pay:", caps.canPay);     // false (no keys)
-console.log("Protocols:", caps.protocols); // ["x402", "mpp"]
+console.log("Protocols:", caps.protocols); // ["x402"]
 ```
 
 ### Get a price quote
@@ -100,7 +100,7 @@ const agent = new BoltzPay({
 // Same fetch() call — protocol is transparent
 const response = await agent.fetch("https://satsapi.dev/v1/price"); // L402, pays in sats
 const data = await response.json();
-console.log("Paid:", response.payment?.amount.toDisplayString()); // "3 sats"
+console.log("Paid:", response.payment?.amount.toDisplayString()); // "$0.003"
 ```
 
 <Tip>

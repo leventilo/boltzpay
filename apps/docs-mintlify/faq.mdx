@@ -11,11 +11,12 @@ description: Frequently asked questions about BoltzPay.
   </Accordion>
 
   <Accordion title="What protocols does BoltzPay support?">
-    Two protocols today:
+    Three protocols:
     - **x402** (Coinbase) — USDC on-chain payments via HTTP 402 status codes. Live on Base and Base Sepolia.
     - **L402** (Lightning Labs) — Bitcoin Lightning payments via HTTP 402 + L402 header. Uses an NWC (Nostr Wallet Connect) connection string.
+    - **MPP** — Micropayment Protocol for one-shot charges and streaming sessions via payment channels. Uses Tempo or Stripe wallets.
 
-    The SDK auto-detects which protocol each endpoint uses.
+    The SDK auto-detects which protocol each endpoint uses. Priority: MPP > x402 > L402.
   </Accordion>
 
   <Accordion title="Is BoltzPay free?">
@@ -23,7 +24,7 @@ description: Frequently asked questions about BoltzPay.
   </Accordion>
 
   <Accordion title="Is BoltzPay custodial?">
-    No. Your Coinbase CDP keys and NWC connection string stay on your machine. BoltzPay never touches, stores, or proxies your credentials. You sign your own transactions.
+    No. Your Coinbase CDP keys, NWC connection string, and Tempo/Stripe credentials stay on your machine. BoltzPay never touches, stores, or proxies your credentials. You sign your own transactions.
   </Accordion>
 </AccordionGroup>
 
@@ -45,7 +46,7 @@ description: Frequently asked questions about BoltzPay.
   </Accordion>
 
   <Accordion title="Can I test without spending real money?">
-    Yes. Set `network: "base-sepolia"` to use the Base Sepolia testnet with free test USDC. The [Nickel Joke](https://nickeljoke.vercel.app) endpoint is a testnet demo. You can also run the [local test server](/reference/registry) for fully offline testing.
+    Yes. Set `network: "base-sepolia"` to use the Base Sepolia testnet with free test USDC. The [Nickel Joke](https://nickeljoke.vercel.app) endpoint is a testnet demo. You can also run the local test server (`examples/test-server/`) for fully offline testing.
   </Accordion>
 
   <Accordion title="How do budget limits work?">
@@ -65,7 +66,7 @@ description: Frequently asked questions about BoltzPay.
 
 <AccordionGroup>
   <Accordion title="Do I need Coinbase keys to use BoltzPay?">
-    Not for explore mode. You can discover APIs, check prices, get quotes, and browse the directory without any credentials. Coinbase keys are only required when you want to actually pay for data via `fetch()`.
+    Not for explore mode. You can discover APIs, check prices, get quotes, and browse the registry without any credentials. Coinbase keys are only required when you want to actually pay for data via `fetch()`.
   </Accordion>
 
   <Accordion title="Why does detection fail on my WiFi?">
