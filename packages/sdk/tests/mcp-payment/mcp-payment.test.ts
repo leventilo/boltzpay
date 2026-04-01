@@ -1,5 +1,41 @@
 import { Money } from "@boltzpay/core";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+
+vi.mock("mppx", () => ({
+  Mcp: { receiptMetaKey: "org.paymentauth/receipt" },
+}));
+
+vi.mock("mppx/mcp-sdk/client", () => ({
+  McpClient: {
+    wrap: vi.fn(
+      (
+        client: { callTool: (...args: unknown[]) => Promise<unknown> },
+        opts: { methods: unknown[] },
+      ) => {
+        return {
+          callTool: async (...args: unknown[]) => {
+            try {
+              return await client.callTool(...args);
+            } catch (err: unknown) {
+              const error = err as { code?: number; data?: { challenges?: unknown[] } };
+              if (error.code === -32042 && opts.methods.length > 0) {
+                const method = opts.methods[0] as {
+                  createCredential: (challenge: unknown) => Promise<string>;
+                };
+                const challenges = error.data?.challenges ?? [];
+                if (challenges.length > 0) {
+                  await method.createCredential({ challenge: challenges[0] });
+                }
+                return client.callTool(...args);
+              }
+              throw err;
+            }
+          },
+        };
+      },
+    ),
+  },
+}));
 import type { BudgetManager } from "../../src/budget/budget-manager";
 import type { TypedEventEmitter } from "../../src/events/event-emitter";
 import type { PaymentHistory } from "../../src/history/payment-history";
@@ -125,11 +161,11 @@ describe("MCP Payment Wrapper", () => {
   });
 
   describe("createMcpPaymentWrapper", () => {
-    it("wraps a client and returns a WrappedMcpClient with callTool", () => {
+    it("wraps a client and returns a WrappedMcpClient with callTool", async () => {
       const client = createMockMcpClient();
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -154,7 +190,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -189,7 +225,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -223,7 +259,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -259,7 +295,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -280,12 +316,12 @@ describe("MCP Payment Wrapper", () => {
       expect(result.receipt?.timestamp).toBe("2026-03-31T12:00:00Z");
     });
 
-    it("wraps method createCredential with budget check", () => {
+    it("wraps method createCredential with budget check", async () => {
       const client = createMockMcpClient();
       const method = createMockMethod();
       const budgetMgr = createMockBudgetManager({ exceeded: true });
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods: [method],
         budgetManager: budgetMgr,
@@ -299,12 +335,12 @@ describe("MCP Payment Wrapper", () => {
       expect(wrapped).toBeDefined();
     });
 
-    it("handles multiple methods from different wallet types", () => {
+    it("handles multiple methods from different wallet types", async () => {
       const client = createMockMcpClient();
       const tempoMethod = createMockMethod({ name: "tempo", intent: "charge" });
       const stripeMethod = createMockMethod({ name: "stripe", intent: "charge" });
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods: [tempoMethod, stripeMethod],
         budgetManager,
@@ -330,7 +366,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -384,7 +420,7 @@ describe("MCP Payment Wrapper", () => {
         }),
       };
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods: [method],
         budgetManager,
@@ -424,7 +460,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -459,7 +495,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,
@@ -548,7 +584,7 @@ describe("MCP Payment Wrapper", () => {
         ),
       };
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods: [firstMethod, secondMethod],
         budgetManager,
@@ -607,7 +643,7 @@ describe("MCP Payment Wrapper", () => {
       };
       const methods = [createMockMethod()];
 
-      const wrapped = createMcpPaymentWrapper({
+      const wrapped = await createMcpPaymentWrapper({
         client,
         methods,
         budgetManager,

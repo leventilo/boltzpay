@@ -1,8 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Money } from "@boltzpay/core";
 import type { Method } from "mppx";
-import { Mcp } from "mppx";
-import { McpClient } from "mppx/mcp-sdk/client";
 import { BUDGET_EXCEEDED_CODES } from "../budget/budget-exceeded-codes";
 import type { BudgetManager } from "../budget/budget-manager";
 import { BudgetExceededError } from "../errors/budget-exceeded-error";
@@ -106,16 +104,25 @@ function parseChallengeAmount(amountStr: string): Money {
   return Money.fromCents(finalCents);
 }
 
-const SAFE_META_KEYS = new Set([Mcp.receiptMetaKey]);
+let cachedReceiptMetaKey: string | undefined;
+
+async function getReceiptMetaKey(): Promise<string> {
+  if (!cachedReceiptMetaKey) {
+    const { Mcp } = await import("mppx");
+    cachedReceiptMetaKey = Mcp.receiptMetaKey;
+  }
+  return cachedReceiptMetaKey;
+}
 
 function filterMeta(
   meta: Record<string, unknown> | undefined,
+  safeKeys: Set<string>,
 ): Record<string, unknown> | undefined {
   if (!meta) return undefined;
   const filtered: Record<string, unknown> = {};
   let hasKeys = false;
   for (const [key, value] of Object.entries(meta)) {
-    if (SAFE_META_KEYS.has(key)) {
+    if (safeKeys.has(key)) {
       filtered[key] = value;
       hasKeys = true;
     }
@@ -123,9 +130,9 @@ function filterMeta(
   return hasKeys ? filtered : undefined;
 }
 
-function extractReceipt(
+async function extractReceipt(
   result: Record<string, unknown>,
-): McpPaymentReceipt | undefined {
+): Promise<McpPaymentReceipt | undefined> {
   const meta = result._meta as Record<string, unknown> | undefined;
   if (!meta) return undefined;
 
@@ -139,7 +146,8 @@ function extractReceipt(
     };
   }
 
-  const rawReceipt = meta[Mcp.receiptMetaKey] as McpPaymentReceipt | undefined;
+  const receiptKey = await getReceiptMetaKey();
+  const rawReceipt = meta[receiptKey] as McpPaymentReceipt | undefined;
   if (
     !rawReceipt ||
     typeof rawReceipt !== "object" ||
@@ -161,9 +169,9 @@ function extractReceipt(
  * MPP payment handling for -32042 errors, budget enforcement before
  * credential creation, and payment history recording.
  */
-export function createMcpPaymentWrapper(
+export async function createMcpPaymentWrapper(
   params: McpWrapperParams,
-): WrappedMcpClient {
+): Promise<WrappedMcpClient> {
   const { client, methods, budgetManager, emitter, history, convertToUsd } =
     params;
 
@@ -178,10 +186,14 @@ export function createMcpPaymentWrapper(
     callIdStorage,
   );
 
+  const { McpClient } = await import("mppx/mcp-sdk/client");
   const mppxWrapped = McpClient.wrap(
     client as Parameters<typeof McpClient.wrap>[0],
     { methods: budgetWrappedMethods },
   );
+
+  const receiptMetaKey = await getReceiptMetaKey();
+  const safeMetaKeys = new Set([receiptMetaKey]);
 
   return {
     async callTool(
@@ -198,7 +210,7 @@ export function createMcpPaymentWrapper(
       );
 
       const resultObj = result as Record<string, unknown>;
-      const receipt = extractReceipt(resultObj);
+      const receipt = await extractReceipt(resultObj);
 
       if (receipt) {
         const paymentAmount = paymentAmounts.get(callId);
@@ -220,6 +232,7 @@ export function createMcpPaymentWrapper(
         isError: resultObj.isError as boolean | undefined,
         _meta: filterMeta(
           resultObj._meta as Record<string, unknown> | undefined,
+          safeMetaKeys,
         ),
         receipt,
       };
