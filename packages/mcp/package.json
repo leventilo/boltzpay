@@ -1,6 +1,6 @@
 {
   "name": "@boltzpay/mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "MCP server for BoltzPay — add paid API access to Claude Desktop",

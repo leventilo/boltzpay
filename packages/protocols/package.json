@@ -1,6 +1,6 @@
 {
   "name": "@boltzpay/protocols",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "license": "MIT",
   "author": "leventilo (https://github.com/leventilo)",
   "description": "Protocol adapters for x402 and L402 payment protocols",
@@ -72,8 +72,12 @@
     "viem": ">=2.47.5"
   },
   "peerDependenciesMeta": {
-    "mppx": { "optional": true },
-    "viem": { "optional": true }
+    "mppx": {
+      "optional": true
+    },
+    "viem": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@boltzpay/config": "workspace:*",
