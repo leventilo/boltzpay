@@ -79,6 +79,8 @@ vi.mock("@boltzpay/protocols", () => {
     CdpWalletManager: MockCdpWalletManager,
     ProtocolRouter: MockProtocolRouter,
     X402Adapter: MockX402Adapter,
+    MppAdapter: class MockMppAdapter { name = "mpp"; constructor() {} },
+    MppMethodSelector: class MockMppMethodSelector { constructor() {} },
     L402Adapter: MockL402Adapter,
     NwcWalletManager: MockNwcWalletManager,
     AdapterError: MockAdapterError,

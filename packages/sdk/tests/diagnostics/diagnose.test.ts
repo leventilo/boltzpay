@@ -17,6 +17,8 @@ const mockProbe = vi.fn();
 const mockProbeAll = vi.fn();
 const mockProbeFromResponse = vi.fn();
 const mockExecute = vi.fn();
+const mockHasMppScheme = vi.fn().mockReturnValue(false);
+const mockParseMppChallenges = vi.fn().mockReturnValue({ challenges: [] });
 
 vi.mock("@boltzpay/protocols", () => {
   class MockCdpWalletManager {
@@ -72,12 +74,23 @@ vi.mock("@boltzpay/protocols", () => {
     CdpWalletManager: MockCdpWalletManager,
     ProtocolRouter: MockProtocolRouter,
     X402Adapter: MockX402Adapter,
+    MppAdapter: class MockMppAdapter { name = "mpp"; constructor() {} },
+    MppMethodSelector: class MockMppMethodSelector { constructor() {} },
     L402Adapter: MockL402Adapter,
     NwcWalletManager: MockNwcWalletManager,
     AdapterError: MockAdapterError,
     X402PaymentError: MockX402PaymentError,
     AggregatePaymentError: MockAggregatePaymentError,
     negotiatePayment: vi.fn(),
+    hasMppScheme: (value: string) => mockHasMppScheme(value),
+    parseMppChallenges: (value: string) => mockParseMppChallenges(value),
+    usdcAtomicToCents: (atomic: bigint) => {
+      if (atomic < 0n) throw new Error("Atomic units cannot be negative");
+      if (atomic === 0n) return 0n;
+      const ATOMIC_PER_CENT = 10_000n;
+      const cents = (atomic + ATOMIC_PER_CENT - 1n) / ATOMIC_PER_CENT;
+      return cents < 1n ? 1n : cents;
+    },
   };
 });
 
@@ -86,6 +99,7 @@ import { negotiatePayment } from "@boltzpay/protocols";
 // Import AFTER mocks
 import { BoltzPay } from "../../src/boltzpay";
 import type { DiagnoseResult } from "../../src/diagnostics/diagnose";
+import { classifyHealth } from "../../src/diagnostics/diagnose";
 
 const mockedNegotiatePayment = vi.mocked(negotiatePayment);
 const mockedDnsResolve = vi.mocked(dns.resolve);
@@ -128,6 +142,8 @@ describe("diagnose — endpoint diagnostic report", () => {
     mockProbeFromResponse.mockReset();
     mockProbeFromResponse.mockResolvedValue([]);
     mockExecute.mockReset();
+    mockHasMppScheme.mockReset().mockReturnValue(false);
+    mockParseMppChallenges.mockReset().mockReturnValue({ challenges: [] });
     mockedNegotiatePayment.mockReset();
     mockedDnsResolve.mockReset();
     mockedDnsResolve.mockResolvedValue(["127.0.0.1"] as Awaited<
@@ -263,7 +279,7 @@ describe("diagnose — endpoint diagnostic report", () => {
     expect(result.scheme).toBe("upto");
   });
 
-  it("endpoint on stellar network -> health = 'degraded'", async () => {
+  it("endpoint on stellar network with low latency -> health = 'healthy'", async () => {
     const quote = makeQuote({ network: "stellar:pubnet", scheme: "exact" });
     fetchSpy.mockResolvedValue(make402Response());
     mockProbeFromResponse.mockResolvedValue([
@@ -277,7 +293,8 @@ describe("diagnose — endpoint diagnostic report", () => {
     });
 
     const result = await agent.diagnose("https://api.example.com/data");
-    expect(result.health).toBe("degraded");
+    expect(result.health).toBe("healthy");
+    expect(result.network).toBe("stellar:pubnet");
   });
 
   it("endpoint that times out -> health = 'dead'", async () => {
@@ -538,10 +555,11 @@ describe("diagnose — endpoint diagnostic report", () => {
 
     it("GET returns 200 with x-payment header -> classification = 'paid'", async () => {
       const quote = makeQuote();
+      const validXPayment = Buffer.from(JSON.stringify({ scheme: "exact" })).toString("base64");
       fetchSpy.mockResolvedValue(
         new Response("ok", {
           status: 200,
-          headers: { "x-payment": "some-value" },
+          headers: { "x-payment": validXPayment },
         }),
       );
       mockProbeFromResponse.mockResolvedValue([
@@ -557,6 +575,33 @@ describe("diagnose — endpoint diagnostic report", () => {
       const result = await agent.diagnose("https://api.example.com/data");
       expect(result.classification).toBe("paid");
       expect(result.isPaid).toBe(true);
+    });
+
+    it("GET returns 200 with invalid x-payment header -> classification = 'free_confirmed'", async () => {
+      fetchSpy
+        .mockResolvedValueOnce(
+          new Response("ok", {
+            status: 200,
+            headers: { "x-payment": "not-valid-base64-json" },
+          }),
+        )
+        .mockResolvedValueOnce(new Response("ok", { status: 200 }));
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("free_confirmed");
+      expect(result.isPaid).toBe(false);
+    });
+
+    it("GET returns 402 but no adapter can parse -> classification = 'ambiguous'", async () => {
+      fetchSpy.mockResolvedValue(
+        new Response("payment required", { status: 402 }),
+      );
+      mockProbeFromResponse.mockResolvedValue([]);
+      mockedNegotiatePayment.mockResolvedValue(undefined);
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("ambiguous");
+      expect(result.isPaid).toBe(false);
     });
 
     it("GET returns 200 with www-authenticate containing X402 -> classification = 'paid'", async () => {
@@ -599,5 +644,317 @@ describe("diagnose — endpoint diagnostic report", () => {
       expect(result.classification).toBe("dead");
       expect(result.deathReason).toBe("tls_error");
     });
+
+    it("GET 404, POST 402 -> classification = 'paid', postOnly = true", async () => {
+      const quote = makeQuote();
+      fetchSpy
+        .mockResolvedValueOnce(new Response("", { status: 404 }))
+        .mockResolvedValueOnce(make402Response());
+      mockedNegotiatePayment.mockResolvedValue({ transport: "body" });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("paid");
+      expect(result.postOnly).toBe(true);
+    });
+
+    it("GET 405, POST 402 -> classification = 'paid', postOnly = true", async () => {
+      const quote = makeQuote();
+      fetchSpy
+        .mockResolvedValueOnce(new Response("", { status: 405 }))
+        .mockResolvedValueOnce(make402Response());
+      mockedNegotiatePayment.mockResolvedValue({ transport: "body" });
+      mockProbeFromResponse.mockResolvedValue([
+        { adapter: { name: "x402" }, quote },
+      ]);
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("paid");
+      expect(result.postOnly).toBe(true);
+    });
+
+    it("GET 405, POST non-402 -> classification = 'dead', deathReason = 'http_405'", async () => {
+      fetchSpy
+        .mockResolvedValueOnce(new Response("", { status: 405 }))
+        .mockResolvedValueOnce(new Response("", { status: 401 }));
+
+      const result = await agent.diagnose("https://api.example.com/data");
+      expect(result.classification).toBe("dead");
+      expect(result.deathReason).toBe("http_405");
+      expect(result.httpStatus).toBe(405);
+    });
+  });
+});
+
+describe("diagnose — MPP protocol detection", () => {
+  let agent: BoltzPay;
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    agent = new BoltzPay(validConfig);
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    mockProbe.mockReset();
+    mockProbeAll.mockReset();
+    mockProbeFromResponse.mockReset();
+    mockProbeFromResponse.mockResolvedValue([]);
+    mockExecute.mockReset();
+    mockHasMppScheme.mockReset().mockReturnValue(false);
+    mockParseMppChallenges.mockReset().mockReturnValue({ challenges: [] });
+    mockedNegotiatePayment.mockReset();
+    mockedDnsResolve.mockReset();
+    mockedDnsResolve.mockResolvedValue(["127.0.0.1"] as Awaited<
+      ReturnType<typeof dns.resolve>
+    >);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function make402MppResponse(): Response {
+    return make402Response({
+      "www-authenticate": 'Payment method="tempo", intent="charge"',
+    });
+  }
+
+  function makeMppChallenge(overrides?: Record<string, unknown>) {
+    return {
+      id: "test-id",
+      method: "tempo",
+      intent: "charge",
+      realm: undefined,
+      expires: undefined,
+      request: {
+        amount: "10000",
+        currency: "0x20C0D54F37EF0E3B2A5E3a7C9Ab0bFe15f2F1b80",
+        recipient: "0x10409f8a084D05AbC4E12A8dD8d4CeDF41F06Ce2",
+        chainId: 4217,
+        methodDetails: { chainId: 4217 },
+      },
+      ...overrides,
+    };
+  }
+
+  it("402 with MPP Payment header -> classification = 'paid', protocol = 'mpp'", async () => {
+    fetchSpy.mockResolvedValue(
+      make402Response({
+        "www-authenticate":
+          'Payment id="test-id", method="tempo", intent="charge"',
+      }),
+    );
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://x402.browserbase.com/test");
+    expect(result.classification).toBe("paid");
+    expect(result.isPaid).toBe(true);
+    expect(result.protocol).toBe("mpp");
+    expect(result.formatVersion).toBe("mpp");
+    expect(result.scheme).toBe("exact");
+  });
+
+  it("MPP tempo endpoint exposes network as eip155:chainId", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.network).toBe("eip155:4217");
+  });
+
+  it("MPP tempo endpoint extracts price from stablecoin atomic amount", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.price).toBeDefined();
+    expect(result.price?.equals(Money.fromCents(1n))).toBe(true);
+  });
+
+  it("MPP stripe endpoint treats amount as cents", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({
+          method: "stripe",
+          request: {
+            amount: "1000",
+            currency: "usd",
+            recipient: "acct_test",
+            chainId: undefined,
+            methodDetails: undefined,
+          },
+        }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.price).toBeDefined();
+    expect(result.price?.equals(Money.fromCents(1000n))).toBe(true);
+    expect(result.network).toBeUndefined();
+  });
+
+  it("MPP multi-method populates mppMethods array", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({ id: "a1", method: "tempo" }),
+        makeMppChallenge({
+          id: "b2",
+          method: "stripe",
+          request: {
+            amount: "1000",
+            currency: "usd",
+            recipient: "acct_test",
+            chainId: undefined,
+            methodDetails: undefined,
+          },
+        }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.mppMethods).toHaveLength(2);
+    expect(result.mppMethods?.[0]?.method).toBe("tempo");
+    expect(result.mppMethods?.[1]?.method).toBe("stripe");
+  });
+
+  it("MPP mppMethods includes intent, id, and request details", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({
+          id: "sess-1",
+          intent: "session",
+          expires: "2026-04-01T00:00:00Z",
+        }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    const method = result.mppMethods?.[0];
+    expect(method?.intent).toBe("session");
+    expect(method?.id).toBe("sess-1");
+    expect(method?.expires).toBe("2026-04-01T00:00:00Z");
+    expect(method?.rawAmount).toBe("10000");
+    expect(method?.chainId).toBe(4217);
+  });
+
+  it("MPP facilitator address is truncated", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.facilitator).toBe("0x1040...6Ce2");
+  });
+
+  it("MPP without request payload -> price undefined, network undefined", async () => {
+    fetchSpy.mockResolvedValue(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [
+        makeMppChallenge({ request: undefined }),
+      ],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.protocol).toBe("mpp");
+    expect(result.price).toBeUndefined();
+    expect(result.network).toBeUndefined();
+    expect(result.facilitator).toBeUndefined();
+  });
+
+  it("402 with no adapter match and no MPP -> classification = 'ambiguous'", async () => {
+    fetchSpy.mockResolvedValue(make402Response());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({ challenges: [] });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.classification).toBe("ambiguous");
+    expect(result.protocol).toBeUndefined();
+  });
+
+  it("200 with MPP www-authenticate header -> classification = 'paid'", async () => {
+    mockHasMppScheme.mockReturnValue(true);
+    fetchSpy.mockResolvedValue(
+      new Response("ok", {
+        status: 200,
+        headers: {
+          "www-authenticate":
+            'Payment method="tempo", intent="charge"',
+        },
+      }),
+    );
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.classification).toBe("paid");
+    expect(result.protocol).toBe("mpp");
+  });
+
+  it("GET 200 POST 402 with MPP -> postOnly = true, protocol = 'mpp'", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }))
+      .mockResolvedValueOnce(make402MppResponse());
+    mockedNegotiatePayment.mockResolvedValue(undefined);
+    mockParseMppChallenges.mockReturnValue({
+      challenges: [makeMppChallenge()],
+    });
+
+    const result = await agent.diagnose("https://api.example.com/test");
+    expect(result.classification).toBe("paid");
+    expect(result.protocol).toBe("mpp");
+    expect(result.postOnly).toBe(true);
+  });
+});
+
+describe("classifyHealth", () => {
+  it("should return healthy for fast exact-scheme endpoint", () => {
+    expect(classifyHealth(200, "exact", "base")).toBe("healthy");
+  });
+
+  it("should return degraded for non-exact scheme", () => {
+    expect(classifyHealth(100, "upto", "base")).toBe("degraded");
+  });
+
+  it("should return degraded for slow non-stellar endpoint (>1000ms)", () => {
+    expect(classifyHealth(1500, "exact", "base")).toBe("degraded");
+  });
+
+  it("should return healthy for stellar endpoint under 5000ms", () => {
+    expect(classifyHealth(3000, "exact", "stellar:pubnet")).toBe("healthy");
+  });
+
+  it("should return degraded for stellar endpoint over 5000ms", () => {
+    expect(classifyHealth(6000, "exact", "stellar:pubnet")).toBe("degraded");
+  });
+
+  it("should return degraded for suspicious price over $100", () => {
+    const expensivePrice = Money.fromDollars("150.00");
+    expect(classifyHealth(100, "exact", "base", expensivePrice)).toBe("degraded");
+  });
+
+  it("should return healthy for normal price under $100", () => {
+    const normalPrice = Money.fromDollars("0.05");
+    expect(classifyHealth(100, "exact", "base", normalPrice)).toBe("healthy");
   });
 });

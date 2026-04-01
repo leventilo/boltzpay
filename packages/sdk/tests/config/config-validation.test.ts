@@ -396,6 +396,154 @@ describe("Config Validation", () => {
     });
   });
 
+  describe("Phase 13: MPP wallet schemas", () => {
+    it("validates stripe-mpp wallet config", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "stripe-mpp",
+            name: "stripe-prod",
+            stripeSecretKey: "sk_live_abc123",
+          },
+        ],
+      });
+      expect(result.wallets).toHaveLength(1);
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "stripe-mpp", name: "stripe-prod" }),
+      );
+    });
+
+    it("validates tempo wallet config", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "tempo",
+            name: "tempo-main",
+            tempoPrivateKey: "0xdeadbeef",
+          },
+        ],
+      });
+      expect(result.wallets).toHaveLength(1);
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "tempo", name: "tempo-main" }),
+      );
+    });
+
+    it("validates visa-mpp wallet config", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "visa-mpp",
+            name: "visa-card",
+            visaJwe: "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ",
+          },
+        ],
+      });
+      expect(result.wallets).toHaveLength(1);
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "visa-mpp", name: "visa-card" }),
+      );
+    });
+
+    it("existing coinbase wallet still parses after extension", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "coinbase",
+            name: "prod",
+            coinbaseApiKeyId: "key-id",
+            coinbaseApiKeySecret: "key-secret",
+            coinbaseWalletSecret: "wallet-secret",
+          },
+        ],
+      });
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "coinbase" }),
+      );
+    });
+
+    it("existing nwc wallet still parses after extension", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "nwc",
+            name: "ln",
+            nwcConnectionString: "nostr+walletconnect://relay.example.com",
+          },
+        ],
+      });
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ type: "nwc" }),
+      );
+    });
+
+    it("rejects stripe-mpp wallet without stripeSecretKey", () => {
+      expect(() =>
+        validateConfig({
+          wallets: [{ type: "stripe-mpp", name: "bad" }],
+        }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("rejects tempo wallet without tempoPrivateKey", () => {
+      expect(() =>
+        validateConfig({
+          wallets: [{ type: "tempo", name: "bad" }],
+        }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("rejects visa-mpp wallet without visaJwe", () => {
+      expect(() =>
+        validateConfig({
+          wallets: [{ type: "visa-mpp", name: "bad" }],
+        }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("validates stripe-mpp wallet with networks array", () => {
+      const result = validateConfig({
+        wallets: [
+          {
+            type: "stripe-mpp",
+            name: "stripe",
+            stripeSecretKey: "sk_live_abc",
+            networks: ["base"],
+          },
+        ],
+      });
+      expect(result.wallets![0]).toEqual(
+        expect.objectContaining({ networks: ["base"] }),
+      );
+    });
+  });
+
+  describe("Phase 13: mppPreferredMethods config", () => {
+    it('accepts mppPreferredMethods: ["tempo", "stripe"]', () => {
+      const result = validateConfig({
+        mppPreferredMethods: ["tempo", "stripe"],
+      });
+      expect(result.mppPreferredMethods).toEqual(["tempo", "stripe"]);
+    });
+
+    it("leaves mppPreferredMethods undefined when not provided", () => {
+      const result = validateConfig({});
+      expect(result.mppPreferredMethods).toBeUndefined();
+    });
+
+    it("rejects mppPreferredMethods with empty string", () => {
+      expect(() =>
+        validateConfig({ mppPreferredMethods: [""] }),
+      ).toThrow(ConfigurationError);
+    });
+
+    it("existing config without MPP fields still parses", () => {
+      const result = validateConfig(validBase);
+      expect(result.mppPreferredMethods).toBeUndefined();
+      expect(result.coinbaseApiKeyId).toBe("test-key-id");
+    });
+  });
+
   describe("Phase 10: StorageSchema", () => {
     it('accepts storage: "file" shortcut', () => {
       const result = validateConfig({ storage: "file" });
