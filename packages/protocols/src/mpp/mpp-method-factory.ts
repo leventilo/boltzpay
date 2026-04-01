@@ -1,6 +1,4 @@
 import type { Method } from "mppx";
-import { stripe, tempo } from "mppx/client";
-import { privateKeyToAccount } from "viem/accounts";
 import { MppPaymentError } from "../adapter-error";
 
 export interface MppWalletConfig {
@@ -22,10 +20,10 @@ export function validateHexPrivateKey(key: string): `0x${string}` {
   return key as `0x${string}`;
 }
 
-export function createMppMethod(
+export async function createMppMethod(
   walletType: string,
   walletConfig: MppWalletConfig,
-): Method.AnyClient {
+): Promise<Method.AnyClient> {
   switch (walletType) {
     case "tempo":
       return createTempoMethod(walletConfig);
@@ -39,24 +37,31 @@ export function createMppMethod(
   }
 }
 
-function createTempoMethod(config: MppWalletConfig): Method.AnyClient {
+async function createTempoMethod(
+  config: MppWalletConfig,
+): Promise<Method.AnyClient> {
   if (!config.tempoPrivateKey) {
     throw new MppPaymentError(
       "Tempo wallet requires tempoPrivateKey in config",
     );
   }
   const validatedKey = validateHexPrivateKey(config.tempoPrivateKey);
+  const { privateKeyToAccount } = await import("viem/accounts");
+  const { tempo } = await import("mppx/client");
   const account = privateKeyToAccount(validatedKey);
   return tempo.charge({ account });
 }
 
-function createStripeMethod(config: MppWalletConfig): Method.AnyClient {
+async function createStripeMethod(
+  config: MppWalletConfig,
+): Promise<Method.AnyClient> {
   if (!config.stripeSecretKey) {
     throw new MppPaymentError(
       "Stripe MPP wallet requires stripeSecretKey in config",
     );
   }
   const secretKey = config.stripeSecretKey;
+  const { stripe } = await import("mppx/client");
   return stripe.charge({
     createToken: async ({
       amount,

@@ -17,7 +17,7 @@ describe("createMppMethod", () => {
     const { createMppMethod } = await import(
       "../../src/mpp/mpp-method-factory"
     );
-    const method = createMppMethod("tempo", {
+    const method = await createMppMethod("tempo", {
       tempoPrivateKey:
         "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     });
@@ -29,7 +29,7 @@ describe("createMppMethod", () => {
     const { createMppMethod } = await import(
       "../../src/mpp/mpp-method-factory"
     );
-    const method = createMppMethod("stripe-mpp", {
+    const method = await createMppMethod("stripe-mpp", {
       stripeSecretKey: "sk_test_abc123",
     });
     expect(method.name).toBe("stripe");
@@ -42,7 +42,7 @@ describe("createMppMethod", () => {
     );
     let error: unknown;
     try {
-      createMppMethod("nwc", {
+      await createMppMethod("nwc", {
         nwcConnectionString: "nostr+walletconnect://test",
       });
     } catch (e) {
@@ -58,7 +58,7 @@ describe("createMppMethod", () => {
     );
     let error: unknown;
     try {
-      createMppMethod("visa-mpp", { visaJwe: "jwe_token" });
+      await createMppMethod("visa-mpp", { visaJwe: "jwe_token" });
     } catch (e) {
       error = e;
     }
@@ -72,7 +72,7 @@ describe("createMppMethod", () => {
     );
     let error: unknown;
     try {
-      createMppMethod("unknown-wallet", {});
+      await createMppMethod("unknown-wallet", {});
     } catch (e) {
       error = e;
     }
@@ -89,7 +89,7 @@ describe("createMppMethod", () => {
     );
     const key =
       "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    createMppMethod("tempo", { tempoPrivateKey: key });
+    await createMppMethod("tempo", { tempoPrivateKey: key });
     expect(privateKeyToAccount).toHaveBeenCalledWith(key);
   });
 });

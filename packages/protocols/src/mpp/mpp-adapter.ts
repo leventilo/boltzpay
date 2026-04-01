@@ -4,7 +4,7 @@ import {
   type ProtocolQuote,
   type ProtocolResult,
 } from "@boltzpay/core";
-import { Receipt } from "mppx";
+import type { Receipt as ReceiptType } from "mppx";
 import { AdapterError, MppPaymentError, MppQuoteError } from "../adapter-error";
 import type { ResponseAwareAdapter } from "../router/protocol-router";
 import type { AdapterTimeouts } from "../x402/x402-adapter";
@@ -103,7 +103,7 @@ export class MppAdapter implements ResponseAwareAdapter {
       );
     }
 
-    const method = createMppMethod(request.wallet.type, request.wallet);
+    const method = await createMppMethod(request.wallet.type, request.wallet);
 
     try {
       const { Mppx } = await import("mppx/client");
@@ -143,6 +143,7 @@ export class MppAdapter implements ResponseAwareAdapter {
     let externalTxHash: string | undefined;
     if (response.ok) {
       try {
+        const { Receipt } = await import("mppx");
         const receipt = Receipt.fromResponse(response);
         externalTxHash = `${receipt.method}:${receipt.reference}`;
       } catch {

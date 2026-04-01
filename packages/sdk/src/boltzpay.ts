@@ -1802,13 +1802,13 @@ export class BoltzPay {
   }
 
   /** Wraps a MCP Client with automatic MPP payment handling for -32042 errors. */
-  wrapMcpClient(client: {
+  async wrapMcpClient(client: {
     callTool(
       params: { name: string; arguments?: Record<string, unknown> },
       options?: unknown,
     ): Promise<unknown>;
-  }): WrappedMcpClient {
-    const methods = this.buildMcpPaymentMethods();
+  }): Promise<WrappedMcpClient> {
+    const methods = await this.buildMcpPaymentMethods();
     if (methods.length === 0) {
       throw new ConfigurationError(
         "invalid_config",
@@ -1826,12 +1826,17 @@ export class BoltzPay {
     });
   }
 
-  private buildMcpPaymentMethods(): import("mppx").Method.AnyClient[] {
+  private async buildMcpPaymentMethods(): Promise<
+    import("mppx").Method.AnyClient[]
+  > {
     const methods: import("mppx").Method.AnyClient[] = [];
     for (const wallet of this.wallets) {
       if (wallet.type === "tempo" || wallet.type === "stripe-mpp") {
         try {
-          const method = createMppMethod(wallet.type, wallet.rawConfig ?? {});
+          const method = await createMppMethod(
+            wallet.type,
+            wallet.rawConfig ?? {},
+          );
           methods.push(method);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
