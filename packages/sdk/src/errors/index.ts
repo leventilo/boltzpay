@@ -1,4 +1,5 @@
 export { BoltzPayError } from "./boltzpay-error";
+export { MppSessionBudgetError, MppSessionError } from "./mpp-session-error";
 export { BudgetExceededError } from "./budget-exceeded-error";
 export { ConfigurationError } from "./configuration-error";
 export { InsufficientFundsError } from "./insufficient-funds-error";

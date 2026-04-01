@@ -9,6 +9,9 @@ export interface PaymentRecord {
   readonly txHash: string | undefined;
   readonly network: string | undefined;
   readonly durationMs?: number;
+  readonly sessionId?: string;
+  readonly sessionStatus?: "open" | "closed";
+  readonly transport?: "http" | "mcp";
 }
 
 export interface PaymentDetails {

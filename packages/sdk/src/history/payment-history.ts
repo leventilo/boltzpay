@@ -33,20 +33,39 @@ function serializeRecord(record: PaymentRecord): string {
   return JSON.stringify(data);
 }
 
+function isSerializedRecord(value: unknown): value is SerializedRecord {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.id !== "string") return false;
+  if (typeof obj.url !== "string") return false;
+  if (typeof obj.protocol !== "string") return false;
+  if (typeof obj.timestamp !== "string") return false;
+
+  const amount = obj.amount;
+  if (typeof amount !== "object" || amount === null) return false;
+  const amountObj = amount as Record<string, unknown>;
+  if (typeof amountObj.cents !== "string") return false;
+  if (typeof amountObj.currency !== "string") return false;
+
+  return true;
+}
+
 function deserializeRecord(raw: string): PaymentRecord | undefined {
   try {
-    const data = JSON.parse(raw) as SerializedRecord;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isSerializedRecord(parsed)) return undefined;
     return {
-      id: data.id,
-      url: data.url,
-      protocol: data.protocol,
-      amount: Money.fromJSON(data.amount),
-      timestamp: new Date(data.timestamp),
-      txHash: data.txHash,
-      network: data.network,
-      durationMs: data.durationMs,
+      id: parsed.id,
+      url: parsed.url,
+      protocol: parsed.protocol,
+      amount: Money.fromJSON(parsed.amount),
+      timestamp: new Date(parsed.timestamp),
+      txHash: parsed.txHash,
+      network: parsed.network,
+      durationMs: parsed.durationMs,
     };
   } catch {
+    // Intent: corrupted history line is silently skipped — partial history is acceptable
     return undefined;
   }
 }

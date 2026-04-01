@@ -55,6 +55,35 @@ export interface WalletSelectedEvent {
   readonly reason: string;
 }
 
+export interface SessionOpenEvent {
+  readonly channelId: string;
+  readonly depositAmount: Money;
+  readonly url: string;
+}
+
+export interface SessionVoucherEvent {
+  readonly channelId: string;
+  readonly cumulativeAmount: bigint;
+  readonly index: number;
+}
+
+export interface SessionCloseEvent {
+  readonly channelId: string;
+  readonly totalSpent: bigint;
+  readonly refunded: bigint;
+}
+
+export interface SessionErrorEvent {
+  readonly channelId?: string;
+  readonly error: Error;
+}
+
+export interface McpPaymentEvent {
+  readonly toolName: string;
+  readonly amount: Money;
+  readonly receipt: unknown;
+}
+
 export interface BoltzPayEvents {
   payment: [PaymentRecord];
   "budget:warning": [BudgetWarningEvent];
@@ -65,6 +94,11 @@ export interface BoltzPayEvents {
   "protocol:unsupported-scheme": [UnsupportedSchemeEvent];
   "protocol:unsupported-network": [UnsupportedNetworkEvent];
   "wallet:selected": [WalletSelectedEvent];
+  "session:open": [SessionOpenEvent];
+  "session:voucher": [SessionVoucherEvent];
+  "session:close": [SessionCloseEvent];
+  "session:error": [SessionErrorEvent];
+  "mcp:payment": [McpPaymentEvent];
   error: [Error];
 }
 

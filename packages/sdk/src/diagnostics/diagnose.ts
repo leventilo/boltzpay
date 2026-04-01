@@ -1,8 +1,14 @@
 import { resolve as dnsResolve } from "node:dns/promises";
-import type { AcceptOption, EndpointInputHints } from "@boltzpay/core";
+import type { AcceptOption, EndpointInputHints, MppMethodQuote } from "@boltzpay/core";
 import { Money } from "@boltzpay/core";
-import type { NegotiatedPayment } from "@boltzpay/protocols";
-import { negotiatePayment, type ProtocolRouter } from "@boltzpay/protocols";
+import type { MppChallenge, NegotiatedPayment } from "@boltzpay/protocols";
+import {
+  hasMppScheme,
+  negotiatePayment,
+  parseMppChallenges,
+  type ProtocolRouter,
+  usdcAtomicToCents,
+} from "@boltzpay/protocols";
 
 export type EndpointHealth = "healthy" | "degraded" | "dead";
 
@@ -15,11 +21,12 @@ export type EndpointClassification =
 export type DeathReason =
   | "dns_failure"
   | "http_404"
+  | "http_405"
   | "http_5xx"
   | "timeout"
   | "tls_error";
 
-export type FormatVersion = "V1 body" | "V2 header" | "www-authenticate";
+export type FormatVersion = "V1 body" | "V2 header" | "www-authenticate" | "mpp";
 
 export interface ChainInfo {
   readonly namespace: string;
@@ -34,6 +41,17 @@ export interface DiagnoseTiming {
   readonly quoteMs: number;
 }
 
+export interface MppMethodDetail {
+  readonly method: string;
+  readonly intent: string;
+  readonly id: string | undefined;
+  readonly expires: string | undefined;
+  readonly rawAmount: string | undefined;
+  readonly currency: string | undefined;
+  readonly recipient: string | undefined;
+  readonly chainId: number | undefined;
+}
+
 export interface DiagnoseResult {
   readonly url: string;
   readonly classification: EndpointClassification;
@@ -46,6 +64,7 @@ export interface DiagnoseResult {
   readonly network: string | undefined;
   readonly price: Money | undefined;
   readonly facilitator: string | undefined;
+  readonly payTo: string | undefined;
   readonly health: EndpointHealth;
   readonly latencyMs: number;
   readonly postOnly: boolean;
@@ -53,6 +72,7 @@ export interface DiagnoseResult {
   readonly rawAccepts?: readonly AcceptOption[];
   readonly inputHints?: EndpointInputHints;
   readonly timing?: DiagnoseTiming;
+  readonly mppMethods?: readonly MppMethodDetail[];
 }
 
 const TRUNCATE_THRESHOLD = 13;
@@ -65,15 +85,22 @@ export function truncateAddress(addr: string): string {
 }
 
 const SLOW_THRESHOLD_MS = 1000;
+const STELLAR_SLOW_THRESHOLD_MS = 5000;
+const SUSPICIOUS_PRICE_THRESHOLD = Money.fromDollars("100.00");
 
 export function classifyHealth(
   latencyMs: number,
   scheme: string | undefined,
   network: string | undefined,
+  price?: Money,
 ): EndpointHealth {
   if (scheme && scheme !== "exact") return "degraded";
-  if (network?.startsWith("stellar")) return "degraded";
-  if (latencyMs >= SLOW_THRESHOLD_MS) return "degraded";
+  if (price && price.currency === "USD" && price.greaterThan(SUSPICIOUS_PRICE_THRESHOLD)) {
+    return "degraded";
+  }
+  const isStellar = network?.startsWith("stellar") ?? false;
+  const threshold = isStellar ? STELLAR_SLOW_THRESHOLD_MS : SLOW_THRESHOLD_MS;
+  if (latencyMs >= threshold) return "degraded";
   return "healthy";
 }
 
@@ -85,6 +112,10 @@ export function toFormatVersion(negotiation: NegotiatedPayment): FormatVersion {
       return "V2 header";
     case "www-authenticate":
       return "www-authenticate";
+    default: {
+      const exhaustive: never = negotiation.transport;
+      throw new Error(`Unknown transport: ${String(exhaustive)}`);
+    }
   }
 }
 
@@ -105,6 +136,7 @@ export interface DiagnoseInput {
   readonly url: string;
   readonly router: ProtocolRouter;
   readonly detectTimeoutMs?: number;
+  readonly signal?: AbortSignal;
 }
 
 const DEFAULT_DETECT_TIMEOUT_MS = 10_000;
@@ -113,20 +145,39 @@ const DNS_BUDGET_FRACTION = 0.15;
 const DNS_MIN_MS = 500;
 const DNS_MAX_MS = 3_000;
 
+const MAX_REDIRECTS = 5;
+
 const POST_BUDGET_FRACTION = 0.4;
-const POST_MIN_MS = 500;
+const POST_MIN_MS = 2_000;
 
 const TLS_ERROR_RE = /tls|ssl|certificate/i;
 
-function hasPaymentHeaders(response: Response): boolean {
-  if (response.headers.has("x-payment")) return true;
+function hasValidPaymentHeaders(response: Response): boolean {
+  const xPayment = response.headers.get("x-payment");
+  if (xPayment && isDecodableBase64Json(xPayment)) return true;
+
   const wwwAuth = response.headers.get("www-authenticate");
   if (wwwAuth && /X402|L402/i.test(wwwAuth)) return true;
+  if (wwwAuth && hasMppScheme(wwwAuth)) return true;
+
   let hasX402Header = false;
   response.headers.forEach((_value, key) => {
-    if (key.toLowerCase().startsWith("x402-")) hasX402Header = true;
+    if (!hasX402Header && key.toLowerCase().startsWith("x402-")) {
+      hasX402Header = true;
+    }
   });
   return hasX402Header;
+}
+
+function isDecodableBase64Json(value: string): boolean {
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf-8");
+    JSON.parse(decoded);
+    return true;
+  } catch {
+    // Intent: malformed x-payment header should not trigger "paid" classification
+    return false;
+  }
 }
 
 function classifyFetchError(error: unknown): DeathReason {
@@ -150,6 +201,7 @@ async function resolveDns(
     ]);
     return true;
   } catch {
+    // Intent: DNS failure means endpoint is unreachable — caller handles the false return
     return false;
   } finally {
     if (timer) clearTimeout(timer);
@@ -160,25 +212,59 @@ async function timedFetch(
   url: string,
   init: RequestInit,
   timeoutMs: number,
+  externalSignal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = () => controller.abort();
+  externalSignal?.addEventListener("abort", onAbort, { once: true });
   try {
     return await globalThis.fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", onAbort);
   }
+}
+
+async function fetchFollowingRedirects(
+  url: string,
+  timeoutMs: number,
+  externalSignal?: AbortSignal,
+): Promise<Response> {
+  const visited = new Set<string>();
+  let currentUrl = url;
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    if (visited.has(currentUrl)) {
+      throw new Error(`Redirect cycle: ${currentUrl}`);
+    }
+    visited.add(currentUrl);
+    const response = await timedFetch(
+      currentUrl,
+      { method: "GET", redirect: "manual" },
+      timeoutMs,
+      externalSignal,
+    );
+    if (response.status < 300 || response.status >= 400) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    currentUrl = new URL(location, currentUrl).href;
+  }
+  throw new Error("Too many redirects");
 }
 
 export async function diagnoseEndpoint(
   input: DiagnoseInput,
 ): Promise<DiagnoseResult> {
-  const { url, router, detectTimeoutMs } = input;
+  const { url, router, detectTimeoutMs, signal } = input;
   const totalBudget = detectTimeoutMs ?? DEFAULT_DETECT_TIMEOUT_MS;
   const totalStart = Date.now();
 
   const remainingBudget = () =>
     Math.max(0, totalBudget - (Date.now() - totalStart));
+
+  if (signal?.aborted) {
+    return buildDeadResult(url, 0, "timeout");
+  }
 
   try {
     const dnsBudget = Math.min(
@@ -195,10 +281,10 @@ export async function diagnoseEndpoint(
     let response: Response;
 
     try {
-      response = await timedFetch(
+      response = await fetchFollowingRedirects(
         url,
-        { method: "GET", redirect: "follow" },
         remainingBudget(),
+        signal,
       );
     } catch (error) {
       return buildDeadResult(
@@ -221,8 +307,13 @@ export async function diagnoseEndpoint(
       );
     }
 
-    if (status === 404 || status === 410) {
-      return buildDeadResult(url, Date.now() - totalStart, "http_404", status);
+    if (status === 404 || status === 405 || status === 410) {
+      const postProbe = await tryPostProbe(
+        url, totalStart, detectStart, remainingBudget, signal, router,
+      );
+      if (postProbe.kind === "paid") return postProbe.result;
+      const deathReason: DeathReason = status === 405 ? "http_405" : "http_404";
+      return buildDeadResult(url, Date.now() - totalStart, deathReason, status);
     }
 
     if (status >= 500 && status < 600) {
@@ -230,7 +321,7 @@ export async function diagnoseEndpoint(
     }
 
     if (status >= 200 && status < 300) {
-      if (hasPaymentHeaders(response)) {
+      if (hasValidPaymentHeaders(response)) {
         return buildPaidResult(
           url,
           totalStart,
@@ -241,45 +332,24 @@ export async function diagnoseEndpoint(
         );
       }
 
-      const postBudget = Math.max(
-        POST_MIN_MS,
-        remainingBudget() * POST_BUDGET_FRACTION,
+      const postProbe = await tryPostProbe(
+        url, totalStart, detectStart, remainingBudget, signal, router,
       );
-      try {
-        const postResponse = await timedFetch(
-          url,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: "{}",
-            redirect: "follow",
-          },
-          postBudget,
-        );
-
-        if (postResponse.status === 402) {
-          return buildPaidResult(
-            url,
-            totalStart,
-            detectStart,
-            postResponse,
-            true,
-            router,
-          );
-        }
-
-        return buildNonPaidResult(
-          url,
-          Date.now() - totalStart,
-          "free_confirmed",
-        );
-      } catch {
+      if (postProbe.kind === "paid") return postProbe.result;
+      if (postProbe.kind === "failed") {
         return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
       }
+
+      return buildNonPaidResult(
+        url,
+        Date.now() - totalStart,
+        "free_confirmed",
+      );
     }
 
     return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
   } catch {
+    // Intent: global budget exhausted or unexpected error — classify as timeout
     return buildDeadResult(url, Date.now() - totalStart, "timeout");
   }
 }
@@ -302,10 +372,58 @@ function buildDeadResult(
     network: undefined,
     price: undefined,
     facilitator: undefined,
+    payTo: undefined,
     health: "dead",
     latencyMs,
     postOnly: false,
   };
+}
+
+type PostProbeOutcome =
+  | { readonly kind: "paid"; readonly result: DiagnoseResult }
+  | { readonly kind: "not_paid" }
+  | { readonly kind: "failed" };
+
+async function tryPostProbe(
+  url: string,
+  totalStart: number,
+  detectStart: number,
+  remainingBudget: () => number,
+  signal: AbortSignal | undefined,
+  router: ProtocolRouter,
+): Promise<PostProbeOutcome> {
+  const postBudget = Math.min(
+    remainingBudget(),
+    Math.max(POST_MIN_MS, remainingBudget() * POST_BUDGET_FRACTION),
+  );
+  try {
+    const postResponse = await timedFetch(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        redirect: "follow",
+      },
+      postBudget,
+      signal,
+    );
+    if (postResponse.status === 402) {
+      const result = await buildPaidResult(
+        url,
+        totalStart,
+        detectStart,
+        postResponse,
+        true,
+        router,
+      );
+      return { kind: "paid", result };
+    }
+    return { kind: "not_paid" };
+  } catch {
+    // Intent: POST probe network failure — cannot determine paid/free
+    return { kind: "failed" };
+  }
 }
 
 function buildNonPaidResult(
@@ -323,6 +441,7 @@ function buildNonPaidResult(
     network: undefined,
     price: undefined,
     facilitator: undefined,
+    payTo: undefined,
     health: classification === "free_confirmed" ? "healthy" : "degraded",
     latencyMs,
     postOnly: false,
@@ -343,7 +462,9 @@ async function buildPaidResult(
     if (negotiation) {
       formatVersion = toFormatVersion(negotiation);
     }
-  } catch {}
+  } catch {
+    // Intent: format negotiation is best-effort; diagnosis proceeds without version info
+  }
 
   const detectMs = Date.now() - detectStart;
 
@@ -354,17 +475,30 @@ async function buildPaidResult(
   const primaryProbe = probeResults[0];
 
   if (!primaryProbe) {
+    const mpp = tryDetectMpp(response.clone());
+    if (mpp) {
+      const latencyMs = Date.now() - totalStart;
+      return buildMppDiagnoseResult(
+        url,
+        latencyMs,
+        mpp,
+        postOnly,
+        { detectMs, quoteMs },
+      );
+    }
     const latencyMs = Date.now() - totalStart;
+    const hasValidFormat = formatVersion !== undefined;
     return {
       url,
-      classification: "paid",
-      isPaid: true,
+      classification: hasValidFormat ? "paid" : "ambiguous",
+      isPaid: hasValidFormat,
       protocol: undefined,
       formatVersion,
       scheme: undefined,
       network: undefined,
       price: undefined,
       facilitator: undefined,
+      payTo: undefined,
       health: classifyHealth(latencyMs, undefined, undefined),
       latencyMs,
       postOnly,
@@ -385,12 +519,117 @@ async function buildPaidResult(
     network: quote.network,
     price: quote.amount,
     facilitator: quote.payTo ? truncateAddress(quote.payTo) : undefined,
-    health: classifyHealth(latencyMs, quote.scheme, quote.network),
+    payTo: quote.payTo,
+    health: classifyHealth(latencyMs, quote.scheme, quote.network, quote.amount),
     latencyMs,
     postOnly,
     chains: buildChains(quote.allAccepts),
     rawAccepts: quote.allAccepts,
     ...(quote.inputHints ? { inputHints: quote.inputHints } : {}),
+    ...(quote.allMethods ? { mppMethods: quoteMppMethodsToDetails(quote.allMethods) } : {}),
     timing: { detectMs, quoteMs },
   };
+}
+
+interface MppDetection {
+  readonly primary: MppChallenge;
+  readonly all: readonly MppChallenge[];
+}
+
+function tryDetectMpp(response: Response): MppDetection | undefined {
+  const wwwAuth = response.headers.get("www-authenticate");
+  if (!wwwAuth) return undefined;
+  const { challenges } = parseMppChallenges(wwwAuth);
+  const primary = challenges[0];
+  if (!primary) return undefined;
+  return { primary, all: challenges };
+}
+
+function buildMppDiagnoseResult(
+  url: string,
+  latencyMs: number,
+  mpp: MppDetection,
+  postOnly: boolean,
+  timing: DiagnoseTiming,
+): DiagnoseResult {
+  const price = tryExtractMppPrice(mpp.primary);
+  const network = deriveMppNetwork(mpp.primary);
+  const mppRecipient = mpp.primary.request?.recipient;
+  const facilitator = mppRecipient
+    ? truncateAddress(mppRecipient)
+    : undefined;
+  return {
+    url,
+    classification: "paid",
+    isPaid: true,
+    protocol: "mpp",
+    formatVersion: "mpp",
+    scheme: "exact",
+    network,
+    price,
+    facilitator,
+    payTo: mppRecipient,
+    health: classifyHealth(latencyMs, "exact", network, price),
+    latencyMs,
+    postOnly,
+    mppMethods: toMppMethodDetails(mpp.all),
+    timing,
+  };
+}
+
+function toMppMethodDetails(
+  challenges: readonly MppChallenge[],
+): readonly MppMethodDetail[] {
+  return challenges.map((c) => ({
+    method: c.method,
+    intent: c.intent,
+    id: c.id,
+    expires: c.expires,
+    rawAmount: c.request?.amount,
+    currency: c.request?.currency,
+    recipient: c.request?.recipient,
+    chainId: c.request?.chainId,
+  }));
+}
+
+function quoteMppMethodsToDetails(
+  methods: readonly MppMethodQuote[],
+): readonly MppMethodDetail[] {
+  return methods.map((m) => ({
+    method: m.method,
+    intent: m.intent,
+    id: undefined,
+    expires: undefined,
+    rawAmount: m.amount.cents.toString(),
+    currency: m.currency,
+    recipient: m.recipient,
+    chainId: m.network ? Number(m.network) || undefined : undefined,
+  }));
+}
+
+function tryExtractMppPrice(challenge: MppChallenge): Money | undefined {
+  if (!challenge.request) return undefined;
+  try {
+    const rawAmount = BigInt(challenge.request.amount);
+    if (rawAmount < 0n) return undefined;
+    // Stripe amounts are in smallest currency unit (cents for USD)
+    if (challenge.method === "stripe") {
+      return Money.fromCents(rawAmount);
+    }
+    // Crypto methods with chainId: assume 6-decimal stablecoin (USDC/USDT)
+    if (challenge.request.chainId !== undefined) {
+      return Money.fromCents(usdcAtomicToCents(rawAmount));
+    }
+    return undefined;
+  } catch {
+    // Intent: price extraction is best-effort — diagnosis proceeds without price
+    return undefined;
+  }
+}
+
+function deriveMppNetwork(challenge: MppChallenge): string | undefined {
+  if (challenge.request?.chainId !== undefined) {
+    return `eip155:${challenge.request.chainId}`;
+  }
+  return undefined;
 }

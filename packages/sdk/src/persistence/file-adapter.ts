@@ -40,7 +40,9 @@ export class FileAdapter implements StorageAdapter {
     } catch (err: unknown) {
       try {
         await unlink(tmpPath);
-      } catch {}
+      } catch {
+        // Intent: tmp file cleanup is best-effort — OS will reclaim if unlink fails
+      }
       throw err;
     }
   }

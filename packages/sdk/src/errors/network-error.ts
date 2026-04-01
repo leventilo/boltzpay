@@ -3,7 +3,9 @@ import { BoltzPayError } from "./boltzpay-error";
 type NetworkErrorCode =
   | "network_timeout"
   | "endpoint_unreachable"
-  | "blockchain_error";
+  | "blockchain_error"
+  | "registry_unavailable"
+  | "registry_invalid_response";
 
 export class NetworkError extends BoltzPayError {
   readonly code: NetworkErrorCode;

@@ -6,6 +6,25 @@ const LOG_LEVELS = {
   silent: 4,
 } as const;
 
+const SENSITIVE_PATTERNS =
+  /key|secret|private|password|token|jwe|credential|mnemonic/i;
+
+function sanitizeLogEntry(
+  entry: Record<string, unknown>,
+): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(entry)) {
+    if (SENSITIVE_PATTERNS.test(k)) {
+      sanitized[k] = "[REDACTED]";
+    } else if (typeof v === "object" && v !== null) {
+      sanitized[k] = sanitizeLogEntry(v as Record<string, unknown>);
+    } else {
+      sanitized[k] = v;
+    }
+  }
+  return sanitized;
+}
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export type LogLevelConfig = "debug" | "info" | "warn" | "error" | "silent";
@@ -38,12 +57,13 @@ export function createLogger(
   function write(logLevel: LogLevel, msg: string, entry?: LogEntry): void {
     if (LOG_LEVELS[logLevel] >= threshold) {
       if (format === "json") {
+        const safeEntry = entry ? sanitizeLogEntry(entry) : {};
         process.stderr.write(
           `${JSON.stringify({
             ts: new Date().toISOString(),
             level: logLevel,
             msg,
-            ...entry,
+            ...safeEntry,
           })}\n`,
         );
       } else {

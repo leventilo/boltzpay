@@ -7,6 +7,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   // @coinbase/cdp-sdk is loaded lazily via dynamic require() at runtime.
-  // Mark it external so esbuild does not attempt to bundle it.
-  external: ["@coinbase/cdp-sdk"],
+  // mppx is an optional peer dependency for MCP payment wrapping.
+  // Mark both external so esbuild does not attempt to bundle them.
+  external: ["@coinbase/cdp-sdk", "mppx", "mppx/mcp-sdk/client"],
 });
