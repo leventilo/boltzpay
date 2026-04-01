@@ -17,7 +17,7 @@ async function main(): Promise<void> {
 
   const server = new McpServer({
     name: "boltzpay",
-    version: "0.3.1",
+    version: "0.3.2",
   });
 
   registerAllTools(server, sdk);
