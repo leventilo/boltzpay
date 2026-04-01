@@ -6,13 +6,10 @@ export type {
   WalletInfo,
 } from "@boltzpay/core";
 export { Money } from "@boltzpay/core";
-export {
-  clearBazaarCache,
-  fetchBazaarDirectory,
-  getMergedDirectory,
-} from "./bazaar";
 export type { FetchOptions, QuoteResult } from "./boltzpay";
 export { BoltzPay } from "./boltzpay";
+export { BoltzPaySession } from "./session/boltzpay-session";
+export type { BoltzPaySessionParams } from "./session/boltzpay-session";
 export type { BudgetLimits, BudgetState } from "./budget/budget-manager";
 export type {
   BoltzPayConfig,
@@ -21,35 +18,33 @@ export type {
   ValidatedConfig,
   WalletConfig,
 } from "./config/types";
+export { diagnoseEndpoint } from "./diagnostics/diagnose";
 export type {
   ChainInfo,
   DeathReason,
+  DiagnoseInput,
   DiagnoseResult,
   DiagnoseTiming,
   EndpointClassification,
   EndpointHealth,
   FormatVersion,
+  MppMethodDetail,
 } from "./diagnostics/diagnose";
 export type {
   DryRunFailureReason,
   DryRunResult,
 } from "./diagnostics/dry-run";
-export type {
-  ApiDirectoryEntry,
-  DiscoverEntryStatus,
-  DiscoveredEntry,
-  DiscoverJsonEntry,
-  DiscoverOptions,
-} from "./directory";
 export {
-  API_DIRECTORY,
-  clearDirectoryCache,
-  fetchRemoteDirectory,
-  filterDirectory,
-  filterEntries,
-  getDirectoryCategories,
-  toDiscoverJson,
-} from "./directory";
+  DEFAULT_REGISTRY_URL,
+  fetchRegistryEndpoints,
+} from "./registry/registry-client";
+export type {
+  DiscoveredEntry,
+  DiscoverOptions,
+  RegistryEndpoint,
+  RegistryFetchOptions,
+  RegistryListResponse,
+} from "./registry/registry-types";
 export type {
   DeliveryDiagnosis,
   DiagnosisDeliveryAttempt,
@@ -59,6 +54,8 @@ export {
   BudgetExceededError,
   ConfigurationError,
   InsufficientFundsError,
+  MppSessionBudgetError,
+  MppSessionError,
   NetworkError,
   NoWalletError,
   PaymentUncertainError,
@@ -73,14 +70,30 @@ export type {
   BudgetWarningEvent,
   EventListener,
   EventName,
+  McpPaymentEvent,
   PaymentUncertainEvent,
   RetryAttemptEvent,
   RetryExhaustedEvent,
+  SessionCloseEvent,
+  SessionErrorEvent,
+  SessionOpenEvent,
+  SessionVoucherEvent,
   UnsupportedNetworkEvent,
   UnsupportedSchemeEvent,
   WalletSelectedEvent,
 } from "./events/types";
 export type { PaymentDetails, PaymentRecord } from "./history/types";
+export type {
+  McpPaymentReceipt,
+  WrappedCallToolResult,
+  WrappedMcpClient,
+} from "./mcp-payment/mcp-payment-wrapper";
+export type {
+  BoltzPaySessionOptions,
+  SessionEvent,
+  SessionReceipt,
+  VoucherInfo,
+} from "./session/session-types";
 export type { PaymentMetrics } from "./metrics/metrics";
 export { isTestnet, networkToShortName } from "./network-utils";
 export { FileAdapter } from "./persistence/file-adapter";
@@ -95,4 +108,4 @@ export type {
   WalletStatus,
 } from "./wallet-status";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.2.1";

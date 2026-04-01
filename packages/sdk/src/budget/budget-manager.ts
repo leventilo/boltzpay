@@ -53,6 +53,17 @@ interface PersistedBudget {
   readonly lastMonthlyReset: string;
 }
 
+function isPersistedBudget(value: unknown): value is PersistedBudget {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.dailySpent === "string" &&
+    typeof obj.monthlySpent === "string" &&
+    typeof obj.lastDailyReset === "string" &&
+    typeof obj.lastMonthlyReset === "string"
+  );
+}
+
 function todayDate(): string {
   return new Date().toISOString().slice(0, DATE_SLICE_DAY);
 }
@@ -66,6 +77,8 @@ export class BudgetManager {
   private monthlySpent: Money = Money.zero();
   private readonly limits: BudgetLimits | undefined;
   private readonly storage: StorageAdapter;
+  private readonly reservations = new Map<string, Money>();
+  private reservationCounter = 0;
 
   constructor(limits: BudgetLimits | undefined, storage: StorageAdapter) {
     this.limits = limits;
@@ -77,22 +90,29 @@ export class BudgetManager {
     if (!raw) return;
 
     try {
-      const data = JSON.parse(raw) as PersistedBudget;
+      const parsed: unknown = JSON.parse(raw);
+      if (!isPersistedBudget(parsed)) return;
+
       const today = todayDate();
       const month = thisMonth();
 
-      if (data.lastDailyReset === today) {
-        this.dailySpent = Money.fromCents(BigInt(data.dailySpent));
+      if (parsed.lastDailyReset === today) {
+        this.dailySpent = Money.fromCents(BigInt(parsed.dailySpent));
       }
-      if (data.lastMonthlyReset === month) {
-        this.monthlySpent = Money.fromCents(BigInt(data.monthlySpent));
+      if (parsed.lastMonthlyReset === month) {
+        this.monthlySpent = Money.fromCents(BigInt(parsed.monthlySpent));
       }
-    } catch {}
+    } catch {
+      // Intent: corrupted budget state starts fresh — no data loss, only resets counters
+    }
   }
 
   convertToUsd(amount: Money): Money {
     if (amount.currency === "USD") return amount;
     const rate = this.limits?.satToUsdRate ?? DEFAULT_SAT_TO_USD_RATE;
+    // Float arithmetic is safe here: rate (validated positive by Zod schema) * 1e8
+    // stays within Number.MAX_SAFE_INTEGER (9e15) for any realistic SAT→USD rate (<1e7).
+    // The result is Math.round'd then converted to BigInt — no precision loss for budget purposes.
     const rateScaled = BigInt(
       Math.round(rate * CENTS_PER_DOLLAR * Number(RATE_PRECISION)),
     );
@@ -118,16 +138,21 @@ export class BudgetManager {
       };
     }
 
+    const reserved = this.sumReservations();
+
     if (
       this.limits.daily &&
-      this.dailySpent.add(amount).greaterThan(this.limits.daily)
+      this.dailySpent.add(reserved).add(amount).greaterThan(this.limits.daily)
     ) {
       return { exceeded: true, period: "daily", limit: this.limits.daily };
     }
 
     if (
       this.limits.monthly &&
-      this.monthlySpent.add(amount).greaterThan(this.limits.monthly)
+      this.monthlySpent
+        .add(reserved)
+        .add(amount)
+        .greaterThan(this.limits.monthly)
     ) {
       return { exceeded: true, period: "monthly", limit: this.limits.monthly };
     }
@@ -161,6 +186,67 @@ export class BudgetManager {
     if (monthlyWarning) return monthlyWarning;
 
     return { warning: false };
+  }
+
+  reserve(amount: Money): string {
+    const available = this.availableForReservation();
+    if (available && amount.greaterThan(available)) {
+      throw new Error(
+        `Reservation exceeds available budget: requested ${amount.toDisplayString()}, available ${available.toDisplayString()}`,
+      );
+    }
+    this.reservationCounter += 1;
+    const reservationId = `rsv_${this.reservationCounter}`;
+    this.reservations.set(reservationId, amount);
+    return reservationId;
+  }
+
+  release(reservationId: string, unusedAmount: Money): void {
+    const reservation = this.reservations.get(reservationId);
+    if (!reservation) return;
+    const spent = reservation.greaterThanOrEqual(unusedAmount)
+      ? reservation.subtract(unusedAmount)
+      : reservation;
+    this.recordSpending(spent);
+    this.reservations.delete(reservationId);
+  }
+
+  availableForReservation(): Money | undefined {
+    if (!this.limits) return undefined;
+    const dailyRemaining = this.computeRemaining(
+      this.dailySpent,
+      this.limits.daily,
+    );
+    const monthlyRemaining = this.computeRemaining(
+      this.monthlySpent,
+      this.limits.monthly,
+    );
+    const baseRemaining = this.pickSmallestLimit(
+      dailyRemaining,
+      monthlyRemaining,
+    );
+    if (!baseRemaining) return undefined;
+    const reservedTotal = this.sumReservations();
+    return baseRemaining.greaterThanOrEqual(reservedTotal)
+      ? baseRemaining.subtract(reservedTotal)
+      : Money.zero();
+  }
+
+  private sumReservations(): Money {
+    let total = Money.zero();
+    for (const amount of this.reservations.values()) {
+      total = total.add(amount);
+    }
+    return total;
+  }
+
+  private pickSmallestLimit(
+    a: Money | undefined,
+    b: Money | undefined,
+  ): Money | undefined {
+    if (!a) return b;
+    if (!b) return a;
+    return a.greaterThan(b) ? b : a;
   }
 
   resetDaily(): void {

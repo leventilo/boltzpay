@@ -21,32 +21,39 @@ import {
   type CdpMultiChainClient,
   CdpWalletManager,
   L402Adapter,
+  MppAdapter,
+  MppMethodSelector,
+  MppSessionManager,
   NwcWalletManager,
   type ProbeResult,
   ProtocolRouter,
   X402Adapter,
   X402PaymentError,
+  createMppMethod,
 } from "@boltzpay/protocols";
-import { getMergedDirectory } from "./bazaar";
+import {
+  createMcpPaymentWrapper,
+  type WrappedMcpClient,
+} from "./mcp-payment/mcp-payment-wrapper";
 import type { BudgetLimits, BudgetState } from "./budget/budget-manager";
 import { BudgetManager } from "./budget/budget-manager";
+import { toBudgetExceededCode } from "./budget/budget-exceeded-codes";
 import { hasCoinbaseCredentials, validateConfig } from "./config/schema";
 import type { BoltzPayConfig, ValidatedConfig } from "./config/types";
 import type { DiagnoseResult } from "./diagnostics/diagnose";
 import { diagnoseEndpoint } from "./diagnostics/diagnose";
 import type { DryRunResult } from "./diagnostics/dry-run";
+import {
+  DEFAULT_REGISTRY_URL,
+  fetchRegistryEndpoints,
+} from "./registry/registry-client";
 import type {
-  ApiDirectoryEntry,
   DiscoveredEntry,
   DiscoverOptions,
-} from "./directory";
-import {
-  classifyProbeError,
-  DISCOVER_PROBE_TIMEOUT_MS,
-  filterEntries,
-  sortDiscoveredEntries,
-  withTimeout,
-} from "./directory";
+} from "./registry/registry-types";
+import { BoltzPaySession } from "./session/boltzpay-session";
+import type { BoltzPaySessionOptions, SessionReceipt } from "./session/session-types";
+import { MppSessionBudgetError } from "./errors/mpp-session-error";
 import { BoltzPayError } from "./errors/boltzpay-error";
 import { BudgetExceededError } from "./errors/budget-exceeded-error";
 import { ConfigurationError } from "./errors/configuration-error";
@@ -101,38 +108,12 @@ interface PaymentFlowInput {
   readonly wallet?: ResolvedWallet;
 }
 
-interface FallbackInput {
-  readonly url: string;
-  readonly probeResults: readonly ProbeResult[];
-  readonly selectedQuote: ProtocolQuote;
-  readonly options?: FetchOptions;
-  readonly fetchStart?: number;
-  readonly wallet?: ResolvedWallet;
-}
-
 interface SuccessResponseInput {
   readonly url: string;
   readonly adapter: ProtocolAdapter;
   readonly quote: ProtocolQuote;
   readonly result: ProtocolResult;
   readonly durationMs?: number;
-}
-
-type BudgetExceededCode =
-  | "daily_budget_exceeded"
-  | "monthly_budget_exceeded"
-  | "per_transaction_exceeded";
-
-const BUDGET_EXCEEDED_CODES = {
-  daily: "daily_budget_exceeded",
-  monthly: "monthly_budget_exceeded",
-  per_transaction: "per_transaction_exceeded",
-} as const satisfies Record<string, BudgetExceededCode>;
-
-function toBudgetExceededCode(
-  period: "daily" | "monthly" | "per_transaction",
-): BudgetExceededCode {
-  return BUDGET_EXCEEDED_CODES[period];
 }
 
 function toMoney(value: string | number): Money {
@@ -173,6 +154,7 @@ function extractServerMessage(
   try {
     text = new TextDecoder().decode(body);
   } catch {
+    // Intent: binary or non-UTF-8 body cannot be decoded — return no message
     return undefined;
   }
   if (!text.trim()) return undefined;
@@ -188,7 +170,9 @@ function extractServerMessage(
         if (typeof nested.message === "string") return nested.message;
       }
     }
-  } catch {}
+  } catch {
+    // Intent: response body may not be valid JSON — fall through to raw text truncation
+  }
 
   return text.length > SERVER_MESSAGE_MAX_LENGTH
     ? `${text.slice(0, SERVER_MESSAGE_MAX_LENGTH)}…`
@@ -306,12 +290,31 @@ function resolveMaxHistoryRecords(config: ValidatedConfig): number {
 
 const LEGACY_DATA_DIR = ".boltzpay";
 
+const MPP_METHOD_TO_WALLET: Readonly<Record<string, string>> = {
+  lightning: "nwc",
+  stripe: "stripe-mpp",
+  tempo: "tempo",
+  card: "visa-mpp",
+};
+
+const RESOLVED_WALLET_TYPES = ["coinbase", "nwc", "stripe-mpp", "tempo", "visa-mpp"] as const;
+type ResolvedWalletType = (typeof RESOLVED_WALLET_TYPES)[number];
+
+interface MppRawConfig {
+  readonly type: string;
+  readonly tempoPrivateKey?: string;
+  readonly stripeSecretKey?: string;
+  readonly nwcConnectionString?: string;
+  readonly visaJwe?: string;
+}
+
 interface ResolvedWallet {
   readonly name: string;
-  readonly type: "coinbase" | "nwc";
+  readonly type: ResolvedWalletType;
   readonly cdpManager?: CdpWalletManager;
   readonly nwcManager?: NwcWalletManager;
   readonly networks?: readonly string[];
+  readonly rawConfig?: MppRawConfig;
 }
 
 export class BoltzPay {
@@ -412,13 +415,40 @@ export class BoltzPay {
         networks: wc.networks,
       };
     }
-    const wc = walletConfig;
+    if (walletConfig.type === "nwc") {
+      const wc = walletConfig;
+      return {
+        name: wc.name,
+        type: "nwc",
+        nwcManager: new NwcWalletManager(wc.nwcConnectionString),
+        networks: wc.networks,
+      };
+    }
     return {
-      name: wc.name,
-      type: "nwc",
-      nwcManager: new NwcWalletManager(wc.nwcConnectionString),
-      networks: wc.networks,
+      name: walletConfig.name,
+      type: walletConfig.type,
+      networks: walletConfig.networks,
+      rawConfig: this.extractMppRawConfig(walletConfig),
     };
+  }
+
+  private extractMppRawConfig(
+    walletConfig: NonNullable<ValidatedConfig["wallets"]>[number],
+  ): MppRawConfig {
+    const raw: MppRawConfig = { type: walletConfig.type };
+    if (walletConfig.type === "tempo") {
+      return { ...raw, tempoPrivateKey: walletConfig.tempoPrivateKey };
+    }
+    if (walletConfig.type === "stripe-mpp") {
+      return { ...raw, stripeSecretKey: walletConfig.stripeSecretKey };
+    }
+    if (walletConfig.type === "nwc") {
+      return { ...raw, nwcConnectionString: walletConfig.nwcConnectionString };
+    }
+    if (walletConfig.type === "visa-mpp") {
+      return { ...raw, visaJwe: walletConfig.visaJwe };
+    }
+    return raw;
   }
 
   private createCdpManager(
@@ -478,6 +508,10 @@ export class BoltzPay {
     quote: ProtocolQuote,
     url: string,
   ): ResolvedWallet {
+    if (quote.protocol === "mpp") {
+      return this.selectMppWallet(quote);
+    }
+
     if (quote.protocol === "l402") {
       const nwcWallet = this.wallets.find((w) => w.type === "nwc");
       if (!nwcWallet) {
@@ -560,6 +594,56 @@ export class BoltzPay {
     );
   }
 
+  private selectMppWallet(quote: ProtocolQuote): ResolvedWallet {
+    const method = quote.selectedMethod;
+    if (!method) {
+      throw new NoWalletError("mpp", this.getAvailableNetworksList());
+    }
+    const walletType = MPP_METHOD_TO_WALLET[method];
+    if (!walletType) {
+      throw new NoWalletError(method, this.getAvailableNetworksList());
+    }
+    const wallet = this.wallets.find((w) => w.type === walletType);
+    if (!wallet) {
+      throw new NoWalletError(method, this.getAvailableNetworksList());
+    }
+    this.emitter.emit("wallet:selected", {
+      walletName: wallet.name,
+      network: method,
+      reason: "only_match",
+    });
+    return wallet;
+  }
+
+  private sortProbesByWalletAvailability(
+    probes: readonly ProbeResult[],
+  ): readonly ProbeResult[] {
+    const walletTypes = new Set(this.wallets.map((w) => w.type));
+    return [...probes].sort((a, b) => {
+      const aHasWallet = this.probeHasMatchingWallet(a, walletTypes);
+      const bHasWallet = this.probeHasMatchingWallet(b, walletTypes);
+      if (aHasWallet === bHasWallet) return 0;
+      return aHasWallet ? -1 : 1;
+    });
+  }
+
+  private probeHasMatchingWallet(
+    probe: ProbeResult,
+    walletTypes: ReadonlySet<string>,
+  ): boolean {
+    const adapterName = probe.adapter.name;
+    if (adapterName === "mpp") {
+      const method = probe.quote.selectedMethod;
+      if (!method) return false;
+      const walletType = MPP_METHOD_TO_WALLET[method];
+      return !!walletType && walletTypes.has(walletType);
+    }
+    if (adapterName === "l402") {
+      return walletTypes.has("nwc");
+    }
+    return walletTypes.has("coinbase");
+  }
+
   private createAdapters(): ProtocolAdapter[] {
     const validateUrl = (url: string) => {
       try {
@@ -570,11 +654,26 @@ export class BoltzPay {
     };
 
     const timeouts = this.config.timeouts;
-    const adapters: ProtocolAdapter[] = [
+
+    const mppWalletTypes = new Set(
+      this.wallets
+        .filter((w) =>
+          (["stripe-mpp", "tempo", "visa-mpp", "nwc"] as const).includes(
+            w.type as "stripe-mpp" | "tempo" | "visa-mpp" | "nwc",
+          ),
+        )
+        .map((w) => w.type),
+    );
+    const methodSelector = new MppMethodSelector(
+      mppWalletTypes,
+      this.config.mppPreferredMethods ?? [],
+    );
+
+    return [
+      new MppAdapter(methodSelector, validateUrl, timeouts),
       new X402Adapter(this.primaryCdpManager, validateUrl, timeouts),
       new L402Adapter(this.primaryNwcManager, validateUrl, timeouts),
     ];
-    return adapters;
   }
 
   private createBudgetLimits(): BudgetLimits | undefined {
@@ -609,7 +708,9 @@ export class BoltzPay {
           "Legacy v0.1 data files detected. v0.2 uses a new storage format — starting fresh.",
         );
       }
-    } catch {}
+    } catch {
+      // Intent: legacy v0.1 detection is best-effort — missing dir is normal on fresh installs
+    }
   }
 
   private buildRetryOptions(phase: string): RetryOptions {
@@ -655,22 +756,114 @@ export class BoltzPay {
       return probeResults;
     }
 
-    const primary = probeResults[0];
-    if (!primary) {
+    if (probeResults.length === 0) {
       throw new ProtocolError("protocol_detection_failed", "No probe results");
     }
 
-    const selectedQuote = this.selectPaymentChain(primary.quote, options);
-    this.guardScheme(selectedQuote, url);
-    const wallet = this.selectWalletForPayment(selectedQuote, url);
-    return this.executeWithFallback({
-      url,
-      probeResults,
-      selectedQuote,
-      options,
-      fetchStart,
-      wallet,
-    });
+    const sorted = this.sortProbesByWalletAvailability(probeResults);
+    return this.executeWithWalletFallback(url, sorted, options, fetchStart);
+  }
+
+  async openSession(
+    url: string,
+    options?: BoltzPaySessionOptions,
+  ): Promise<BoltzPaySession> {
+    await this.initPromise;
+    this.checkDomainPolicy(url);
+
+    const tempoWallet = this.wallets.find((w) => w.type === "tempo");
+    if (!tempoWallet?.rawConfig?.tempoPrivateKey) {
+      throw new NoWalletError("tempo", this.getAvailableNetworksList());
+    }
+
+    const maxDeposit = this.computeSessionDeposit(options?.maxDeposit);
+    if (maxDeposit.isZero()) {
+      throw new MppSessionBudgetError(Money.fromCents(1n), maxDeposit);
+    }
+
+    const reservationId = this.reserveSessionBudget(maxDeposit);
+
+    try {
+      const sessionManager = new MppSessionManager(
+        { tempoPrivateKey: tempoWallet.rawConfig.tempoPrivateKey },
+        (entry) => {
+          this.emitter.emit("session:voucher", {
+            channelId: entry.channelId,
+            cumulativeAmount: entry.cumulativeAmount,
+            index: 0,
+          });
+        },
+      );
+
+      const maxDepositRaw = this.moneyToUsdcRaw(maxDeposit);
+      const managedSession = await sessionManager.openSession(url, {
+        maxDeposit: maxDepositRaw,
+        signal: options?.signal,
+      });
+
+      const sessionId = crypto.randomUUID();
+      const bpSession = new BoltzPaySession({
+        session: managedSession,
+        budgetManager: this.budgetManager,
+        emitter: this.emitter,
+        history: this.history,
+        url,
+        depositAmount: maxDeposit,
+        reservationId,
+        sessionId,
+      });
+
+      this.emitter.emit("session:open", {
+        channelId: managedSession.channelId,
+        depositAmount: maxDeposit,
+        url,
+      });
+
+      return bpSession;
+    } catch (err) {
+      // Release reservation on failure to prevent budget leak
+      this.budgetManager.release(reservationId, maxDeposit);
+      if (err instanceof BoltzPayError) throw err;
+      const msg = err instanceof Error ? err.message : "Session open failed";
+      throw new ProtocolError("payment_failed", `Session open failed: ${msg}`);
+    }
+  }
+
+  private computeSessionDeposit(
+    userMaxDeposit?: number | string,
+  ): Money {
+    const candidates: Money[] = [];
+
+    const available = this.budgetManager.availableForReservation();
+    if (available) candidates.push(available);
+
+    if (this.config.sessionMaxDeposit) {
+      candidates.push(toMoney(this.config.sessionMaxDeposit));
+    }
+
+    if (userMaxDeposit !== undefined) {
+      candidates.push(toMoney(userMaxDeposit));
+    }
+
+    if (candidates.length === 0) return Money.fromDollars("10.00");
+    return candidates.reduce((min, c) =>
+      c.greaterThan(min) ? min : c,
+    );
+  }
+
+  private reserveSessionBudget(amount: Money): string {
+    try {
+      return this.budgetManager.reserve(amount);
+    } catch {
+      const available = this.budgetManager.availableForReservation() ?? Money.zero();
+      throw new MppSessionBudgetError(amount, available);
+    }
+  }
+
+  private moneyToUsdcRaw(money: Money): bigint {
+    // Convert USD cents to USDC raw atomic units (6 decimals): 100 cents = 1_000_000 raw
+    const CENTS_TO_RAW = 10000n; // 1_000_000 / 100
+    return money.cents * CENTS_TO_RAW;
   }
 
   private async executeDryRun(
@@ -707,6 +900,7 @@ export class BoltzPay {
     try {
       selectedQuote = this.selectPaymentChain(primary.quote, options);
     } catch {
+      // Intent: no compatible chain available — report as detection_failed with partial quote
       return {
         wouldPay: false,
         reason: "detection_failed",
@@ -901,6 +1095,7 @@ export class BoltzPay {
     try {
       return parseNetworkIdentifier(network);
     } catch {
+      // Intent: non-standard network identifier — treat as unknown rather than crashing
       return undefined;
     }
   }
@@ -942,23 +1137,62 @@ export class BoltzPay {
     }
   }
 
-  private async executeWithFallback(
-    input: FallbackInput,
+  private async executeWithWalletFallback(
+    url: string,
+    probeResults: readonly ProbeResult[],
+    options: FetchOptions | undefined,
+    fetchStart: number,
   ): Promise<BoltzPayResponse> {
-    const { url, probeResults, selectedQuote, options, fetchStart, wallet } =
-      input;
     const errors: Error[] = [];
-    for (let i = 0; i < probeResults.length; i++) {
-      const probe = probeResults[i];
-      if (!probe) continue;
-      const quote = i === 0 ? selectedQuote : probe.quote;
+    const detectedProtocols: string[] = [];
+
+    for (const probe of probeResults) {
+      detectedProtocols.push(probe.adapter.name);
+
+      let wallet: ResolvedWallet;
+      let selectedQuote: ProtocolQuote;
+      try {
+        selectedQuote = this.selectPaymentChain(probe.quote, options);
+        this.guardScheme(selectedQuote, url);
+        wallet = this.selectWalletForPayment(selectedQuote, url);
+      } catch (err) {
+        if (err instanceof NoWalletError) {
+          this.logger.debug(
+            `Skipping ${probe.adapter.name}: no matching wallet configured`,
+          );
+          continue;
+        }
+        if (
+          err instanceof UnsupportedSchemeError ||
+          err instanceof UnsupportedNetworkError
+        ) {
+          throw err;
+        }
+        if (
+          err instanceof ProtocolError &&
+          err.code === "no_compatible_chain"
+        ) {
+          throw err;
+        }
+        errors.push(err instanceof Error ? err : new Error(String(err)));
+        continue;
+      }
+
       const result = await this.tryAdapter(
-        { url, adapter: probe.adapter, quote, options, wallet },
+        { url, adapter: probe.adapter, quote: selectedQuote, options, wallet },
         errors,
         fetchStart,
       );
       if (result) return result;
     }
+
+    if (errors.length === 0 && detectedProtocols.length > 0) {
+      throw new NoWalletError(
+        detectedProtocols.join(", "),
+        this.getAvailableNetworksList(),
+      );
+    }
+
     const aggregateErr = new AggregatePaymentError(errors);
     const diagnosis = errors
       .filter(
@@ -1068,6 +1302,9 @@ export class BoltzPay {
     }
   }
 
+  // Intent: reuses ConfigurationError because the policy is user-configured.
+  // Consumers switch on the stable code "domain_blocked", not the error class.
+  // A dedicated DomainPolicyError would add a class for a single code — not warranted.
   private checkDomainPolicy(url: string): void {
     const hostname = new URL(url).hostname;
     const allowlist = this.config.allowlist;
@@ -1168,13 +1405,26 @@ export class BoltzPay {
       );
     }
 
-    return this.router.execute(executionAdapter, {
+    const executeRequest: {
+      url: string;
+      method: string;
+      headers: Record<string, string>;
+      body: Uint8Array | undefined;
+      amount: Money;
+      wallet?: MppRawConfig;
+    } = {
       url,
       method: options?.method ?? "GET",
       headers: options?.headers ?? {},
       body: options?.body,
       amount: quote.amount,
-    });
+    };
+
+    if (adapter.name === "mpp" && wallet?.rawConfig) {
+      executeRequest.wallet = wallet.rawConfig;
+    }
+
+    return this.router.execute(executionAdapter, executeRequest);
   }
 
   private isPostSignatureNetworkError(err: unknown): boolean {
@@ -1403,6 +1653,7 @@ export class BoltzPay {
 
       return result;
     } catch {
+      // Intent: wallet balance query failure is non-fatal — return empty balances
       return {};
     }
   }
@@ -1530,37 +1781,64 @@ export class BoltzPay {
   async discover(
     options?: DiscoverOptions,
   ): Promise<readonly DiscoveredEntry[]> {
-    const live = options?.enableLiveDiscovery ?? true;
-    const allEntries = await getMergedDirectory({ live });
-    const entries = filterEntries(allEntries, options?.category);
-    const results = await Promise.all(
-      entries.map((entry) => this.probeDirectoryEntry(entry, options?.signal)),
-    );
-    return sortDiscoveredEntries(results);
+    await this.initPromise;
+    const registryUrl = this.config.registryUrl ?? DEFAULT_REGISTRY_URL;
+    const response = await fetchRegistryEndpoints(registryUrl, {
+      protocol: options?.protocol,
+      minScore: options?.minScore,
+      category: options?.category,
+      query: options?.query,
+      limit: options?.limit,
+      offset: options?.offset,
+      signal: options?.signal,
+    });
+    return response.data;
   }
 
-  private async probeDirectoryEntry(
-    entry: ApiDirectoryEntry,
-    signal?: AbortSignal,
-  ): Promise<DiscoveredEntry> {
-    try {
-      const result = await withTimeout(
-        this.quote(entry.url),
-        DISCOVER_PROBE_TIMEOUT_MS,
-        signal,
+  /** Wraps a MCP Client with automatic MPP payment handling for -32042 errors. */
+  wrapMcpClient(client: {
+    callTool(
+      params: { name: string; arguments?: Record<string, unknown> },
+      options?: unknown,
+    ): Promise<unknown>;
+  }): WrappedMcpClient {
+    const methods = this.buildMcpPaymentMethods();
+    if (methods.length === 0) {
+      throw new ConfigurationError(
+        "invalid_config",
+        "wrapMcpClient requires at least one MPP wallet configured (tempo or stripe-mpp)",
       );
-      return {
-        ...entry,
-        live: {
-          status: "live",
-          livePrice: result.amount.toDisplayString(),
-          protocol: result.protocol,
-          network: result.network,
-        },
-      };
-    } catch (err) {
-      return { ...entry, live: classifyProbeError(err) };
     }
+
+    return createMcpPaymentWrapper({
+      client,
+      methods,
+      budgetManager: this.budgetManager,
+      emitter: this.emitter,
+      history: this.history,
+      convertToUsd: (amount) => this.budgetManager.convertToUsd(amount),
+    });
+  }
+
+  private buildMcpPaymentMethods(): import("mppx").Method.AnyClient[] {
+    const methods: import("mppx").Method.AnyClient[] = [];
+    for (const wallet of this.wallets) {
+      if (wallet.type === "tempo" || wallet.type === "stripe-mpp") {
+        try {
+          const method = createMppMethod(
+            wallet.type,
+            wallet.rawConfig ?? {},
+          );
+          methods.push(method);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            `Skipping ${wallet.type} wallet "${wallet.name}": ${message}`,
+          );
+        }
+      }
+    }
+    return methods;
   }
 
   close(): void {
