@@ -9,6 +9,15 @@ export interface EndpointInputHints {
   readonly outputExample?: unknown;
 }
 
+export interface MppMethodQuote {
+  readonly method: string;
+  readonly intent: string;
+  readonly amount: Money;
+  readonly currency: string;
+  readonly network: string | undefined;
+  readonly recipient: string | undefined;
+}
+
 export interface ProtocolQuote {
   readonly amount: Money;
   readonly protocol: string;
@@ -17,6 +26,9 @@ export interface ProtocolQuote {
   readonly scheme: string;
   readonly allAccepts?: readonly AcceptOption[];
   readonly inputHints?: EndpointInputHints;
+  readonly allMethods?: readonly MppMethodQuote[];
+  readonly selectedMethod?: string;
+  readonly priceUnknown?: boolean;
 }
 
 export interface ProtocolResult {
@@ -39,4 +51,31 @@ export interface ProtocolAdapter {
     readonly body: Uint8Array | undefined;
     readonly amount: Money;
   }): Promise<ProtocolResult>;
+}
+
+export interface SessionOptions {
+  readonly maxDeposit?: bigint;
+  /** Abort signal forwarded to the underlying transport (e.g. fetch). */
+  readonly signal?: AbortSignal;
+}
+
+export interface ManagedSession {
+  readonly channelId: string;
+  readonly spent: bigint;
+  fetch(url: string, init?: Record<string, unknown>): Promise<Response>;
+  close(): Promise<SessionCloseResult>;
+}
+
+export interface SessionCloseResult {
+  readonly channelId: string;
+  readonly totalSpent: bigint;
+  readonly refunded: bigint;
+}
+
+export interface SessionAdapter {
+  readonly name: string;
+  openSession(
+    url: string,
+    options: SessionOptions,
+  ): Promise<ManagedSession>;
 }

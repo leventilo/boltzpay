@@ -23,8 +23,13 @@ export {
 } from "./shared/payment-errors";
 export type {
   EndpointInputHints,
+  ManagedSession,
+  MppMethodQuote,
   ProtocolAdapter,
   ProtocolQuote,
   ProtocolResult,
+  SessionAdapter,
+  SessionCloseResult,
+  SessionOptions,
 } from "./shared/protocol-adapter";
 export { isProtocolType, type ProtocolType } from "./shared/protocol-types";
