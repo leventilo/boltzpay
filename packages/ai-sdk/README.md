@@ -45,7 +45,7 @@ const { text } = await generateText({
 
 ### Multi-Wallet
 
-v0.3 supports multiple wallet types via the `wallets` array. Mix crypto and traditional rails:
+Multiple wallet types can be configured via the `wallets` array. Mix crypto and traditional rails:
 
 ```ts
 const tools = boltzpayTools({

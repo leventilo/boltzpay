@@ -203,6 +203,7 @@ Subscribe via `agent.on(event, callback)`. Unsubscribe via `agent.off(event, cal
 | `diagnose(url)` | Deep endpoint health check (DNS, HTTP, headers, protocol) | No |
 | `close()` | Close all connections (NWC WebSocket, etc.) | No |
 | `on(event, cb)` | Subscribe to events | No |
+| `off(event, cb)` | Unsubscribe from events | No |
 
 ## Links
 

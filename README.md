@@ -80,7 +80,8 @@ agent.on("budget:exceeded", (e) => console.log(`Blocked: ${e.period}`));
 agent.on("payment", (e) => console.log(`${e.amount.toDisplayString()} via ${e.protocol}`));
 
 const budget = agent.getBudget();
-// { dailySpent, dailyLimit, dailyRemaining, monthlySpent, ... }
+// { dailySpent, monthlySpent, dailyLimit, monthlyLimit,
+//   perTransactionLimit, dailyRemaining, monthlyRemaining }
 ```
 
 Daily, monthly, per-transaction limits. Session deposit reservations. Allowlist/blocklist. Max amount guard.

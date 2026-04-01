@@ -30,7 +30,7 @@ import { L402Adapter } from "@boltzpay/protocols";
 
 ### MppAdapter
 
-Handles the [MPP protocol](https://datatracker.ietf.org/doc/draft-nottingham-http-micropayments/) (IETF track) — supports Stripe, Tempo, Visa, and Lightning payment methods. Implements both `ProtocolAdapter` (single charge) and `SessionAdapter` (streaming sessions).
+Handles the [MPP protocol](https://datatracker.ietf.org/doc/draft-nottingham-http-micropayments/) (IETF track) — supports Stripe, Tempo, Visa, and Lightning payment methods. Implements `ProtocolAdapter` for single-charge payments. For streaming sessions, use `MppSessionManager`.
 
 ```ts
 import { MppAdapter } from "@boltzpay/protocols";
@@ -63,6 +63,7 @@ import { MppSessionManager } from "@boltzpay/protocols";
 ## Wallet Managers
 
 - **`CdpWalletManager`** — Coinbase Developer Platform wallet (EVM + Solana)
+- **`CdpManager`** — CDP account provisioning and management
 - **`NwcWalletManager`** — Nostr Wallet Connect for Lightning payments
 - **`CdpSvmSigner`** — Solana transaction signer via CDP
 
