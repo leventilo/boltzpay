@@ -1788,6 +1788,36 @@ export class BoltzPay {
     options?: DiscoverOptions,
   ): Promise<readonly DiscoveredEntry[]> {
     await this.initPromise;
+
+    if (options?.minScore != null) {
+      if (
+        !Number.isFinite(options.minScore) ||
+        options.minScore < 0 ||
+        options.minScore > 100
+      ) {
+        throw new ConfigurationError(
+          "invalid_config",
+          "discover() minScore must be a finite number between 0 and 100",
+        );
+      }
+    }
+    if (options?.limit != null) {
+      if (!Number.isInteger(options.limit) || options.limit <= 0) {
+        throw new ConfigurationError(
+          "invalid_config",
+          "discover() limit must be a positive integer",
+        );
+      }
+    }
+    if (options?.offset != null) {
+      if (!Number.isInteger(options.offset) || options.offset < 0) {
+        throw new ConfigurationError(
+          "invalid_config",
+          "discover() offset must be a non-negative integer",
+        );
+      }
+    }
+
     const registryUrl = this.config.registryUrl ?? DEFAULT_REGISTRY_URL;
     const response = await fetchRegistryEndpoints(registryUrl, {
       protocol: options?.protocol,

@@ -35,6 +35,7 @@ export function registerQuote(server: McpServer, sdk: BoltzPay): void {
           currency: quote.amount.currency,
           network: quote.network ?? "unknown",
           ...(alternatives ? { alternatives } : {}),
+          ...(quote.inputHints ? { inputHints: quote.inputHints } : {}),
         };
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

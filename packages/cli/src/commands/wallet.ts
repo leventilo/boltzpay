@@ -1,3 +1,4 @@
+import type { WalletStatus } from "@boltzpay/sdk";
 import type { Command } from "commander";
 
 import { createSdkFromEnv } from "../config.js";
@@ -20,7 +21,7 @@ export function registerWalletCommand(program: Command): void {
         if (jsonMode) {
           const output = formatJsonOutput({
             success: true,
-            data: status,
+            data: toJsonSafe(status),
             payment: null,
             metadata: { url: "", status: 0, duration: 0 },
           });
@@ -34,4 +35,21 @@ export function registerWalletCommand(program: Command): void {
         sdk.close();
       }
     });
+}
+
+function toJsonSafe(status: WalletStatus): Record<string, unknown> {
+  if (!status.lightning?.balance) {
+    return { ...status };
+  }
+
+  return {
+    ...status,
+    lightning: {
+      ...status.lightning,
+      balance: {
+        ...status.lightning.balance,
+        sats: String(status.lightning.balance.sats),
+      },
+    },
+  };
 }

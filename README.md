@@ -55,7 +55,7 @@ const receipt = await session.close(); // { totalSpent, refunded, voucherCount }
 Wrap any MCP client with automatic payment handling (`-32042`):
 
 ```typescript
-const wrapped = agent.wrapMcpClient(mcpClient);
+const wrapped = await agent.wrapMcpClient(mcpClient);
 const result = await wrapped.callTool({ name: "paid-tool" });
 // Budget enforced, receipt returned
 ```

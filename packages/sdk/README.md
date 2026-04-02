@@ -103,7 +103,7 @@ Wraps a Model Context Protocol client to handle `-32042` payment-required errors
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 const mcpClient = new Client({ name: "my-agent", version: "1.0.0" });
-const wrapped = agent.wrapMcpClient(mcpClient);
+const wrapped = await agent.wrapMcpClient(mcpClient);
 const result = await wrapped.callTool({ name: "search", arguments: { q: "test" } });
 // result.receipt?: { method, status, reference, timestamp }
 ```

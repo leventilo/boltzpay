@@ -173,7 +173,7 @@ class MppManagedSession implements ManagedSession {
         }
       }
     } finally {
-      reader.releaseLock();
+      await reader.cancel();
     }
   }
 }

@@ -46,6 +46,8 @@ export function registerFetch(server: McpServer, sdk: BoltzPay): void {
                 payment: {
                   protocol: response.payment.protocol,
                   amount: response.payment.amount.toDisplayString(),
+                  currency: response.payment.amount.currency,
+                  txHash: response.payment.txHash ?? null,
                 },
               }
             : {}),

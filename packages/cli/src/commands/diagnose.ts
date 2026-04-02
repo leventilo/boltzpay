@@ -87,5 +87,7 @@ function buildJsonData(result: DiagnoseResult): Record<string, unknown> {
         }
       : {}),
     ...(result.timing ? { timing: result.timing } : {}),
+    ...(result.mppMethods ? { mppMethods: result.mppMethods } : {}),
+    ...(result.inputHints ? { inputHints: result.inputHints } : {}),
   };
 }

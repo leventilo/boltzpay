@@ -22,6 +22,7 @@ export function registerHistory(server: McpServer, sdk: BoltzPay): void {
         }
 
         const formatted = records.map((record) => ({
+          id: record.id,
           url: record.url,
           protocol: record.protocol,
           amount: record.amount.toDisplayString(),

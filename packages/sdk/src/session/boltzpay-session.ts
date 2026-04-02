@@ -37,8 +37,7 @@ export class BoltzPaySession {
   private readonly reservationId: string;
   private readonly sessionId: string;
   private voucherCount = 0;
-  private closed = false;
-  private cachedReceipt: SessionReceipt | undefined;
+  private closePromise: Promise<SessionReceipt> | undefined;
 
   constructor(params: BoltzPaySessionParams) {
     this.session = params.session;
@@ -91,15 +90,14 @@ export class BoltzPaySession {
   }
 
   async close(): Promise<SessionReceipt> {
-    if (this.closed && this.cachedReceipt) {
-      return this.cachedReceipt;
-    }
-    this.closed = true;
+    if (this.closePromise) return this.closePromise;
+    this.closePromise = this.performClose();
+    return this.closePromise;
+  }
 
+  private async performClose(): Promise<SessionReceipt> {
     const result: SessionCloseResult = await this.session.close();
 
-    // Release unused reservation back to budget
-    // deposit was reserved at open; unused = deposit - actual spent equivalent
     const spentMoney = this.convertRawToMoney(result.totalSpent);
     const unused = this.depositAmount.greaterThanOrEqual(spentMoney)
       ? this.depositAmount.subtract(spentMoney)
@@ -114,14 +112,12 @@ export class BoltzPaySession {
       refunded: result.refunded,
     });
 
-    const receipt: SessionReceipt = {
+    return {
       channelId: result.channelId,
       totalSpent: result.totalSpent,
       refunded: result.refunded,
       voucherCount: this.voucherCount,
     };
-    this.cachedReceipt = receipt;
-    return receipt;
   }
 
   async *stream(

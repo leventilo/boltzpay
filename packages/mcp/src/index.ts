@@ -22,6 +22,13 @@ async function main(): Promise<void> {
 
   registerAllTools(server, sdk);
 
+  const cleanup = () => {
+    sdk.close();
+    process.exit(0);
+  };
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // biome-ignore lint/suspicious/noConsole: MCP server intentionally outputs to stderr

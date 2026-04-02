@@ -355,13 +355,28 @@ export async function diagnoseEndpoint(
       );
       if (postProbe.kind === "paid") return postProbe.result;
       if (postProbe.kind === "failed") {
-        return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
+        return buildNonPaidResult(
+          url,
+          Date.now() - totalStart,
+          "ambiguous",
+          status,
+        );
       }
 
-      return buildNonPaidResult(url, Date.now() - totalStart, "free_confirmed");
+      return buildNonPaidResult(
+        url,
+        Date.now() - totalStart,
+        "free_confirmed",
+        status,
+      );
     }
 
-    return buildNonPaidResult(url, Date.now() - totalStart, "ambiguous");
+    return buildNonPaidResult(
+      url,
+      Date.now() - totalStart,
+      "ambiguous",
+      status,
+    );
   } catch {
     // Intent: global budget exhausted or unexpected error — classify as timeout
     return buildDeadResult(url, Date.now() - totalStart, "timeout");
@@ -444,10 +459,12 @@ function buildNonPaidResult(
   url: string,
   latencyMs: number,
   classification: "free_confirmed" | "ambiguous",
+  httpStatus?: number,
 ): DiagnoseResult {
   return {
     url,
     classification,
+    ...(httpStatus != null ? { httpStatus } : {}),
     isPaid: false,
     protocol: undefined,
     formatVersion: undefined,

@@ -27,10 +27,14 @@ function formatResult(result: DiagnoseResult): Record<string, unknown> {
       namespace: c.namespace,
       network: c.network,
       price: c.price.toDisplayString(),
+      payTo: c.payTo ?? null,
       scheme: c.scheme,
     }));
   }
   if (result.timing) output.timing = result.timing;
+  if (result.mppMethods && result.mppMethods.length > 0) {
+    output.mppMethods = result.mppMethods;
+  }
 
   return output;
 }

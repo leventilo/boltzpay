@@ -43,7 +43,7 @@ export function registerDiscoverCommand(program: Command): void {
               });
               process.stdout.write(`${output}\n`);
             } else {
-              process.stdout.write("No matching endpoints found.\n");
+              process.stdout.write(formatDiscoverResult([]));
             }
             return;
           }
