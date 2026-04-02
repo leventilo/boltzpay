@@ -8,7 +8,116 @@ code, pre code, .code-block code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* Lime accents on inline code (dark mode) */
+/* ── Background layers (dark mode) ── */
+
+/* Violet radial glow — top center */
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -5%, rgba(201, 160, 212, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.03) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Grain texture overlay */
+[data-theme="dark"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Dashed grid rails */
+[data-theme="dark"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent,
+      transparent calc(25% - 0.5px),
+      rgba(26, 26, 23, 0.4) calc(25% - 0.5px),
+      rgba(26, 26, 23, 0.4) 25%
+    );
+  mask-image: repeating-linear-gradient(
+    to bottom,
+    black 0px, black 2px,
+    transparent 2px, transparent 14px
+  );
+  -webkit-mask-image: repeating-linear-gradient(
+    to bottom,
+    black 0px, black 2px,
+    transparent 2px, transparent 14px
+  );
+}
+
+/* ── Background layers (light mode) ── */
+
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -5%, rgba(124, 58, 237, 0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.025) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+[data-theme="light"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.012;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+[data-theme="light"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent,
+      transparent calc(25% - 0.5px),
+      rgba(216, 216, 210, 0.35) calc(25% - 0.5px),
+      rgba(216, 216, 210, 0.35) 25%
+    );
+  mask-image: repeating-linear-gradient(
+    to bottom,
+    black 0px, black 2px,
+    transparent 2px, transparent 14px
+  );
+  -webkit-mask-image: repeating-linear-gradient(
+    to bottom,
+    black 0px, black 2px,
+    transparent 2px, transparent 14px
+  );
+}
+
+/* prefers-color-scheme fallbacks */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -5%, rgba(201, 160, 212, 0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.03) 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+/* ── Accents ── */
+
+/* Lime on inline code (dark) */
 [data-theme="dark"] code:not(pre code) {
   color: #a3e635;
 }
@@ -17,12 +126,12 @@ code, pre code, .code-block code {
   border-color: #1a1a17;
 }
 
-/* Lime accent on announcement bar links */
+/* Lime on announcement links */
 [data-theme="dark"] [class*="announcement"] a {
   color: #a3e635;
 }
 
-/* Warmer borders to match landing #1a1a17 */
+/* Warmer navbar border */
 [data-theme="dark"] #navbar {
   border-color: #1a1a17;
 }
@@ -31,11 +140,9 @@ code, pre code, .code-block code {
   code:not(pre code) {
     color: #a3e635;
   }
-
   pre {
     border-color: #1a1a17;
   }
-
   #navbar {
     border-color: #1a1a17;
   }
