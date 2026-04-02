@@ -17,10 +17,13 @@
     "dark": "#7c3aed"
   },
   "background": {
-    "decoration": "windows",
     "color": {
       "dark": "#050504",
       "light": "#fafaf8"
+    },
+    "image": {
+      "dark": "/images/bg-dark.svg",
+      "light": "/images/bg-light.svg"
     }
   },
   "font": {
