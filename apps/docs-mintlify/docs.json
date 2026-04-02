@@ -14,14 +14,14 @@
   "colors": {
     "primary": "#c9a0d4",
     "light": "#F3C1FF",
-    "dark": "#7c3aed",
-    "background": {
+    "dark": "#7c3aed"
+  },
+  "background": {
+    "decoration": "grid",
+    "color": {
       "dark": "#050504",
       "light": "#fafaf8"
     }
-  },
-  "background": {
-    "decoration": "grid"
   },
   "font": {
     "headings": {
