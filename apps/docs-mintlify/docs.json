@@ -12,9 +12,16 @@
     "default": "dark"
   },
   "colors": {
-    "primary": "#a3e635",
-    "light": "#d9f99d",
-    "dark": "#84cc16"
+    "primary": "#c9a0d4",
+    "light": "#F3C1FF",
+    "dark": "#7c3aed",
+    "background": {
+      "dark": "#050504",
+      "light": "#fafaf8"
+    }
+  },
+  "background": {
+    "decoration": "grid"
   },
   "font": {
     "headings": {
@@ -24,13 +31,22 @@
     "body": {
       "family": "Space Grotesk",
       "weight": 400
+    },
+    "code": {
+      "family": "JetBrains Mono",
+      "weight": 400
     }
   },
   "icons": {
     "library": "lucide"
   },
-  "codeblocks": {
-    "theme": "dracula"
+  "styling": {
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "vitesse-dark"
+      }
+    }
   },
   "contextual": {
     "options": ["copy", "view", "chatgpt", "claude"]
@@ -40,9 +56,9 @@
   },
   "metadata": {
     "og:site_name": "BoltzPay",
-    "og:image": "/logo/dark.svg",
-    "og:description": "Open-source SDK that gives AI agents a fetch() that pays.",
-    "twitter:card": "summary"
+    "og:image": "/logo/og.png",
+    "og:description": "Open-source SDK that gives AI agents a fetch() that pays. x402, L402, MPP — auto-detected.",
+    "twitter:card": "summary_large_image"
   },
   "redirects": [
     {
@@ -153,7 +169,8 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/leventilo/boltzpay"
+      "github": "https://github.com/leventilo/boltzpay",
+      "x": "https://x.com/boltzpay"
     },
     "links": [
       {
@@ -169,7 +186,7 @@
           },
           {
             "label": "Registry",
-            "href": "/reference/registry"
+            "href": "https://status.boltzpay.ai"
           }
         ]
       },

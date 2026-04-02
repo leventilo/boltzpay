@@ -1,3 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 24">
-  <text x="0" y="18" font-family="monospace" font-size="16" font-weight="500" fill="#65a30d">BoltzPay</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 24">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600&amp;display=swap');
+  </style>
+  <text x="0" y="18" font-family="'Space Grotesk', system-ui, sans-serif" font-size="17" font-weight="600" letter-spacing="-0.02em" fill="#1a1a17">BoltzPay</text>
 </svg>
