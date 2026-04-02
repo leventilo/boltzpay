@@ -17,7 +17,7 @@
     "dark": "#7c3aed"
   },
   "background": {
-    "decoration": "grid",
+    "decoration": "windows",
     "color": {
       "dark": "#050504",
       "light": "#fafaf8"
