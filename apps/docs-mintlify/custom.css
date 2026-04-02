@@ -10,13 +10,19 @@ code, pre code {
 
 /* ── Dark mode backgrounds ── */
 
+/*
+ * Mintlify renders a <span id="background-color"> with position:fixed inset:0
+ * that covers the entire viewport with an opaque background-color.
+ * Targeting body alone is invisible because this span paints on top of the
+ * canvas background. We must apply the gradient directly on this element.
+ */
+
 /* Violet radial glow — top center + lime accent top right */
-.dark body {
+.dark #background-color {
+  background-color: #050504 !important;
   background-image:
     radial-gradient(ellipse 90% 60% at 50% -10%, rgba(201, 160, 212, 0.22) 0%, rgba(124, 58, 237, 0.08) 40%, transparent 70%),
     radial-gradient(ellipse 50% 40% at 85% 0%, rgba(163, 230, 53, 0.09) 0%, transparent 55%) !important;
-  background-color: #050504 !important;
-  background-attachment: fixed !important;
 }
 
 /* Grain texture */
@@ -61,12 +67,11 @@ code, pre code {
 
 /* ── Light mode backgrounds ── */
 
-html:not(.dark) body {
+html:not(.dark) #background-color {
+  background-color: #fafaf8 !important;
   background-image:
     radial-gradient(ellipse 90% 60% at 50% -10%, rgba(124, 58, 237, 0.12) 0%, rgba(201, 160, 212, 0.05) 40%, transparent 70%),
     radial-gradient(ellipse 50% 40% at 85% 0%, rgba(163, 230, 53, 0.06) 0%, transparent 55%) !important;
-  background-color: #fafaf8 !important;
-  background-attachment: fixed !important;
 }
 
 html:not(.dark) body::before {
