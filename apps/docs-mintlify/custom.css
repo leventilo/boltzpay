@@ -4,40 +4,41 @@
 /* JetBrains Mono for code (matches landing terminal) */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
 
-code, pre code, .code-block code {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+code, pre code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
 }
 
-/* ── Background layers (dark mode) ── */
+/* ── Dark mode backgrounds ── */
 
-/* Violet radial glow — top center */
-[data-theme="dark"] body {
+/* Violet radial glow — top center + lime accent top right */
+.dark body {
   background-image:
     radial-gradient(ellipse 80% 50% at 50% -5%, rgba(201, 160, 212, 0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.03) 0%, transparent 60%);
-  background-attachment: fixed;
+    radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.03) 0%, transparent 60%) !important;
+  background-color: #050504 !important;
+  background-attachment: fixed !important;
 }
 
-/* Grain texture overlay */
-[data-theme="dark"] body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+/* Grain texture */
+.dark body::before {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  opacity: 0.025 !important;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") !important;
+  background-repeat: repeat !important;
+  background-size: 256px 256px !important;
 }
 
-/* Dashed grid rails */
-[data-theme="dark"] body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9998;
+/* Dashed vertical rails */
+.dark body::after {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 9998 !important;
   background-image:
     repeating-linear-gradient(
       to right,
@@ -45,46 +46,47 @@ code, pre code, .code-block code {
       transparent calc(25% - 0.5px),
       rgba(26, 26, 23, 0.4) calc(25% - 0.5px),
       rgba(26, 26, 23, 0.4) 25%
-    );
-  mask-image: repeating-linear-gradient(
-    to bottom,
-    black 0px, black 2px,
-    transparent 2px, transparent 14px
-  );
+    ) !important;
   -webkit-mask-image: repeating-linear-gradient(
     to bottom,
     black 0px, black 2px,
     transparent 2px, transparent 14px
   );
+  mask-image: repeating-linear-gradient(
+    to bottom,
+    black 0px, black 2px,
+    transparent 2px, transparent 14px
+  );
 }
 
-/* ── Background layers (light mode) ── */
+/* ── Light mode backgrounds ── */
 
-[data-theme="light"] body {
+html:not(.dark) body {
   background-image:
     radial-gradient(ellipse 80% 50% at 50% -5%, rgba(124, 58, 237, 0.04) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.025) 0%, transparent 60%);
-  background-attachment: fixed;
+    radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.025) 0%, transparent 60%) !important;
+  background-color: #fafaf8 !important;
+  background-attachment: fixed !important;
 }
 
-[data-theme="light"] body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.012;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+html:not(.dark) body::before {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  opacity: 0.012 !important;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") !important;
+  background-repeat: repeat !important;
+  background-size: 256px 256px !important;
 }
 
-[data-theme="light"] body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9998;
+html:not(.dark) body::after {
+  content: "" !important;
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 9998 !important;
   background-image:
     repeating-linear-gradient(
       to right,
@@ -92,58 +94,36 @@ code, pre code, .code-block code {
       transparent calc(25% - 0.5px),
       rgba(216, 216, 210, 0.35) calc(25% - 0.5px),
       rgba(216, 216, 210, 0.35) 25%
-    );
-  mask-image: repeating-linear-gradient(
-    to bottom,
-    black 0px, black 2px,
-    transparent 2px, transparent 14px
-  );
+    ) !important;
   -webkit-mask-image: repeating-linear-gradient(
     to bottom,
     black 0px, black 2px,
     transparent 2px, transparent 14px
   );
-}
-
-/* prefers-color-scheme fallbacks */
-@media (prefers-color-scheme: dark) {
-  body {
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -5%, rgba(201, 160, 212, 0.07) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 35% at 80% 0%, rgba(163, 230, 53, 0.03) 0%, transparent 60%);
-    background-attachment: fixed;
-  }
+  mask-image: repeating-linear-gradient(
+    to bottom,
+    black 0px, black 2px,
+    transparent 2px, transparent 14px
+  );
 }
 
 /* ── Accents ── */
 
 /* Lime on inline code (dark) */
-[data-theme="dark"] code:not(pre code) {
-  color: #a3e635;
+.dark code:not(pre code) {
+  color: #a3e635 !important;
 }
 
-[data-theme="dark"] pre {
-  border-color: #1a1a17;
+.dark pre {
+  border-color: #1a1a17 !important;
 }
 
-/* Lime on announcement links */
-[data-theme="dark"] [class*="announcement"] a {
-  color: #a3e635;
+/* Lime on announcement bar links */
+.dark [class*="announcement"] a {
+  color: #a3e635 !important;
 }
 
 /* Warmer navbar border */
-[data-theme="dark"] #navbar {
-  border-color: #1a1a17;
-}
-
-@media (prefers-color-scheme: dark) {
-  code:not(pre code) {
-    color: #a3e635;
-  }
-  pre {
-    border-color: #1a1a17;
-  }
-  #navbar {
-    border-color: #1a1a17;
-  }
+.dark #navbar {
+  border-color: #1a1a17 !important;
 }
