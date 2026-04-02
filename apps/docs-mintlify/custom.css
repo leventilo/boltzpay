@@ -1,6 +1,13 @@
 /* BoltzPay docs — aligned with boltzpay.ai landing DA */
 /* Violet dominant, lime touches */
 
+/* JetBrains Mono for code (matches landing terminal) */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+
+code, pre code, .code-block code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 /* Grain texture overlay (same fractal noise as landing) */
 body::before {
   content: "";
@@ -24,7 +31,7 @@ body::before {
   opacity: 0.012;
 }
 
-/* Lime accents on code blocks and inline code */
+/* Lime accents on inline code (dark mode) */
 [data-theme="dark"] code:not(pre code) {
   color: #a3e635;
 }
@@ -33,7 +40,7 @@ body::before {
   border-color: #1a1a17;
 }
 
-/* Lime accent on announcement bar */
+/* Lime accent on announcement bar links */
 [data-theme="dark"] [class*="announcement"] a {
   color: #a3e635;
 }

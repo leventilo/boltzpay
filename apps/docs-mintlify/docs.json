@@ -31,10 +31,6 @@
     "body": {
       "family": "Space Grotesk",
       "weight": 400
-    },
-    "code": {
-      "family": "JetBrains Mono",
-      "weight": 400
     }
   },
   "icons": {
