@@ -1543,6 +1543,7 @@ export class BoltzPay {
       url,
       router: this.router,
       detectTimeoutMs: this.config.timeouts?.detect,
+      registryUrl: this.config.registryUrl ?? DEFAULT_REGISTRY_URL,
     });
   }
 

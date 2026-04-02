@@ -13,6 +13,8 @@ import {
   parseMppChallenges,
   usdcAtomicToCents,
 } from "@boltzpay/protocols";
+import { fetchRegistryEndpoints } from "../registry/registry-client";
+import type { RegistryEndpoint } from "../registry/registry-types";
 
 export type EndpointHealth = "healthy" | "degraded" | "dead";
 
@@ -60,6 +62,16 @@ export interface MppMethodDetail {
   readonly chainId: number | undefined;
 }
 
+export interface RegistryMatch {
+  readonly protocol: string;
+  readonly score: number;
+  readonly health: string;
+  readonly name: string;
+  readonly category: string;
+}
+
+export type DiagnoseSource = "probe" | "registry";
+
 export interface DiagnoseResult {
   readonly url: string;
   readonly classification: EndpointClassification;
@@ -81,6 +93,8 @@ export interface DiagnoseResult {
   readonly inputHints?: EndpointInputHints;
   readonly timing?: DiagnoseTiming;
   readonly mppMethods?: readonly MppMethodDetail[];
+  readonly source: DiagnoseSource;
+  readonly registryMatch?: RegistryMatch;
 }
 
 const TRUNCATE_THRESHOLD = 13;
@@ -149,6 +163,7 @@ export interface DiagnoseInput {
   readonly router: ProtocolRouter;
   readonly detectTimeoutMs?: number;
   readonly signal?: AbortSignal;
+  readonly registryUrl?: string;
 }
 
 const DEFAULT_DETECT_TIMEOUT_MS = 10_000;
@@ -267,6 +282,20 @@ async function fetchFollowingRedirects(
 export async function diagnoseEndpoint(
   input: DiagnoseInput,
 ): Promise<DiagnoseResult> {
+  const probeResult = await probeEndpoint(input);
+
+  const isEnrichable =
+    probeResult.classification === "ambiguous" ||
+    probeResult.classification === "free_confirmed";
+
+  if (!isEnrichable || !input.registryUrl) {
+    return probeResult;
+  }
+
+  return enrichWithRegistry(probeResult, input.url, input.registryUrl);
+}
+
+async function probeEndpoint(input: DiagnoseInput): Promise<DiagnoseResult> {
   const { url, router, detectTimeoutMs, signal } = input;
   const totalBudget = detectTimeoutMs ?? DEFAULT_DETECT_TIMEOUT_MS;
   const totalStart = Date.now();
@@ -405,6 +434,7 @@ function buildDeadResult(
     health: "dead",
     latencyMs,
     postOnly: false,
+    source: "probe",
   };
 }
 
@@ -476,6 +506,7 @@ function buildNonPaidResult(
     health: classification === "free_confirmed" ? "healthy" : "degraded",
     latencyMs,
     postOnly: false,
+    source: "probe",
   };
 }
 
@@ -531,6 +562,7 @@ async function buildPaidResult(
       latencyMs,
       postOnly,
       timing: { detectMs, quoteMs },
+      source: "probe",
     };
   }
 
@@ -563,6 +595,7 @@ async function buildPaidResult(
       ? { mppMethods: quoteMppMethodsToDetails(quote.allMethods) }
       : {}),
     timing: { detectMs, quoteMs },
+    source: "probe",
   };
 }
 
@@ -607,6 +640,7 @@ function buildMppDiagnoseResult(
     postOnly,
     mppMethods: toMppMethodDetails(mpp.all),
     timing,
+    source: "probe",
   };
 }
 
@@ -665,4 +699,69 @@ function deriveMppNetwork(challenge: MppChallenge): string | undefined {
     return `eip155:${challenge.request.chainId}`;
   }
   return undefined;
+}
+
+const REGISTRY_LOOKUP_TIMEOUT_MS = 3_000;
+const REGISTRY_SEARCH_LIMIT = 20;
+
+function extractHostname(url: string): string {
+  return new URL(url).hostname;
+}
+
+function findMatchingEndpoint(
+  endpoints: readonly RegistryEndpoint[],
+  targetUrl: string,
+): RegistryEndpoint | undefined {
+  const exactMatch = endpoints.find((e) => e.url === targetUrl);
+  if (exactMatch) return exactMatch;
+
+  const targetHostname = extractHostname(targetUrl);
+  return endpoints.find(
+    (e) => e.isPaid && extractHostname(e.url) === targetHostname,
+  );
+}
+
+function toRegistryMatch(endpoint: RegistryEndpoint): RegistryMatch {
+  return {
+    protocol: endpoint.protocol ?? "unknown",
+    score: endpoint.score,
+    health: endpoint.health,
+    name: endpoint.name,
+    category: endpoint.category,
+  };
+}
+
+async function enrichWithRegistry(
+  probeResult: DiagnoseResult,
+  targetUrl: string,
+  registryUrl: string,
+): Promise<DiagnoseResult> {
+  try {
+    const hostname = extractHostname(targetUrl);
+    const response = await fetchRegistryEndpoints(registryUrl, {
+      query: hostname,
+      limit: REGISTRY_SEARCH_LIMIT,
+      signal: AbortSignal.timeout(REGISTRY_LOOKUP_TIMEOUT_MS),
+    });
+
+    const match = findMatchingEndpoint(response.data, targetUrl);
+    if (!match || !match.isPaid) {
+      return probeResult;
+    }
+
+    const registryMatch = toRegistryMatch(match);
+
+    return {
+      ...probeResult,
+      classification: "paid",
+      isPaid: true,
+      protocol: match.protocol ?? probeResult.protocol,
+      health: probeResult.health === "dead" ? "dead" : "healthy",
+      source: "registry",
+      registryMatch,
+    };
+  } catch {
+    // Intent: registry is optional — failure must not affect probe result
+    return probeResult;
+  }
 }

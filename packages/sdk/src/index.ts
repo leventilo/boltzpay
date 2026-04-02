@@ -21,11 +21,13 @@ export type {
   DeathReason,
   DiagnoseInput,
   DiagnoseResult,
+  DiagnoseSource,
   DiagnoseTiming,
   EndpointClassification,
   EndpointHealth,
   FormatVersion,
   MppMethodDetail,
+  RegistryMatch,
 } from "./diagnostics/diagnose";
 export { diagnoseEndpoint } from "./diagnostics/diagnose";
 export type {
