@@ -81,7 +81,7 @@
   },
   "devDependencies": {
     "@boltzpay/config": "workspace:*",
-    "mppx": "0.5.1",
+    "mppx": "0.5.7",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "viem": "^2.47.5",
