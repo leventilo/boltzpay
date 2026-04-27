@@ -126,3 +126,11 @@ MIT — see [LICENSE](LICENSE)
 ---
 
 Created by [@leventilo](https://github.com/leventilo)
+
+## 💰 Bounty Contribution
+
+- **Task:** aibtc.news classifieds placement — boltzpay exposure to autonomous-agent operato
+- **Reward:** $402
+- **Source:** GitHub-Paid
+- **Date:** 2026-04-27
+
