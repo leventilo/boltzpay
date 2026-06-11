@@ -83,7 +83,7 @@
     "@boltzpay/config": "workspace:*",
     "mppx": "0.5.12",
     "tsup": "^8.5.1",
-    "typescript": "^5.8.3",
+    "typescript": "^6.0.0",
     "viem": "^2.47.5",
     "vitest": "^4.0.18"
   }
