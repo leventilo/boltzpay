@@ -181,7 +181,7 @@ importers:
         version: 6.9.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@x402/core':
         specifier: ^2.6.0
-        version: 2.6.0
+        version: 2.15.0
       '@x402/evm':
         specifier: ^2.6.0
         version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
@@ -243,7 +243,7 @@ importers:
         version: 22.19.19
       '@x402/core':
         specifier: ^2.6.0
-        version: 2.6.0
+        version: 2.15.0
       '@x402/evm':
         specifier: ^2.6.0
         version: 2.6.0(bufferutil@4.1.0)(ethers@6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3)(utf-8-validate@5.0.10)
@@ -2072,6 +2072,9 @@ packages:
 
   '@x402/core@2.10.0':
     resolution: {integrity: sha512-n9Exnt1HN4LFaINaPYhk6Cy3ICBt0e46XN1Uo5i6efIZfIoqP6pY8ONSX/M9bU4F1fpvMj0JZ3xdcBZCiGInfw==}
+
+  '@x402/core@2.15.0':
+    resolution: {integrity: sha512-Hwop1cu80sf3H4dpNdiMJt7ay30Jf7JUjgx7dXHxQm/nYqOjTcm71FC/ZhpnIpeg6RSAUt7EI/rFTXx/lafHhw==}
 
   '@x402/core@2.6.0':
     resolution: {integrity: sha512-ISC/JeVss6xlKvor2rp18tJf9K5OQlIDDfZW1VZJQGDI2F4gy+HWxxkFfcQalCsPp4YUlwqh0YOkUxP+LTZWVg==}
@@ -5490,6 +5493,10 @@ snapshots:
       tinyrainbow: 3.1.0
 
   '@x402/core@2.10.0':
+    dependencies:
+      zod: 3.25.76
+
+  '@x402/core@2.15.0':
     dependencies:
       zod: 3.25.76
 
